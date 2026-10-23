@@ -1,0 +1,17 @@
+# Development scripts
+
+`android-env.ps1` activates the downloaded project-local JDK, Gradle, and Android command-line tools in the current PowerShell process. It uses the existing Android SDK without changing machine-wide environment variables.
+
+After tool downloads/extraction have completed, run from the project root:
+
+```powershell
+. ./scripts/android-env.ps1
+java -version
+gradle --version
+android --no-metrics --version
+adb devices -l
+```
+
+Project-local binary tools live under ignored `.tools/`. Check [the environment inventory](../docs/development/environment.md) for installed versions and verification status. There is no Gradle application project yet; activating tools does not build an APK.
+
+The environment exposes Android CLI from project-local command-line tools 23 and the Java SDK/AVD Manager from tools 22 installed in the existing SDK's standard `cmdline-tools/22.0` directory. The tools-23 `sdkmanager` wrapper is superseded on PATH by the Java manager because the new CLI stalled while resolving the TV image. Use `sdkmanager --list_installed` for SDK inventory or `android --no-metrics --sdk="$env:ANDROID_HOME" sdk list` for the new CLI.

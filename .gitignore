@@ -1,0 +1,32 @@
+# Android / Gradle generated files
+.gradle/
+.kotlin/
+**/build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local editor and operating-system files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local secrets and signing material
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+
+# Local development workspaces
+.worktrees/
+.superpowers/
+.tools/
+
+# Python verification tooling
+__pycache__/
+*.py[cod]
