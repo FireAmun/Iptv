@@ -5,6 +5,7 @@
 - Follow the user's latest instructions and recorded decisions; later explicit authorization supersedes older planning-stage status. Do not repeat already-resolved questions.
 - Update `progress.md` after meaningful work and before handing off: current phase, delivered artifacts, verification evidence, open decisions/blockers, and next task.
 - Keep secrets and private provider/source data out of project documentation, logs, and telemetry.
+- Local emulator/ADB testing is suspended after the owner's firewall/restart report; follow the environment status in `progress.md` and use CI emulators for the current milestone. Do not restart local device tools automatically.
 
 ## GitHub delivery workflow
 

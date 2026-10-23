@@ -11,9 +11,7 @@ import androidx.core.os.LocaleListCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,9 +20,6 @@ import org.junit.runner.RunWith
 class WelcomeTest {
     @get:Rule val compose = createEmptyComposeRule()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
-
-    @Before fun selectEnglish() = setLocale("en")
-    @After fun restoreSystemLanguage() = setLocale("")
 
     @Test fun mobileLanguageSelectionUpdatesDirectionAndSurvivesRecreation() {
         exerciseLanguageSwitch(MobileActivity::class.java, "مكتبتك على شاشتك", tv = false)
@@ -38,32 +33,40 @@ class WelcomeTest {
     private fun exerciseLanguageSwitch(activity: Class<out Activity>, arabicTitle: String, tv: Boolean) {
         val intent = Intent(instrumentation.targetContext, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         ActivityScenario.launch<Activity>(intent).use { scenario ->
-            val switch = compose.onNodeWithTag("language_switch")
-            if (tv) {
-                switch.assertIsFocused().performKeyInput {
-                    keyDown(Key.DirectionCenter)
-                    keyUp(Key.DirectionCenter)
+            try {
+                // AppCompat needs a live delegate to access LocaleManager on API 33+.
+                scenario.onActivity { setLocale("en") }
+                compose.waitUntil(timeoutMillis = 10_000) {
+                    compose.onAllNodesWithText("العربية").fetchSemanticsNodes().isNotEmpty()
                 }
-            } else {
-                switch.performClick()
+                val switch = compose.onNodeWithTag("language_switch")
+                if (tv) {
+                    switch.assertIsFocused().performKeyInput {
+                        keyDown(Key.DirectionCenter)
+                        keyUp(Key.DirectionCenter)
+                    }
+                } else {
+                    switch.performClick()
+                }
+                compose.waitUntil(timeoutMillis = 10_000) {
+                    compose.onAllNodesWithText(arabicTitle).fetchSemanticsNodes().isNotEmpty()
+                }
+                compose.onNodeWithText(arabicTitle).assertIsDisplayed()
+                scenario.onActivity {
+                    assertEquals(View.LAYOUT_DIRECTION_RTL, it.resources.configuration.layoutDirection)
+                }
+                scenario.recreate()
+                compose.onNodeWithText(arabicTitle).assertIsDisplayed()
+                compose.onNodeWithTag("language_switch").assertTextEquals("English")
+                if (tv) compose.onNodeWithTag("language_switch").assertIsFocused()
+            } finally {
+                scenario.onActivity { setLocale("") }
+                compose.waitForIdle()
             }
-            compose.waitUntil(timeoutMillis = 10_000) {
-                compose.onAllNodesWithText(arabicTitle).fetchSemanticsNodes().isNotEmpty()
-            }
-            compose.onNodeWithText(arabicTitle).assertIsDisplayed()
-            scenario.onActivity {
-                assertEquals(View.LAYOUT_DIRECTION_RTL, it.resources.configuration.layoutDirection)
-            }
-            scenario.recreate()
-            compose.onNodeWithText(arabicTitle).assertIsDisplayed()
-            compose.onNodeWithTag("language_switch").assertTextEquals("English")
-            if (tv) compose.onNodeWithTag("language_switch").assertIsFocused()
         }
     }
 
     private fun setLocale(tags: String) {
-        instrumentation.runOnMainSync {
-            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tags))
-        }
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tags))
     }
 }
