@@ -33,7 +33,7 @@ The owner reported a prior laptop restart and cancelled a Windows Firewall netwo
 
 The TV AVD was recreated with the installed TV API 36 image and reached ADB online before being stopped. This is not a completed UI or playback test. SDK Manager's versioned local copy also contained an unreadable JAR; the intact downloaded tools were used for AVD recreation. Local SDK/tool integrity and reboot investigation remain separate environment follow-up work.
 
-CI runs the device tests on disposable Linux runners: API 28 phone and API 36 Android TV. No local firewall permission or Windows virtualization changes are needed for that path. See [the workflow](../../.github/workflows/ci.yml) and [progress](../../progress.md) for actual results.
+CI runs the device tests on disposable Linux runners: API 28 phone and API 36 Android TV. The first TV attempt exited before boot because its default userdata partition needed more disk than the runner had available. CI now sets a 2 GB data partition and removes unused preinstalled .NET/NDK directories on the disposable TV runner. No local firewall permission or Windows virtualization changes are needed for that path. See [the workflow](../../.github/workflows/ci.yml) and [progress](../../progress.md) for actual results.
 
 ## Dependency basis
 
