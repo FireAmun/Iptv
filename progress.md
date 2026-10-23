@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 24 October 2026 (Asia/Riyadh)  
-Overall status: Directory skeleton and local Android tools delivered; GitHub CI and the PR delivery workflow are configured locally. Application build configuration and code have not started.  
-Current phase: P1 — CI bootstrap and first-build readiness.  
-Next task: Verify and merge the bootstrap CI PR, then write the scoped first-build plan and configure the minimal Android build with early TV coverage.
+Overall status: Directory skeleton, local Android tools, and GitHub CI delivered; bootstrap CI passed on GitHub. Application build configuration and code have not started.  
+Current phase: P1 — first-build readiness.  
+Next task: Complete any remaining bootstrap PR delivery steps, then write the scoped first-build plan and configure the minimal Android build with early TV coverage.
 
 ## 1. Start here in a new chat
 
@@ -49,7 +49,7 @@ The architecture is a delivered draft, not evidence of implemented or tested fun
 | A07 | Project directory skeleton and structure guide | [README.md](README.md), `app/`, `core/`, `ui/`, `gradle/`, `scripts/`, `docs/` | Delivered; module responsibility READMEs and source/resource/test placeholders. These are not configured Gradle modules yet. |
 | A08 | Local toolchain inventory | [environment.md](docs/development/environment.md) | Delivered; JDK/SDK/caches inspected, ADB queried; no build or emulator run. |
 | A09 | Tool downloads and environment activation | [android-env.ps1](scripts/android-env.ps1), [environment inventory](docs/development/environment.md), ignored local binaries | Delivered. Studio/JBR, Gradle, command-line tools, SDK Build Tools/platform-tools/emulator, and TV image installed; versions and acceleration checked. TV AVD definition still needs validation/boot. |
-| A10 | GitHub CI and standing PR workflow | [ci.yml](.github/workflows/ci.yml), [delivery guide](docs/development/github-workflow.md), [checker tests](tests/test_repository_checks.py) | Implemented locally: seven tests, local-link check, actionlint passed. Remote CI/PR verification pending. Automatic remote branch deletion enabled. |
+| A10 | GitHub CI and standing PR workflow | [ci.yml](.github/workflows/ci.yml), [delivery guide](docs/development/github-workflow.md), [bootstrap PR #1](https://github.com/FireAmun/Iptv/pull/1) | Verified: seven local tests, repository/actionlint/PowerShell checks passed; GitHub push and PR CI passed at `e80af5a`. [PR run](https://github.com/FireAmun/Iptv/actions/runs/40038721667). PR link is the live source of delivery/merge state. Automatic remote branch deletion enabled. |
 
 ## 4. Status vocabulary
 
@@ -122,14 +122,15 @@ No blocker prevents the first implementation plan. No Android application build 
 | 24 October 2026 | Development environment | JDK executable reported 21.0.1; SDK/platform/build-tool and Gradle-cache directories inspected; `adb devices -l` returned no devices; `git rev-parse --show-toplevel` confirmed the workspace is not a repository. See A08. |
 | 24 October 2026 | Directory skeleton | PowerShell checks confirmed 16 key directories, 17 UTF-8 Markdown documents, and 13 resolving local links. Twenty source/resource/test leaf directories have `.gitkeep` files. No Gradle, manifest, or Kotlin application files present. |
 | 24 October 2026 | Installed toolchain | Download checksums verified for Studio, Gradle, tools 23 and Java SDK Manager 22; Java/Gradle/CLI/ADB/emulator versions checked. `sdkmanager --list_installed` includes API 36, Build Tools 36.0.0, platform-tools 37.0.1, emulator 37.2.12, and TV API 36 x86_64 revision 4. Emulator acceleration check exited 0 (AEHD 2.0). |
-| 24 October 2026 | Local bootstrap checks | `python -m unittest discover -s tests -v` passed seven tests after three expected initial red-test failures; `python scripts/check_repository.py` and actionlint 1.7.12 passed. Remote Actions verification pending. |
+| 24 October 2026 | Local bootstrap checks | `python -m unittest discover -s tests -v` passed seven tests after three expected initial red-test failures; `python scripts/check_repository.py`, PowerShell parser checks, `git diff --cached --check`, and actionlint 1.7.12 passed. Independent reviewer found no actionable issues. Headless review CLI rejected its configured model, so an available reviewer agent provided the independent review. |
+| 24 October 2026 | GitHub bootstrap CI | Push run [40038710374](https://github.com/FireAmun/Iptv/actions/runs/40038710374) and PR run [40038721667](https://github.com/FireAmun/Iptv/actions/runs/40038721667) completed successfully at head `e80af5a957183ea59fbc8319278ab46f1a82e043`. Repository checks and final CI gate passed; Android job explicitly skipped because no Gradle app exists. Further pushes require their own latest-head checks before merge. |
 | 24 October 2026 | Application build, unit/instrumentation tests, physical devices, Play Billing | Not run. Directory skeleton only; no buildable Gradle project exists. |
 
 For future checks, record the exact meaningful command or report path, outcome, relevant tool/build version, and physical device when applicable. Never replace a failure with an assumed pass or claim completion from another agent's summary without checking evidence.
 
 ## 9. Next-session handoff
 
-**Task:** Finish the bootstrap PR through CI/merge/delete, then prepare the first-build/source-to-playback implementation plan and minimal Android project.
+**Task:** Check the live status of [bootstrap PR #1](https://github.com/FireAmun/Iptv/pull/1); finish CI/merge/delete only if still outstanding, then prepare the first-build/source-to-playback plan and minimal Android project.
 
 **Inputs:** A01, A02, A07–A10 and the latest GitHub PR/CI state. Preserve the existing layout, local-first operation, Arabic/English, early TV coverage, managed monitoring, and no external idea discussions.
 
@@ -149,6 +150,7 @@ For future checks, record the exact meaningful command or report path, outcome, 
 | 24 October 2026 | User prioritized directory setup first. Created module/source/test layout, module READMEs, root guide, ignore/line-ending rules, and toolchain inventory. No application code or build configuration added. | First-build implementation plan and compatible Gradle setup. |
 | 24 October 2026 | Downloaded/verified missing Android tools; SDK TV image installed. New CLI TV-image resolution and legacy SDK layout needed workarounds; TV AVD boot remains unverified. | First app build and TV AVD validation. |
 | 24 October 2026 | User supplied GitHub remote and authorized branch/PR/CI/merge/delete workflow. Initialized Git/empty base, connected remote, added CI and checker tests, enabled merged-branch deletion. Branch protection rejected by current plan. | Review, run remote CI, merge bootstrap PR, delete work branch. |
+| 24 October 2026 | Independent review and local checks passed; opened [PR #1](https://github.com/FireAmun/Iptv/pull/1); both push and PR CI passed for its first revision. Delivery status is available at the live PR link. | Recheck latest-head CI after the handoff update, merge/delete, then first Android build plan. |
 
 ## 11. Maintenance rules
 

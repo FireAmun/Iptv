@@ -182,7 +182,7 @@ Required checks:
 
 After design review and development authorization, split implementation into independently reviewable plans: (1) source import/playback and compatibility proof, (2) local catalogue/search/EPG and user state, (3) mobile/TV navigation and parental rules, (4) pairing/phone-assisted setup, and (5) selected billing/monitoring/release work. The first proof should exercise a minimal real TV interaction early; do not postpone TV feasibility until after a phone-only build.
 
-No application, dependency installation, external service, account, or publication is created by this specification. The workspace currently contains planning documents and is not a Git repository, so there is no documentation commit to report.
+This specification itself created no application, dependency installation, external service, account, or publication. At authoring time the workspace contained planning documents and was not a Git repository. Subsequent directory/tool/GitHub setup is tracked in [progress.md](../../../progress.md); use that tracker for the current state.
 
 ## 11. Primary references
 
