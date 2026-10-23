@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 24 October 2026 (Asia/Riyadh)  
-Overall status: First Android app shell builds locally; language/TV behavioral tests are being verified on GitHub. Bootstrap PR #1 merged and its branch was removed.  
-Current phase: P2 — first Android build, in progress; playback remains next.  
-Next task: Verify language/RTL/recreation and D-pad tests on GitHub phone/TV emulators, complete review/CI/PR delivery, then start M3U-to-playback.
+Overall status: First Android app shell and debug APK implemented; local build/lint verified and independent review completed. [PR #2 and its latest checks](https://github.com/FireAmun/Iptv/pull/2) are the live source of runtime and merge status. Bootstrap PR #1 is merged.  
+Current phase: P2 — app-shell implementation delivered; source import and playback are next.  
+Next development task: Local M3U selection/import and Media3 playback on mobile and TV. Check PR #2 and finish its CI/merge/delete delivery only if still outstanding.
 
 ## 1. Start here in a new chat
 
@@ -45,11 +45,12 @@ The architecture is a delivered draft, not evidence of implemented or tested fun
 | A03 | Cross-chat progress tracker | [progress.md](progress.md) | Delivered; required sections, P0–P9, UTF-8 readback, and local links checked. |
 | A04 | Automatic workspace handoff instructions | [AGENTS.md](AGENTS.md) | Delivered; directs future project agents to read/update this tracker; linked tracker exists. |
 | A05 | First Android build implementation plan | [First-build plan](docs/superpowers/plans/2026-10-24-first-android-build.md) | Delivered for the app-shell slice; M3U/playback follows separately. |
-| A06 | Android application / build / executable proof | [Build guide](docs/development/first-build.md), `:app`, `:ui:mobile`, `:ui:tv` | Debug app/test APKs and lint passed locally on Java 21. Locale behavior is in the red/green verification stage; no playback exists. |
+| A06 | Android app shell and debug APK | [Build guide](docs/development/first-build.md), `:app`, `:ui:mobile`, `:ui:tv`, [PR #2](https://github.com/FireAmun/Iptv/pull/2) | Implemented: phone/TV launch, persistent English/Arabic selection, RTL and remote focus. Debug app/test APKs and lint passed locally on Java 21. Device runtime results are in PR #2's latest checks; no playback exists. |
 | A07 | Project directory skeleton and structure guide | [README.md](README.md), `app/`, `core/`, `ui/`, `gradle/`, `scripts/`, `docs/` | Delivered; module responsibility READMEs and source/resource/test placeholders. Only app/mobile/TV are configured; core modules remain reserved. |
 | A08 | Local toolchain inventory | [environment.md](docs/development/environment.md) | Updated with Java 21 build evidence and local SDK/device-test restrictions. |
 | A09 | Tool downloads and environment activation | [android-env.ps1](scripts/android-env.ps1), [environment inventory](docs/development/environment.md), ignored local binaries | Downloads verified. Project TV AVD recreated and ADB online observed, then stopped. Local device tests suspended; SDK Manager copy integrity needs repair. |
 | A10 | GitHub CI and standing PR workflow | [ci.yml](.github/workflows/ci.yml), [delivery guide](docs/development/github-workflow.md), [bootstrap PR #1](https://github.com/FireAmun/Iptv/pull/1) | Verified: seven local tests, repository/actionlint/PowerShell checks passed; GitHub push and PR CI passed at `e80af5a`. [PR run](https://github.com/FireAmun/Iptv/actions/runs/40038721667). PR link is the live source of delivery/merge state. Automatic remote branch deletion enabled. |
+| A11 | Android CI, device tests, and APK delivery | [PR #2 checks](https://github.com/FireAmun/Iptv/pull/2/checks), [workflow](.github/workflows/ci.yml) | Build/lint/test-APK job, phone API 28 and TV API 36 smoke jobs, and required aggregate gate. APK/report artifacts retained seven days. Each device runs both activity tests covering language round trip, RTL/LTR, recreation, TV focus and D-pad activation. Require actual latest-head green results before merging; local emulator/ADB remains stopped. |
 
 ## 4. Status vocabulary
 
@@ -104,7 +105,7 @@ P1 must include TV feasibility in the earliest proof. Do not build an extensive 
 
 ## 7. Current blockers and risks
 
-No blocker prevents development. App compilation and lint pass; instrumentation is being verified on disposable GitHub runners. Source import and playback have not been implemented.
+No blocker prevents development. App compilation and lint pass; device verification and integration state are visible on PR #2. Source import and playback have not been implemented. Never infer a passing runtime test from a build or a job configuration.
 
 - Physical hardware/source availability remains unknown. Local device tests are suspended after the firewall/restart report; no automatic emulator/ADB restart. See the build guide for observed evidence and SDK tool-copy issues.
 - The app dependency combination builds on installed JDK 21. CI also uses Java 21; local activation still defaults to bundled JBR 25, so follow the build guide's explicit Java selection.
@@ -132,13 +133,15 @@ For future checks, record the exact meaningful command or report path, outcome, 
 
 ## 9. Next-session handoff
 
-**Task:** Complete first-build behavioral verification and authorized delivery on `feat/android-foundation`; then implement local M3U import and Media3 playback.
+**Task:** Continue P2 with local M3U import and Media3 playback. First check [PR #2](https://github.com/FireAmun/Iptv/pull/2) and finish CI/merge/delete only if outstanding; do not recreate a merged branch or repeat authorization questions.
 
 **Inputs:** [First-build plan](docs/superpowers/plans/2026-10-24-first-android-build.md), [build guide](docs/development/first-build.md), A01/A02, actual branch and latest CI state.
 
 **Constraints:** Preserve local-first operation, Arabic/English, early TV coverage, no external idea discussions, no credentials in logs. Do not restart local emulator/ADB automatically after the owner's firewall/restart report. CI device jobs run on disposable Linux runners.
 
-**Expected output:** First installable debug app, real device-smoke evidence and reviewed latest-head CI delivery. This milestone does not establish playback; that is the next task.
+**Verification source:** PR #2's latest-head checks show the Android build and both phone/TV runtime jobs. Its merged state and head SHA are external facts; inspect GitHub and local main rather than treating this tracker as merge proof. The debug APK is `app/build/outputs/apk/debug/app-debug.apk` and the CI `iptv-debug` artifact.
+
+**Expected next output:** A bounded source-to-playback plan and vertical slice: system-picked local M3U, bounded streaming parser with synthetic fixtures, selectable entries and Media3 playback/error state on mobile/TV. Keep provider persistence, Xtream, EPG, pairing and billing out of this first playback slice. Choose authorized runtime media without putting private URLs in docs/logs.
 
 ## 10. Session log
 
@@ -151,6 +154,7 @@ For future checks, record the exact meaningful command or report path, outcome, 
 | 24 October 2026 | Downloaded/verified missing Android tools; SDK TV image installed. New CLI TV-image resolution and legacy SDK layout needed workarounds; TV AVD boot remains unverified. | First app build and TV AVD validation. |
 | 24 October 2026 | User supplied GitHub remote and authorized branch/PR/CI/merge/delete workflow. Initialized Git/empty base, connected remote, added CI and checker tests, enabled merged-branch deletion. Branch protection rejected by current plan. | Review, run remote CI, merge bootstrap PR, delete work branch. |
 | 24 October 2026 | Independent review and local checks passed; opened [PR #1](https://github.com/FireAmun/Iptv/pull/1); both push and PR CI passed for its first revision. Delivery status is available at the live PR link. | Recheck latest-head CI after the handoff update, merge/delete, then first Android build plan. |
+| 24 October 2026 | Bootstrap PR #1 merged and branch deleted. Implemented first phone/TV debug build, language switching and device smoke CI in [PR #2](https://github.com/FireAmun/Iptv/pull/2). Local Java 21 build/lint and repository checks passed; independent review issue fixed. Cloud phone red tests caught absent callbacks; TV runner storage failure diagnosed and corrected. Local device tools stopped after firewall/restart report. | PR #2 is the live source for final CI/merge state; finish delivery only if outstanding, then M3U-to-playback. |
 
 ## 11. Maintenance rules
 

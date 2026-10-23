@@ -25,7 +25,7 @@ adb shell am start -n com.fireamun.iptv.prototype/.TvActivity
 ./gradlew.bat --no-daemon --console=plain :app:connectedDebugAndroidTest
 ```
 
-Run with one emulator/device connected. Connected tests exercise language selection, RTL, activity recreation and TV D-pad activation/focus. There are no app business-rule JVM tests in this scaffold; `testDebugUnitTest` reporting NO-SOURCE is not behavioral coverage.
+Run with one emulator/device connected. Connected tests exercise English → Arabic → English, RTL/LTR, activity recreation and TV D-pad activation/focus. There are no app business-rule JVM tests in this scaffold; `testDebugUnitTest` reporting NO-SOURCE is not behavioral coverage. [PR #2's checks](https://github.com/FireAmun/Iptv/pull/2/checks) hold the actual phone/TV execution results.
 
 ## Local device testing is suspended
 
