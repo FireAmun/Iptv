@@ -86,12 +86,74 @@ jobs:
           sdkmanager 'platforms;android-36'
           sdkmanager 'build-tools;36.0.0'
       - name: Build, lint, and run local Android unit tests
-        run: bash ./gradlew --no-daemon --console=plain testDebugUnitTest lintDebug assembleDebug
+        run: bash ./gradlew --no-daemon --console=plain testDebugUnitTest lintDebug assembleDebug :app:assembleDebugAndroidTest
+      - name: Save installable prototype
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: iptv-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  device-smoke:
+    name: Device smoke (${{ matrix.device }})
+    needs: [repository, android]
+    if: needs.repository.outputs.android-ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: phone-api28
+            api: 28
+            target: default
+            profile: pixel_2
+          - device: tv-api36
+            api: 36
+            target: android-tv
+            profile: tv_1080p
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Enable KVM on the disposable runner
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run language, RTL, persistence, and remote tests
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash ./gradlew --no-daemon --console=plain :app:connectedDebugAndroidTest
+      - name: Save device test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: device-reports-${{ matrix.device }}
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          if-no-files-found: warn
+          retention-days: 7
 
   gate:
     name: CI
     if: always()
-    needs: [repository, android]
+    needs: [repository, android, device-smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -100,6 +162,7 @@ jobs:
           REPOSITORY_RESULT: ${{ needs.repository.result }}
           ANDROID_READY: ${{ needs.repository.outputs.android-ready }}
           ANDROID_RESULT: ${{ needs.android.result }}
+          DEVICE_RESULT: ${{ needs.device-smoke.result }}
         run: |
           if [[ "$REPOSITORY_RESULT" != success ]]; then
             echo 'Repository checks did not pass.'
@@ -111,6 +174,10 @@ jobs:
           fi
           if [[ "$ANDROID_READY" != true && "$ANDROID_RESULT" != skipped ]]; then
             echo 'Unexpected Android check state.'
+            exit 1
+          fi
+          if [[ "$ANDROID_READY" == true && "$DEVICE_RESULT" != success ]]; then
+            echo 'Device smoke tests did not pass.'
             exit 1
           fi
           echo 'All checks available for this repository stage passed.'

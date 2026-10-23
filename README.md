@@ -29,7 +29,7 @@ iptv/
 ├── ui/
 │   ├── mobile/             Phone/tablet Compose screens and ViewModels
 │   └── tv/                 Compose for TV screens, focus, and remote navigation
-├── gradle/                 Future wrapper and version catalogue
+├── gradle/                 Gradle wrapper and version catalogue
 ├── scripts/                Project development/verification scripts when needed
 ├── docs/
 │   ├── development/        Setup and verification records
@@ -45,8 +45,8 @@ Core and UI modules have `src/main/kotlin` and `src/test/kotlin` directories. `.
 
 ## Current state
 
-This is the directory skeleton with repository CI and downloaded local Android tools. Gradle settings, app build scripts, the wrapper, Android manifest, and application code have not been added. The directories describe intended boundaries; they are not configured Gradle modules yet. No production application ID or application dependency versions have been selected.
+The first Android build configures `:app`, `:ui:mobile`, and `:ui:tv`, with separate entry screens, Arabic/English resources, and persistent language selection. The remaining core directories reserve future boundaries. The temporary prototype application ID is `com.fireamun.iptv.prototype`; branding remains open.
 
-Next: prepare the first-build implementation plan, configure the minimal Android project, and verify a debug build. Add only the modules needed by that first build; the remaining directories reserve the agreed layout.
+See [build/install instructions and device-test limitations](docs/development/first-build.md) and [the implementation plan](docs/superpowers/plans/2026-10-24-first-android-build.md). Next: local M3U import and Media3 playback. This app shell does not yet load sources or play media.
 
 Keep provider credentials and private source URLs out of tracked files. Machine SDK paths belong in an ignored `local.properties` when build configuration is introduced.

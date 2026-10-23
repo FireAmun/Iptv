@@ -27,9 +27,9 @@ This is the agent/project delivery policy, not an unattended bot that merges arb
 - Workflow validation using pinned actionlint 1.7.12.
 - A final `CI` gate that fails when available checks fail or do not finish successfully.
 
-Once Gradle settings/wrapper are added, CI requires a complete wrapper and runs `testDebugUnitTest`, `lintDebug`, and `assembleDebug` with Java 21 and Android SDK 36/Build Tools 36.0.0. Change these versions alongside the application's eventual pinned toolchain when necessary. A partial wrapper/settings setup fails CI rather than silently bypassing Android checks.
+CI requires the complete wrapper and runs `testDebugUnitTest`, `lintDebug`, `assembleDebug`, and `:app:assembleDebugAndroidTest` with Java 21 and SDK 36/Build Tools 36.0.0. It publishes the debug APK. A partial wrapper/settings setup fails CI rather than silently bypassing Android checks.
 
-Until the Gradle app exists, the Android job is explicitly skipped and the run summary identifies bootstrap coverage. This does not prove playback, UI behavior, Android compilation, billing, or physical-device compatibility. Instrumentation tests will be added with the app's device-test plan.
+Device smoke jobs run `:app:connectedDebugAndroidTest` on API 28 phone and API 36 Android TV emulators on disposable Linux runners. The final gate requires both matrix legs and the Android build to succeed. These tests cover launch, language/RTL, persistence through recreation, and TV remote focus/activation. They do not prove media playback, billing, or physical-device compatibility. App JVM unit tasks currently have no business-rule tests. The old bootstrap Android skip was only repository coverage.
 
 Actions are pinned to commit SHAs; workflow tokens have read-only repository access and checkout does not retain credentials. Gradle caches are read-only off `main`. No provider credentials or release signing material are required by this workflow.
 

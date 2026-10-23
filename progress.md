@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 24 October 2026 (Asia/Riyadh)  
-Overall status: Directory skeleton, local Android tools, and GitHub CI delivered; bootstrap CI passed on GitHub. Application build configuration and code have not started.  
-Current phase: P1 — first-build readiness.  
-Next task: Complete any remaining bootstrap PR delivery steps, then write the scoped first-build plan and configure the minimal Android build with early TV coverage.
+Overall status: First Android app shell builds locally; language/TV behavioral tests are being verified on GitHub. Bootstrap PR #1 merged and its branch was removed.  
+Current phase: P2 — first Android build, in progress; playback remains next.  
+Next task: Verify language/RTL/recreation and D-pad tests on GitHub phone/TV emulators, complete review/CI/PR delivery, then start M3U-to-playback.
 
 ## 1. Start here in a new chat
 
@@ -13,7 +13,7 @@ Next task: Complete any remaining bootstrap PR delivery steps, then write the sc
 4. Keep this file current after meaningful work: deliverables, evidence, open items, blockers, and the next concrete task.
 5. Never store provider credentials, private playlist/stream URLs, purchase tokens, signing keys, or identity documents here.
 
-This tracker records project state; it is not a substitute for source code, test results, the detailed specification, or the user's latest authorization. The user authorized starting, directory setup, downloading missing tools, and GitHub delivery. For ordinary changes the standing instruction is branch -> push -> PR -> inspect latest-head CI -> merge after success -> delete branch. See [the delivery workflow](docs/development/github-workflow.md). No application Gradle configuration/code, hosted application backend, purchase, or Play publication exists yet. Do not request authorization again for work already authorized.
+This tracker records project state; it is not a substitute for source code, test results, the detailed specification, or the user's latest authorization. The user authorized starting, directory setup, downloading missing tools, and GitHub delivery. For ordinary changes the standing instruction is branch -> push -> PR -> inspect latest-head CI -> merge after success -> delete branch. See [the delivery workflow](docs/development/github-workflow.md). The prototype Gradle app now exists; there is no hosted application backend, purchase integration, or Play publication. Do not request authorization again for work already authorized.
 
 ## 2. Project context and decisions to preserve
 
@@ -44,9 +44,9 @@ The architecture is a delivered draft, not evidence of implemented or tested fun
 | A02 | Architecture: modules, screens, data/imports, playback, pairing, purchases, monitoring, hardware tests | [Architecture specification](docs/superpowers/specs/2026-10-24-iptv-architecture-design.md) | Draft delivered and self-reviewed. Local document links and UTF-8 readback checked. |
 | A03 | Cross-chat progress tracker | [progress.md](progress.md) | Delivered; required sections, P0–P9, UTF-8 readback, and local links checked. |
 | A04 | Automatic workspace handoff instructions | [AGENTS.md](AGENTS.md) | Delivered; directs future project agents to read/update this tracker; linked tracker exists. |
-| A05 | Implementation plan for the first playable proof | No file created yet. | Not started. |
-| A06 | Android application / build / executable proof | Directory skeleton exists; no Gradle configuration or application source yet. | Not started; no build or runtime evidence. |
-| A07 | Project directory skeleton and structure guide | [README.md](README.md), `app/`, `core/`, `ui/`, `gradle/`, `scripts/`, `docs/` | Delivered; module responsibility READMEs and source/resource/test placeholders. These are not configured Gradle modules yet. |
+| A05 | First Android build implementation plan | [First-build plan](docs/superpowers/plans/2026-10-24-first-android-build.md) | Delivered for the app-shell slice; M3U/playback follows separately. |
+| A06 | Android application / build / executable proof | [Build guide](docs/development/first-build.md), `:app`, `:ui:mobile`, `:ui:tv` | Debug app/test APKs and lint passed locally on Java 21. Locale behavior is in the red/green verification stage; no playback exists. |
+| A07 | Project directory skeleton and structure guide | [README.md](README.md), `app/`, `core/`, `ui/`, `gradle/`, `scripts/`, `docs/` | Delivered; module responsibility READMEs and source/resource/test placeholders. Only app/mobile/TV are configured; core modules remain reserved. |
 | A08 | Local toolchain inventory | [environment.md](docs/development/environment.md) | Delivered; JDK/SDK/caches inspected, ADB queried; no build or emulator run. |
 | A09 | Tool downloads and environment activation | [android-env.ps1](scripts/android-env.ps1), [environment inventory](docs/development/environment.md), ignored local binaries | Delivered. Studio/JBR, Gradle, command-line tools, SDK Build Tools/platform-tools/emulator, and TV image installed; versions and acceleration checked. TV AVD definition still needs validation/boot. |
 | A10 | GitHub CI and standing PR workflow | [ci.yml](.github/workflows/ci.yml), [delivery guide](docs/development/github-workflow.md), [bootstrap PR #1](https://github.com/FireAmun/Iptv/pull/1) | Verified: seven local tests, repository/actionlint/PowerShell checks passed; GitHub push and PR CI passed at `e80af5a`. [PR run](https://github.com/FireAmun/Iptv/actions/runs/40038721667). PR link is the live source of delivery/merge state. Automatic remote branch deletion enabled. |
@@ -69,8 +69,8 @@ This sequence is the working roadmap, not a promise that every proposed feature 
 | Phase | Status | Main deliverables | Exit checks |
 | --- | --- | --- | --- |
 | P0 — Product and architecture | Delivered — draft baseline | Product brief, architecture specification, progress tracker. | Documents exist, link correctly, separate confirmed/open choices, and identify implementation boundaries. |
-| P1 — Plan and development readiness | In progress — directory skeleton and environment inventory delivered | First-proof implementation plan, toolchain inventory, compatible dependency/minSdk proposal, Git setup decision, test fixture/hardware inventory. | Plan identifies files, bounded tasks, checks, assumptions, and missing resources; no invented hardware or test credentials. |
-| P2 — Foundation and playable proof | Not started | Android project, one app identity, minimal mobile/TV entry points, safe source entry, initial M3U import, Media3 playback, basic error states. | Reproducible build; authorized source plays on phone and TV; minimal D-pad path works; record actual hardware/stream limitations. |
+| P1 — Plan and development readiness | Delivered for the app-shell slice | First-build plan, toolchain inventory, compatible dependency/minSdk baseline, Git/CI, environment limitations. | App-shell plan/checks exist; physical hardware and authorized playback media remain open for the next slice. |
+| P2 — Foundation and playable proof | In progress — app shell builds; source/playback not started | Android project, one app identity, minimal mobile/TV entry points, safe source entry, initial M3U import, Media3 playback, basic error states. | Reproducible build; authorized source plays on phone and TV; minimal D-pad path works; record actual hardware/stream limitations. |
 | P3 — Sources, catalogue, search, and EPG | Not started | Xtream-compatible adapter, all agreed content kinds, multiple sources, Room/Paging, atomic generation refresh, Arabic-aware search, XMLTV/guide mapping, favourites/progress storage. | Large-fixture imports, cancellation/process interruption, identity preservation, search, and guide time-zone checks pass. Missing metadata never becomes invented hierarchy. |
 | P4 — Full device experience and playback | Not started | Phone/tablet/TV screen flows, RTL, stable focus restoration, series/episodes, resume, audio/subtitles, parental PIN/restrictions, settings. | Core journeys work with touch and D-pad in Arabic/English; restrictions apply through shared rules; representative device checks recorded. |
 | P5 — Phone-to-TV setup and remote | Not started | Discovery, QR/manual fallback, protected transport, TV approval, revocable phone trust, remote catalogue browsing, approved source transfer. | Unpaired/revoked phones denied; expiry/reconnect/network changes tested; credentials stay protected; remote browsing opens no additional stream. |
@@ -90,10 +90,10 @@ P1 must include TV feasibility in the earliest proof. Do not build an extensive 
 | D03 | Purchase ownership/device policy | Baseline restores using purchasing Google account; cross-account households and a custom device cap are not designed. | P6 |
 | D04 | Purchase verification | Choose client-only limitations or a managed verifier without a custom hosted backend. | P6 |
 | D05 | Offline access, refunds, annual expiry | Set last-known-access behavior and any expiry/grace rules; distinguish service errors from confirmed revocation. | P6 |
-| D06 | Product name, identity, visual direction | No name/logo chosen. Select permanent package identity before Play registration; use an explicitly temporary prototype ID if needed. | Branding and permanent Play setup; not local prototype research |
-| D07 | Hardware and authorized source inventory | No connected physical devices or authorized provider verified. Phone AVDs exist; TV API 36 image installed. Generated TV AVD has profile/config warnings and is not boot-verified. Never put credentials here. | Runtime/physical-device verification; local development can proceed |
-| D08 | Toolchain and version control | Updated tools installed and executable checks passed; Git initialized with specified remote and a work branch. App wrapper and dependency pins remain. See A08/A09. | First Android build configuration |
-| D09 | minSdk / compatible dependency versions | No floor or versions approved. Android 9 is an initial lower-device test candidate, not a compatibility promise. | Dependency pinning and release support claims |
+| D06 | Product name, identity, visual direction | No final name/logo chosen. Prototype ID is `com.fireamun.iptv.prototype`; select permanent identity before Play registration. | Branding and permanent Play setup; not local prototype research |
+| D07 | Hardware and authorized source inventory | No physical devices or authorized provider verified. Recreated TV API 36 AVD reached ADB online, then emulator/ADB stopped after owner reported a firewall prompt and prior laptop restart. Windows records an unexpected shutdown with unresolved cause. Do not restart local device tools automatically; CI emulators provide this milestone?s runtime checks. Never put credentials here. | Runtime/physical-device verification; local development can proceed |
+| D08 | Toolchain and version control | Updated tools installed and executable checks passed; Git initialized with specified remote and a work branch. Wrapper and app-shell pins now exist; local Java 21 build/lint passed. See A08/A09. | First Android build configuration |
+| D09 | minSdk / compatible dependency versions | Prototype minSdk 28, compile/target 36; Gradle 9.6.0 / AGP 9.4.0 with fixed Compose/TV dependencies. Android 9 remains a test baseline, not a release support promise. | Dependency pinning and release support claims |
 | D10 | Remote transport implementation | Ktor CIO is a candidate; prove Android TLS, lifecycle, and reconnect compatibility. QR-first pairing; code-only pairing is not finalized. | P5 transport choice |
 | D11 | Import resource/performance limits | Architecture defines bounded import behavior; choose numerical limits from fixture/device measurements. | Import hardening / P8 |
 | D12 | Credential persistence integration | Prove Keystore-backed encryption, optional Tink integration, and backup exclusions; DataStore does not encrypt by itself. | Source storage and P5 |
@@ -104,10 +104,10 @@ P1 must include TV feasibility in the earliest proof. Do not build an extensive 
 
 ## 7. Current blockers and risks
 
-No blocker prevents the first implementation plan. No Android application build or playback test has been attempted. Bootstrap CI and repository tests are separate from app coverage.
+No blocker prevents development. App compilation and lint pass; instrumentation is being verified on disposable GitHub runners. Source import and playback have not been implemented.
 
-- Physical hardware/source availability remains unknown. TV AVD profile/config warnings must be resolved before claiming an emulator boot.
-- Updated tools execute successfully; the complete app dependency combination and Android build remain unverified. CI uses Java 21, while local activation selects bundled JBR 25.
+- Physical hardware/source availability remains unknown. Local device tests are suspended after the firewall/restart report; no automatic emulator/ADB restart. See the build guide for observed evidence and SDK tool-copy issues.
+- The app dependency combination builds on installed JDK 21. CI also uses Java 21; local activation still defaults to bundled JBR 25, so follow the build guide?s explicit Java selection.
 - Server branch protection is unavailable on the current private-repository plan; do not mistake policy instructions for GitHub-enforced restrictions.
 - Billing decisions are open; keep them out of the core playback path and do not let them stall local source/playback planning.
 - Large catalogues, weak TV boxes, RTL focus, authenticated pairing, and provider connection allowances are identified technical risks, not observed bugs.
@@ -124,21 +124,20 @@ No blocker prevents the first implementation plan. No Android application build 
 | 24 October 2026 | Installed toolchain | Download checksums verified for Studio, Gradle, tools 23 and Java SDK Manager 22; Java/Gradle/CLI/ADB/emulator versions checked. `sdkmanager --list_installed` includes API 36, Build Tools 36.0.0, platform-tools 37.0.1, emulator 37.2.12, and TV API 36 x86_64 revision 4. Emulator acceleration check exited 0 (AEHD 2.0). |
 | 24 October 2026 | Local bootstrap checks | `python -m unittest discover -s tests -v` passed seven tests after three expected initial red-test failures; `python scripts/check_repository.py`, PowerShell parser checks, `git diff --cached --check`, and actionlint 1.7.12 passed. Independent reviewer found no actionable issues. Headless review CLI rejected its configured model, so an available reviewer agent provided the independent review. |
 | 24 October 2026 | GitHub bootstrap CI | Push run [40038710374](https://github.com/FireAmun/Iptv/actions/runs/40038710374) and PR run [40038721667](https://github.com/FireAmun/Iptv/actions/runs/40038721667) completed successfully at head `e80af5a957183ea59fbc8319278ab46f1a82e043`. Repository checks and final CI gate passed; Android job explicitly skipped because no Gradle app exists. Further pushes require their own latest-head checks before merge. |
-| 24 October 2026 | Application build, unit/instrumentation tests, physical devices, Play Billing | Not run. Directory skeleton only; no buildable Gradle project exists. |
+| 24 October 2026 | First Android compilation | Java 21 / Gradle 9.6.0: `testDebugUnitTest lintDebug assembleDebug :app:assembleDebugAndroidTest` succeeded. App JVM tasks have NO-SOURCE; not behavioral coverage. Device tests pending; no playback/physical-device/Billing tests. |
+| 24 October 2026 | Bootstrap completion | PR #1 merged as `050ef7860f160746d233e55c91ab88237cefffef`; branch deleted, main synced. Postmerge CI run [40038960591](https://github.com/FireAmun/Iptv/actions/runs/40038960591) succeeded (bootstrap Android skip). |
 
 For future checks, record the exact meaningful command or report path, outcome, relevant tool/build version, and physical device when applicable. Never replace a failure with an assumed pass or claim completion from another agent's summary without checking evidence.
 
 ## 9. Next-session handoff
 
-**Task:** Check the live status of [bootstrap PR #1](https://github.com/FireAmun/Iptv/pull/1); finish CI/merge/delete only if still outstanding, then prepare the first-build/source-to-playback plan and minimal Android project.
+**Task:** Complete first-build behavioral verification and authorized delivery on `feat/android-foundation`; then implement local M3U import and Media3 playback.
 
-**Inputs:** A01, A02, A07–A10 and the latest GitHub PR/CI state. Preserve the existing layout, local-first operation, Arabic/English, early TV coverage, managed monitoring, and no external idea discussions.
+**Inputs:** [First-build plan](docs/superpowers/plans/2026-10-24-first-android-build.md), [build guide](docs/development/first-build.md), A01/A02, actual branch and latest CI state.
 
-**Steps:** Inspect the latest PR and CI rather than assuming a pending run passed. Follow the standing delivery flow, then use the environment activation script and inventory; select a minimal authorized/synthetic fixture path and compatible app dependency versions; write bounded tasks/checks for mobile/TV launch, import, and playback. Record TV AVD/hardware gaps separately from local build work. The user has authorized ordinary PR/CI/merge/delete delivery; do not repeat that approval question.
+**Constraints:** Preserve local-first operation, Arabic/English, early TV coverage, no external idea discussions, no credentials in logs. Do not restart local emulator/ADB automatically after the owner?s firewall/restart report. CI device jobs run on disposable Linux runners.
 
-**Expected output:** A linked implementation plan with its verification approach and a precise next executable task. Add the actual plan path to A05 when created, update P1, and replace this handoff with the next task.
-
-**Suggested new-chat prompt:** “Read progress.md and the linked architecture specification. Continue from the next-session handoff, preserve the recorded decisions, and update progress.md with the work and verification.”
+**Expected output:** First installable debug app, real device-smoke evidence and reviewed latest-head CI delivery. This milestone does not establish playback; that is the next task.
 
 ## 10. Session log
 

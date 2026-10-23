@@ -1,7 +1,7 @@
 # IPTV Android architecture specification
 
 Date: 24 October 2026  
-Status: Draft for owner review; architecture documentation authorized, application implementation not yet authorized.  
+Status: Working architecture baseline; owner authorized the first Android build. Later phases retain their open decisions.  
 Product context: [Product brief](../../../codex/docs/iptv-product-brief.md)
 
 ## 1. Purpose and scope

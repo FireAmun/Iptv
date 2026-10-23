@@ -1,0 +1,5 @@
+<resources>
+    <string name="tv_title">Your library, on the big screen</string>
+    <string name="tv_description">Use your remote to get started. Bring your own compatible sources; this player does not provide channels or content subscriptions.</string>
+    <string name="tv_language">العربية</string>
+</resources>
