@@ -14,5 +14,5 @@
 - Do not push code directly to `main`, force-push shared history, bypass checks, or merge while checks are missing, pending, cancelled, or failing.
 - Run local checks appropriate to the change and obtain code review before opening/merging the PR. Inspect CI for the latest head revision; bind the merge to that exact head SHA so a later push cannot slip in unchecked.
 - After merging, confirm the merge, sync local `main` with a fast-forward-only pull, and remove the merged work branch. Reuse an open PR for additional pushes on the same branch.
-- Current CI checks repository tooling, documentation, PowerShell syntax, and workflow validity. Android build/lint/unit-test checks activate once the complete Gradle wrapper/settings exist. Skipped bootstrap Android checks are not evidence that the app builds or plays media.
+- CI checks repository tooling/docs/workflows, Android build/lint, and phone/TV instrumentation. App JVM unit tasks currently have no business-rule tests. Require actual latest-head device results; the earlier bootstrap Android skip was not app or playback evidence.
 - If GitHub plan/permissions prevent server-side branch protection, record the limitation in `progress.md` and still follow this workflow. The initial empty baseline commit is the sole bootstrap exception; all project files go through a PR.

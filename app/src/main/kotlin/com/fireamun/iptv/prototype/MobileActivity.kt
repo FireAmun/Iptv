@@ -10,6 +10,6 @@ class MobileActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { MobileWelcome(onChangeLanguage = {}) }
+        setContent { MobileWelcome(onChangeLanguage = { toggleAppLanguage() }) }
     }
 }

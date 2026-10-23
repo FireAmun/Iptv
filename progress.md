@@ -47,8 +47,8 @@ The architecture is a delivered draft, not evidence of implemented or tested fun
 | A05 | First Android build implementation plan | [First-build plan](docs/superpowers/plans/2026-10-24-first-android-build.md) | Delivered for the app-shell slice; M3U/playback follows separately. |
 | A06 | Android application / build / executable proof | [Build guide](docs/development/first-build.md), `:app`, `:ui:mobile`, `:ui:tv` | Debug app/test APKs and lint passed locally on Java 21. Locale behavior is in the red/green verification stage; no playback exists. |
 | A07 | Project directory skeleton and structure guide | [README.md](README.md), `app/`, `core/`, `ui/`, `gradle/`, `scripts/`, `docs/` | Delivered; module responsibility READMEs and source/resource/test placeholders. Only app/mobile/TV are configured; core modules remain reserved. |
-| A08 | Local toolchain inventory | [environment.md](docs/development/environment.md) | Delivered; JDK/SDK/caches inspected, ADB queried; no build or emulator run. |
-| A09 | Tool downloads and environment activation | [android-env.ps1](scripts/android-env.ps1), [environment inventory](docs/development/environment.md), ignored local binaries | Delivered. Studio/JBR, Gradle, command-line tools, SDK Build Tools/platform-tools/emulator, and TV image installed; versions and acceleration checked. TV AVD definition still needs validation/boot. |
+| A08 | Local toolchain inventory | [environment.md](docs/development/environment.md) | Updated with Java 21 build evidence and local SDK/device-test restrictions. |
+| A09 | Tool downloads and environment activation | [android-env.ps1](scripts/android-env.ps1), [environment inventory](docs/development/environment.md), ignored local binaries | Downloads verified. Project TV AVD recreated and ADB online observed, then stopped. Local device tests suspended; SDK Manager copy integrity needs repair. |
 | A10 | GitHub CI and standing PR workflow | [ci.yml](.github/workflows/ci.yml), [delivery guide](docs/development/github-workflow.md), [bootstrap PR #1](https://github.com/FireAmun/Iptv/pull/1) | Verified: seven local tests, repository/actionlint/PowerShell checks passed; GitHub push and PR CI passed at `e80af5a`. [PR run](https://github.com/FireAmun/Iptv/actions/runs/40038721667). PR link is the live source of delivery/merge state. Automatic remote branch deletion enabled. |
 
 ## 4. Status vocabulary
@@ -91,7 +91,7 @@ P1 must include TV feasibility in the earliest proof. Do not build an extensive 
 | D04 | Purchase verification | Choose client-only limitations or a managed verifier without a custom hosted backend. | P6 |
 | D05 | Offline access, refunds, annual expiry | Set last-known-access behavior and any expiry/grace rules; distinguish service errors from confirmed revocation. | P6 |
 | D06 | Product name, identity, visual direction | No final name/logo chosen. Prototype ID is `com.fireamun.iptv.prototype`; select permanent identity before Play registration. | Branding and permanent Play setup; not local prototype research |
-| D07 | Hardware and authorized source inventory | No physical devices or authorized provider verified. Recreated TV API 36 AVD reached ADB online, then emulator/ADB stopped after owner reported a firewall prompt and prior laptop restart. Windows records an unexpected shutdown with unresolved cause. Do not restart local device tools automatically; CI emulators provide this milestone?s runtime checks. Never put credentials here. | Runtime/physical-device verification; local development can proceed |
+| D07 | Hardware and authorized source inventory | No physical devices or authorized provider verified. Recreated TV API 36 AVD reached ADB online, then emulator/ADB stopped after owner reported a firewall prompt and prior laptop restart. Windows records an unexpected shutdown with unresolved cause. Do not restart local device tools automatically; CI emulators provide this milestone's runtime checks. Never put credentials here. | Runtime/physical-device verification; local development can proceed |
 | D08 | Toolchain and version control | Updated tools installed and executable checks passed; Git initialized with specified remote and a work branch. Wrapper and app-shell pins now exist; local Java 21 build/lint passed. See A08/A09. | First Android build configuration |
 | D09 | minSdk / compatible dependency versions | Prototype minSdk 28, compile/target 36; Gradle 9.6.0 / AGP 9.4.0 with fixed Compose/TV dependencies. Android 9 remains a test baseline, not a release support promise. | Dependency pinning and release support claims |
 | D10 | Remote transport implementation | Ktor CIO is a candidate; prove Android TLS, lifecycle, and reconnect compatibility. QR-first pairing; code-only pairing is not finalized. | P5 transport choice |
@@ -107,7 +107,7 @@ P1 must include TV feasibility in the earliest proof. Do not build an extensive 
 No blocker prevents development. App compilation and lint pass; instrumentation is being verified on disposable GitHub runners. Source import and playback have not been implemented.
 
 - Physical hardware/source availability remains unknown. Local device tests are suspended after the firewall/restart report; no automatic emulator/ADB restart. See the build guide for observed evidence and SDK tool-copy issues.
-- The app dependency combination builds on installed JDK 21. CI also uses Java 21; local activation still defaults to bundled JBR 25, so follow the build guide?s explicit Java selection.
+- The app dependency combination builds on installed JDK 21. CI also uses Java 21; local activation still defaults to bundled JBR 25, so follow the build guide's explicit Java selection.
 - Server branch protection is unavailable on the current private-repository plan; do not mistake policy instructions for GitHub-enforced restrictions.
 - Billing decisions are open; keep them out of the core playback path and do not let them stall local source/playback planning.
 - Large catalogues, weak TV boxes, RTL focus, authenticated pairing, and provider connection allowances are identified technical risks, not observed bugs.
@@ -135,7 +135,7 @@ For future checks, record the exact meaningful command or report path, outcome, 
 
 **Inputs:** [First-build plan](docs/superpowers/plans/2026-10-24-first-android-build.md), [build guide](docs/development/first-build.md), A01/A02, actual branch and latest CI state.
 
-**Constraints:** Preserve local-first operation, Arabic/English, early TV coverage, no external idea discussions, no credentials in logs. Do not restart local emulator/ADB automatically after the owner?s firewall/restart report. CI device jobs run on disposable Linux runners.
+**Constraints:** Preserve local-first operation, Arabic/English, early TV coverage, no external idea discussions, no credentials in logs. Do not restart local emulator/ADB automatically after the owner's firewall/restart report. CI device jobs run on disposable Linux runners.
 
 **Expected output:** First installable debug app, real device-smoke evidence and reviewed latest-head CI delivery. This milestone does not establish playback; that is the next task.
 

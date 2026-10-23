@@ -21,7 +21,7 @@
 
 ### Task 1: Reproducible build and minimal entry points
 
-**Files:** Create root settings/build/properties, `gradle/libs.versions.toml`, complete checksum-pinned wrapper, module build scripts, app manifest/resources/activities, UI library manifests/screens/resources.
+**Files:** Create root settings/build/properties, `gradle/libs.versions.toml`, complete checksum-pinned wrapper, module build scripts, app manifest/resources/activities and `AppLanguage.kt`, UI library manifests/screens/resources.
 
 **Interfaces:** `MobileWelcome(onChangeLanguage: () -> Unit)` and `TvWelcome(onChangeLanguage: () -> Unit)` composables; activities own locale switching using AppCompat. Each screen offers one focusable language switch and states that users supply their own content.
 

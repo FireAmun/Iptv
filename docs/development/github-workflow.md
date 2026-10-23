@@ -19,7 +19,7 @@ This is the agent/project delivery policy, not an unattended bot that merges arb
 
 ## What CI checks now
 
-[The CI workflow](../../.github/workflows/ci.yml) runs on pushes, pull requests, and manual dispatch:
+[The CI workflow](../../.github/workflows/ci.yml) runs on every PR update, pushes to `main`, and manual dispatch. Open/update the work branch's PR when pushing; the PR event checks that exact new head. This avoids duplicate device jobs for the branch push and its PR event. Unpublished branches can be tested using manual dispatch.
 
 - Python unit tests for the repository link checker, including missing targets, invalid UTF-8, repository escape, encoded paths, and fenced examples.
 - UTF-8 Markdown and inline local file links. It does not fetch external URLs, verify anchors, or parse reference-style links.

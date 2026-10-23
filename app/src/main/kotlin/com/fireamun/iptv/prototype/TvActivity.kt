@@ -8,6 +8,6 @@ import com.fireamun.iptv.ui.tv.TvWelcome
 class TvActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { TvWelcome(onChangeLanguage = {}) }
+        setContent { TvWelcome(onChangeLanguage = { toggleAppLanguage() }) }
     }
 }

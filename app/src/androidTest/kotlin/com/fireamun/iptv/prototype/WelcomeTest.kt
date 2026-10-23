@@ -59,6 +59,22 @@ class WelcomeTest {
                 compose.onNodeWithText(arabicTitle).assertIsDisplayed()
                 compose.onNodeWithTag("language_switch").assertTextEquals("English")
                 if (tv) compose.onNodeWithTag("language_switch").assertIsFocused()
+                if (tv) {
+                    compose.onNodeWithTag("language_switch").performKeyInput {
+                        keyDown(Key.DirectionCenter)
+                        keyUp(Key.DirectionCenter)
+                    }
+                } else {
+                    compose.onNodeWithTag("language_switch").performClick()
+                }
+                compose.waitUntil(timeoutMillis = 10_000) {
+                    compose.onAllNodesWithText("العربية").fetchSemanticsNodes().isNotEmpty()
+                }
+                scenario.onActivity {
+                    assertEquals(View.LAYOUT_DIRECTION_LTR, it.resources.configuration.layoutDirection)
+                }
+                scenario.recreate()
+                compose.onNodeWithTag("language_switch").assertTextEquals("العربية")
             } finally {
                 scenario.onActivity { setLocale("") }
                 compose.waitForIdle()
