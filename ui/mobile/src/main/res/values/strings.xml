@@ -1,0 +1,5 @@
+<resources>
+    <string name="mobile_title">Your library, your screen</string>
+    <string name="mobile_description">Bring your own compatible sources. This player does not provide channels or content subscriptions.</string>
+    <string name="mobile_language">العربية</string>
+</resources>

@@ -1,7 +1,7 @@
 # Android application
 
-Future Gradle module: `:app`.
+Gradle module: `:app`, temporary application ID `com.fireamun.iptv.prototype`.
 
 Own the Android manifest, mobile/TV entry activities, Hilt composition, worker registration, and build/release configuration. Prefer one application identity across phone/tablet and TV.
 
-Use `src/main/kotlin` and `src/main/res` for production files, `src/test/kotlin` for local tests, and `src/androidTest/kotlin` for device tests. No application code or manifest exists yet.
+Use `src/main/kotlin` and `src/main/res` for production files, `src/test/kotlin` for local tests, and `src/androidTest/kotlin` for device tests. Mobile and TV entry activities select the appropriate UI module; AppCompat persists the app language. Hilt and worker wiring are added when needed.
