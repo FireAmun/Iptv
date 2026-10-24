@@ -25,9 +25,9 @@
 
 **Interfaces:** `MediaAddress.parse(String): MediaAddress?`, redacted `toString()`, explicit `reveal()`; `Channel(id: Int, title: String?, group: String?)`; `M3uParser.parse(InputStream, checkCancelled: () -> Unit): List<PlaylistEntry>`; `ImportFailure(code: ImportError)` contains safe codes only.
 
-- [ ] Add JVM module configuration and failing tests. For example, parse `#EXTM3U\n#EXTINF:-1 group-title="News, World",Example\nhttps://example.invalid/live\n`; expect the exact title/group and a single entry. Add literal limit and invalid/HLS fixtures.
-- [ ] Run `./gradlew.bat :core:data:test :core:model:test`; confirm behavioral failures against minimal stubs, then implement bounded streaming reads/metadata parsing and rerun to green.
-- [ ] Add real loopback HTTP loader tests for success, non-success, redirect policy and input limits; implement `HttpPlaylistLoader.load(MediaAddress)` using bounded parser reads and a cancellable OkHttp call.
+- [x] Add JVM module configuration and failing tests. For example, parse `#EXTM3U\n#EXTINF:-1 group-title="News, World",Example\nhttps://example.invalid/live\n`; expect the exact title/group and a single entry. Add literal limit and invalid/HLS fixtures.
+- [x] Run `./gradlew.bat :core:data:test :core:model:test`; confirm behavioral failures against minimal stubs, then implement bounded streaming reads/metadata parsing and rerun to green.
+- [x] Add real loopback HTTP loader tests for success, non-success, redirect policy and input limits; implement `HttpPlaylistLoader.load(MediaAddress)` using bounded parser reads and a cancellable OkHttp call.
 
 ## Task 2: Import coordination and device screens
 
@@ -35,24 +35,26 @@
 
 **Interfaces:** `LibraryState` exposes safe channels/loading/error/HTTP-prompt/selection state. `importFile`, `importUrl`, `approveHttp`, `dismissHttp`, `selectChannel`, and `closePlayback` coordinate actions; only app/playback receive protected addresses.
 
-- [ ] Write tests showing a failed second import preserves the first library, a successful second import replaces it, and HTTP requests cannot load/play before approval. Run the tests against initial behavior and verify the expected failures.
-- [ ] Implement off-main-thread import, cancellation and safe error handling. Register `OpenDocument`; catch missing picker/read permission failures without logging sensitive exception text.
-- [ ] Extend both welcome screens with masked URL input, import actions, state feedback and virtualized channel rows. Retain language behavior and restore TV selection/focus on return.
+- [x] Write tests showing a failed second import preserves the first library, a successful second import replaces it, and HTTP requests cannot load/play before approval. Run the tests against initial behavior and verify the expected failures.
+- [x] Implement off-main-thread import, cancellation and safe error handling. Register `OpenDocument`; catch missing picker/read permission failures without logging sensitive exception text.
+- [x] Extend both welcome screens with masked URL input, import actions, state feedback and virtualized channel rows. Retain language behavior and restore TV selection/focus on return.
 
 ## Task 3: Lifecycle-bound Media3 playback and real app tests
 
-**Files:** `core/playback/build.gradle.kts`, `core/playback/.../PlaybackSurface.kt`, UI playback composables/resources; `app/src/androidTest/.../PlaylistFlowTest.kt`, test-only provider/manifest and generated video asset.
+**Files:** `core/playback/build.gradle.kts`, `core/playback/.../PlayerSurface.kt`, UI playback composables/resources; `app/src/androidTest/.../PlaylistFlowTest.kt`, test-only provider/manifest and generated video asset.
 
-- [ ] Create a self-generated H.264/AAC test clip under test assets and document its provenance. No media is bundled in production.
-- [ ] Add instrumented tests for file/URL import, HTTP consent, a playing state, Back/library retention and TV focus. Use MockWebServer and test-only document provider, without production test hooks.
-- [ ] Implement Media3 HLS/DASH/direct support, safe status/retry, native controls and release outside STARTED. Disable address-bearing Media3 logs and cross-protocol redirects.
-- [ ] Run build/lint/JVM tests and compile instrumentation locally. Run real app journeys locally with screenshots and D-pad/touch inputs, then require phone/TV CI suites on the PR's exact head.
+- [x] Create a self-generated H.264/AAC test clip under test assets and document its provenance. No media is bundled in production.
+- [x] Add instrumented tests for file/URL import, HTTP consent, a playing state, Back/library retention and TV focus. Use MockWebServer and test-only document provider, without production test hooks.
+- [x] Implement Media3 HLS/DASH/direct support, safe status/retry, native controls and release outside STARTED. Disable address-bearing Media3 logs and cross-protocol redirects.
+- [x] Run build/lint/JVM tests and compile instrumentation locally. Run real app journeys locally with screenshots and D-pad/touch inputs. Latest-head cloud suites remain required by the delivery step below.
 
 ## Task 4: Review and delivery
 
-- [ ] Update progress, build/run documentation, module responsibilities and provisional limits/known gaps. Record local manual observations and actual test results.
-- [ ] Run repository checks, local Android checks and independent review; address findings before opening the PR.
+- [x] Update progress, build/run documentation, module responsibilities and provisional limits/known gaps. Record local manual observations and actual test results.
+- [x] Run repository checks, local Android checks and independent review; address findings before opening the PR.
 - [ ] Follow authorized branch/PR/check/merge/delete workflow. Bind merge to the reviewed, tested latest SHA; sync main fast-forward only.
+
+Cloud delivery is tracked on [PR #3](https://github.com/FireAmun/Iptv/pull/3). Local Java 21 checks passed 19 JVM tests and eight instrumentation tests each on API 34 phone and API 36 TV. The final delivery checkbox remains conditional on latest-head cloud checks and confirmed merge/cleanup.
 
 ## Self-review
 

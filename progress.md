@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 24 October 2026 (Asia/Riyadh)  
-Overall status: M3U file/URL import and Media3 playback implemented on `feat/m3u-playback`; local checks and independent review passed. PR delivery and exact-head cloud device checks remain.  
-Current phase: P2 — source import and playable proof.  
-Next task: Finish exact-head PR CI, merge and clean the work branch; then plan encrypted source persistence and Room catalogue storage.
+Overall status: M3U file/URL import and Media3 playback delivered for review in [PR #3](https://github.com/FireAmun/Iptv/pull/3). Local checks and independent review passed; the live PR records latest-head cloud checks and merge state.  
+Current phase: P2 — playable prototype verified locally on phone and TV; inspect PR #3 for integration state.  
+Next task: Inspect PR #3 and finish delivery only if outstanding; then plan encrypted source persistence and Room catalogue storage so the library survives app restart.
 
 ## 1. Start here in a new chat
 
@@ -52,7 +52,7 @@ The architecture is a delivered draft, not evidence of implemented or tested fun
 | A10 | GitHub CI and standing PR workflow | [ci.yml](.github/workflows/ci.yml), [delivery guide](docs/development/github-workflow.md), [bootstrap PR #1](https://github.com/FireAmun/Iptv/pull/1) | Verified: seven local tests, repository/actionlint/PowerShell checks passed; GitHub push and PR CI passed at `e80af5a`. [PR run](https://github.com/FireAmun/Iptv/actions/runs/40038721667). PR link is the live source of delivery/merge state. Automatic remote branch deletion enabled. |
 | A11 | Android CI, device tests, and APK delivery | [PR #2 checks](https://github.com/FireAmun/Iptv/pull/2/checks), [workflow](.github/workflows/ci.yml) | Build/lint/test-APK job, phone API 28 and TV API 36 smoke jobs, and required aggregate gate. APK/report artifacts retained seven days. Each device runs both activity tests covering language round trip, RTL/LTR, recreation, TV focus and D-pad activation. Require actual latest-head green results before merging; the earlier local suspension was superseded by D07. |
 | A12 | M3U/playback slice design and implementation plan | [Design](docs/superpowers/specs/2026-10-24-m3u-playback-design.md), [plan](docs/superpowers/plans/2026-10-24-m3u-playback.md) | Delivered and implemented. Owner selected file plus URL import and explicitly re-authorized local hands-on testing alongside CI. |
-| A13 | Session M3U library and Media3 player | [Playback guide](docs/development/m3u-playback.md), `core/model`, `core/data`, `core/playback`, app/mobile/TV | Implemented: bounded streaming parser, cancellable imports, HTTP consent, safe labels/errors, virtualized lists, lifecycle release, native playback controls, Arabic/English. Local 19 JVM + 8 API 34 device tests and independent review passed; cloud delivery pending. Session-only library, no database/source persistence. |
+| A13 | Session M3U library and Media3 player | [Playback guide](docs/development/m3u-playback.md), `core/model`, `core/data`, `core/playback`, app/mobile/TV | Implemented: bounded streaming parser, cancellable imports, HTTP consent, safe labels/errors, virtualized lists, lifecycle release, native playback controls, Arabic/English. Local 19 JVM tests, 8 API 34 phone tests and 8 API 36 TV tests passed locally; independent review passed. [PR #3](https://github.com/FireAmun/Iptv/pull/3) records cloud verification and delivery state. Session-only library, no database/source persistence. |
 
 ## 4. Status vocabulary
 
@@ -73,7 +73,7 @@ This sequence is the working roadmap, not a promise that every proposed feature 
 | --- | --- | --- | --- |
 | P0 — Product and architecture | Delivered — draft baseline | Product brief, architecture specification, progress tracker. | Documents exist, link correctly, separate confirmed/open choices, and identify implementation boundaries. |
 | P1 — Plan and development readiness | Delivered for the app-shell slice | First-build plan, toolchain inventory, compatible dependency/minSdk baseline, Git/CI, environment limitations. | App-shell plan/checks exist; physical hardware and authorized playback media remain open for the next slice. |
-| P2 — Foundation and playable proof | Implemented — PR/cloud verification pending | Android project, one app identity, minimal mobile/TV entry points, safe source entry, initial M3U import, Media3 playback, basic error states. | Reproducible build; authorized source plays on phone and TV; minimal D-pad path works; record actual hardware/stream limitations. |
+| P2 — Foundation and playable proof | Delivered prototype — local phone/TV verified; PR #3 is the integration source of truth | Android project, one app identity, minimal mobile/TV entry points, safe source entry, initial M3U import, Media3 playback, basic error states. | Reproducible build; authorized source plays on phone and TV; minimal D-pad path works; record actual hardware/stream limitations. |
 | P3 — Sources, catalogue, search, and EPG | Not started | Xtream-compatible adapter, all agreed content kinds, multiple sources, Room/Paging, atomic generation refresh, Arabic-aware search, XMLTV/guide mapping, favourites/progress storage. | Large-fixture imports, cancellation/process interruption, identity preservation, search, and guide time-zone checks pass. Missing metadata never becomes invented hierarchy. |
 | P4 — Full device experience and playback | Not started | Phone/tablet/TV screen flows, RTL, stable focus restoration, series/episodes, resume, audio/subtitles, parental PIN/restrictions, settings. | Core journeys work with touch and D-pad in Arabic/English; restrictions apply through shared rules; representative device checks recorded. |
 | P5 — Phone-to-TV setup and remote | Not started | Discovery, QR/manual fallback, protected transport, TV approval, revocable phone trust, remote catalogue browsing, approved source transfer. | Unpaired/revoked phones denied; expiry/reconnect/network changes tested; credentials stay protected; remote browsing opens no additional stream. |
@@ -107,7 +107,7 @@ P1 must include TV feasibility in the earliest proof. Do not build an extensive 
 
 ## 7. Current blockers and risks
 
-No blocker prevents development. M3U import/playback and local device checks pass; exact-head PR cloud checks remain before integration. Never infer a passing runtime test from a build or a job configuration.
+M3U import/playback and local phone/TV checks pass. Integration requires green latest-head cloud checks on PR #3. The first cloud TV attempt timed out during recreation with graphics-buffer errors; a renderer change is under verification. Inspect the live PR for its resolution before treating this historical failure as a current blocker. Never infer a passing runtime test from a build or a job configuration.
 
 - Physical hardware/source availability remains unknown. Local manual testing is re-authorized with one emulator at a time; no host firewall/driver/reboot changes. Preserve the earlier incident and SDK tool-copy limitation in environment notes.
 - The app dependency combination builds on installed JDK 21. CI also uses Java 21; local activation still defaults to bundled JBR 25, so follow the build guide's explicit Java selection.
@@ -135,17 +135,20 @@ No blocker prevents development. M3U import/playback and local device checks pas
 | 24 October 2026 | M3U/playback local checks | Java 21 full build/lint passed: `:core:model:test :core:data:test testDebugUnitTest lintDebug assembleDebug :app:connectedDebugAndroidTest`. Reports contain 19 JVM and 8 API 34 device tests, zero failures/errors/skips. Regressions covered quote-aware attributes, EOF budget, URL incompatibility, blocking-read/provider-open cancellation, immediate background player release and TV dialog focus. Final independent review found no actionable issues. |
 | 24 October 2026 | Hands-on phone use | API 34 emulator: real Downloads picker imported two synthetic entries; actual video frames, native pause/seek controls, HTTP consent cancel/accept, missing-stream error/Retry, and Back to retained library observed. Visual inspection prompted status-bar contrast fix. No physical/private-provider compatibility claim. |
 
+| 24 October 2026 | Local API 36 TV reproduction | Focused TV URL/playback case passed, then `:app:connectedDebugAndroidTest` passed all 8 tests in 1m 17s, zero failures/errors/skips. Current XML: `app/build/outputs/androidTest-results/connected/debug/`; ignored log `.tools/tv-full-repro.log`. D-pad English/Arabic round trip and RTL/focus appearance were also inspected manually. Local emulator stopped afterward. |
+| 24 October 2026 | First M3U cloud probe | [Run 40121096692](https://github.com/FireAmun/Iptv/actions/runs/40121096692) at `f4179f97e84b04385bea0e47dd0efde03fba95bc`: repository/build/lint/JVM and all 8 API 28 phone tests passed. TV timed out at 25 minutes during file-import activity recreation; partial logs show TV URL/playback completed and repeated emulator ColorBuffer failures. No complete TV result from this run. CI now uses supported `swiftshader` instead of deprecated `swiftshader_indirect`, matching successful local runs. This is a hypothesis tested by subsequent PR checks, not proof of root cause. |
+
 For future checks, record the exact meaningful command or report path, outcome, relevant tool/build version, and physical device when applicable. Never replace a failure with an assumed pass or claim completion from another agent's summary without checking evidence.
 
 ## 9. Next-session handoff
 
-**Task:** Inspect `feat/m3u-playback` and its PR. Complete exact-head CI/merge/delete if outstanding, then plan the first P3 persistence slice: encrypted source storage, Room catalogue identity and atomic refresh. Do not recreate already merged branches.
+**Task:** Inspect [PR #3](https://github.com/FireAmun/Iptv/pull/3) and the actual branch state. Complete exact-head CI/merge/delete if outstanding, then plan the first P3 persistence slice: encrypted source storage, Room catalogue identity and atomic refresh. Do not recreate already merged branches.
 
 **Inputs:** [M3U/playback guide](docs/development/m3u-playback.md), [slice plan](docs/superpowers/plans/2026-10-24-m3u-playback.md), A01/A02, actual GitHub and workspace state.
 
 **Constraints:** Local-first, Arabic/English, early TV coverage, no external idea discussions, no credentials in logs. Local hands-on testing is now explicitly authorized: one emulator at a time, no host firewall/driver/reboot changes. Earlier shutdown cause and SDK Manager copy issue remain unresolved. Use synthetic sources unless the owner supplies authorized media.
 
-**Verification source:** Local Gradle XML reports: 19 JVM + 8 API 34 device tests. Exact-head PR checks must separately show cloud phone API 28 and TV API 36 results. The debug APK is `app/build/outputs/apk/debug/app-debug.apk`; CI artifact `iptv-debug` expires after seven days.
+**Verification source:** Local Gradle checks: 19 JVM + 8 tests each on API 34 phone and API 36 TV. Current device XML contains the latest TV run; earlier phone results were inspected before the connected-test output was replaced. Exact-head [PR checks](https://github.com/FireAmun/Iptv/pull/3/checks) must separately show cloud phone API 28 and TV API 36 results. Treat the live PR as the source for completed merge/branch cleanup rather than repeating this document’s pre-merge work. The debug APK is `app/build/outputs/apk/debug/app-debug.apk`; CI artifact `iptv-debug` expires after seven days.
 
 **Known limits:** Library survives activity/language recreation only, not process death. Background playback releases the player and prepares afresh on return. No Xtream, EPG, persistence, pairing, billing or telemetry. Provisional import limits need hardware measurements; private providers, physical TV boxes, endurance and codec gaps remain unverified.
 
@@ -162,7 +165,7 @@ For future checks, record the exact meaningful command or report path, outcome, 
 | 24 October 2026 | Independent review and local checks passed; opened [PR #1](https://github.com/FireAmun/Iptv/pull/1); both push and PR CI passed for its first revision. Delivery status is available at the live PR link. | Recheck latest-head CI after the handoff update, merge/delete, then first Android build plan. |
 | 24 October 2026 | Bootstrap PR #1 merged and branch deleted. Implemented first phone/TV debug build, language switching and device smoke CI in [PR #2](https://github.com/FireAmun/Iptv/pull/2). Local Java 21 build/lint and repository checks passed; independent review issue fixed. Cloud phone red tests caught absent callbacks; TV runner storage failure diagnosed and corrected. Local device tools stopped after firewall/restart report. | PR #2 is the live source for final CI/merge state; finish delivery only if outstanding, then M3U-to-playback. |
 
-| 24 October 2026 | Implemented file + URL M3U import, separate phone/TV library UIs and Media3 playback; 19 JVM + 8 local device tests, hands-on synthetic playback and independent review passed. Local testing explicitly re-authorized by owner. | Finish latest-head cloud CI and PR integration, then persistence. |
+| 24 October 2026 | Implemented file + URL M3U import, separate phone/TV library UIs and Media3 playback; 19 JVM + 8 local tests per phone/TV emulator, hands-on synthetic phone playback and TV RTL/focus inspection, and independent review passed. [PR #3](https://github.com/FireAmun/Iptv/pull/3) records integration state. Local testing explicitly re-authorized by owner. | Finish latest-head cloud CI and PR integration, then persistence. |
 
 ## 11. Maintenance rules
 

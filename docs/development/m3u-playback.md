@@ -42,8 +42,10 @@ It also expires after ten minutes. The fixture provider and runner exist in the 
 
 ## Verification
 
-Local API 34 instrumentation passed all eight tests after regression fixes: both language journeys, URL import/playback on both UI modes, granted-content-URI file import and cancellation during actual provider opening, and approved/blocked transport checks. Playback tests include STARTED → CREATED → RESUMED and TV Back/focus restoration. Nineteen JVM tests cover parser/transport/state boundaries, including quote-aware groups, final-EOF time budget, incompatible URL validation and cancellation of interruption-insensitive file reads. See [progress](../../progress.md) and the delivery PR for cloud results.
+Local API 34 phone and API 36 TV instrumentation each passed all eight tests after regression fixes: both language journeys, URL import/playback on both UI modes, granted-content-URI file import and cancellation during actual provider opening, and approved/blocked transport checks. Playback tests include STARTED → CREATED → RESUMED and TV Back/focus restoration. Nineteen JVM tests cover parser/transport/state boundaries, including quote-aware groups, final-EOF time budget, incompatible URL validation and cancellation of interruption-insensitive file reads. See [progress](../../progress.md) and [PR #3](https://github.com/FireAmun/Iptv/pull/3) for cloud results and delivery state.
 
 Hands-on API 34 phone checks used the actual Downloads document picker and a two-entry synthetic M3U. Observed video frames, paused with native controls, advanced playback position, denied/accepted HTTP consent, retried a deliberately missing stream, and returned to the retained library. Status-bar contrast was corrected after visual inspection. Only synthetic data was used; no provider credentials or real subscriptions were tested.
+
+On the actual API 36 TV emulator, D-pad activation switched English → Arabic → English; the Arabic layout and focus appearance were visually inspected. Manual TV file-picker and playback checks were not completed. The URL/playback journey is covered by device instrumentation; hands-on TV playback is not claimed.
 
 Physical TV boxes, private providers, large-library profiling, endurance playback, codec gaps and persistent resume remain unverified. A TV without a document picker can use URL import.

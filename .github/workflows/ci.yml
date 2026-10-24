@@ -144,7 +144,7 @@ jobs:
           cmdline-tools-version: '15859902'
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
           log-accepted-android-sdk-licenses: false
-      - name: Run language, RTL, persistence, and remote tests
+      - name: Run import, playback, language, and remote tests
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: ${{ matrix.api }}
@@ -154,7 +154,7 @@ jobs:
           ram-size: 2048M
           disk-size: 2048M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          emulator-options: -no-window -gpu swiftshader -noaudio -no-boot-anim -no-snapshot
           script: bash ./gradlew --no-daemon --console=plain :app:connectedDebugAndroidTest
       - name: Save device test reports
         if: always()

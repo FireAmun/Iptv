@@ -17,7 +17,7 @@ This is the observed local inventory after tool setup and the M3U/playback slice
 | TV system image | Android TV API 36 x86_64 revision 4 installed and present in SDK Manager's installed-package list. |
 | Devices | No physical devices. Existing phone AVDs preserved; project `Iptv_Phone_API_34` uses the installed API 34 Google APIs x86_64 image. Local API 34 tests and hands-on file/playback checks passed. Project TV AVD uses API 36 / `tv_1080p`. Owner re-authorized hands-on testing after earlier suspension: one emulator at a time, no firewall/driver/reboot changes. Earlier host shutdown remains unexplained. |
 | Git / GitHub CLI | Available and authenticated for the specified repository; PR delivery is documented separately. |
-| App verification | Version 0.2.0 debug/test APKs compile; lint, 19 JVM tests and 8 local API 34 device tests pass on Java 21. M3U import and synthetic Media3 playback observed manually. See tracker/PR for cloud phone/TV results. |
+| App verification | Version 0.2.0 debug/test APKs compile; lint, 19 JVM tests and 8 local tests each on API 34 phone and API 36 TV pass on Java 21. M3U import and synthetic Media3 playback observed manually. See tracker/PR for cloud phone/TV results. |
 
 ## Using the tools
 
