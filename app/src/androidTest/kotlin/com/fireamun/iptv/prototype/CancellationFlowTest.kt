@@ -19,7 +19,8 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class CancellationFlowTest {
-    @get:Rule val compose = createEmptyComposeRule()
+    @get:Rule(order = 0) val diagnostics = TestDiagnostics()
+    @get:Rule(order = 1) val compose = createEmptyComposeRule()
     @Test fun cancellingProviderOpeningKeepsTheAppUsable() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         Intents.init()
@@ -41,10 +42,16 @@ class CancellationFlowTest {
                     compose.onNodeWithTag("import_file").assertIsEnabled()
                     compose.onNodeWithTag("import_error").assertDoesNotExist()
                 } finally {
+                    diagnostics.phase(TestDiagnostics.Phase.BEFORE_LOCALE_RESET)
                     scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList()) }
+                    diagnostics.phase(TestDiagnostics.Phase.AFTER_LOCALE_RESET)
+                    diagnostics.phase(TestDiagnostics.Phase.BEFORE_COMPOSE_IDLE)
                     compose.waitForIdle()
+                    diagnostics.phase(TestDiagnostics.Phase.AFTER_COMPOSE_IDLE)
+                    diagnostics.phase(TestDiagnostics.Phase.BEFORE_SCENARIO_CLOSE)
                 }
             }
+            diagnostics.phase(TestDiagnostics.Phase.AFTER_SCENARIO_CLOSE)
         } finally { Intents.release() }
     }
 }

@@ -32,7 +32,8 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class PlaylistFlowTest {
-    @get:Rule val compose = createEmptyComposeRule()
+    @get:Rule(order = 0) val diagnostics = TestDiagnostics()
+    @get:Rule(order = 1) val compose = createEmptyComposeRule()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @Test fun mobileImportsUrlAndPlaysThenReturnsToItsLibrary() = exerciseUrl(MobileActivity::class.java, false)
@@ -55,9 +56,15 @@ class PlaylistFlowTest {
                 compose.onNodeWithText("File channel").assertIsDisplayed()
                 scenario.recreate()
                 compose.onNodeWithText("File channel").assertIsDisplayed()
+                diagnostics.phase(TestDiagnostics.Phase.BEFORE_LOCALE_RESET)
                 scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList()) }
+                diagnostics.phase(TestDiagnostics.Phase.AFTER_LOCALE_RESET)
+                diagnostics.phase(TestDiagnostics.Phase.BEFORE_COMPOSE_IDLE)
                 compose.waitForIdle()
+                diagnostics.phase(TestDiagnostics.Phase.AFTER_COMPOSE_IDLE)
+                diagnostics.phase(TestDiagnostics.Phase.BEFORE_SCENARIO_CLOSE)
             }
+            diagnostics.phase(TestDiagnostics.Phase.AFTER_SCENARIO_CLOSE)
         } finally { Intents.release() }
     }
 
@@ -106,10 +113,16 @@ class PlaylistFlowTest {
                     compose.onNodeWithText("Fixture channel").assertIsDisplayed()
                     if (tv) compose.onNodeWithTag("channel_0").assertIsFocused()
                 } finally {
+                    diagnostics.phase(TestDiagnostics.Phase.BEFORE_LOCALE_RESET)
                     scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList()) }
+                    diagnostics.phase(TestDiagnostics.Phase.AFTER_LOCALE_RESET)
+                    diagnostics.phase(TestDiagnostics.Phase.BEFORE_COMPOSE_IDLE)
                     compose.waitForIdle()
+                    diagnostics.phase(TestDiagnostics.Phase.AFTER_COMPOSE_IDLE)
+                    diagnostics.phase(TestDiagnostics.Phase.BEFORE_SCENARIO_CLOSE)
                 }
             }
+            diagnostics.phase(TestDiagnostics.Phase.AFTER_SCENARIO_CLOSE)
         }
     }
 

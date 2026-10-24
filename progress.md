@@ -1,9 +1,9 @@
 # IPTV development progress
 
-Last updated: 24 October 2026 (Asia/Riyadh)  
+Last updated: 25 October 2026 (Asia/Riyadh)  
 Overall status: M3U file/URL import and Media3 playback delivered for review in [PR #3](https://github.com/FireAmun/Iptv/pull/3). Local checks and independent review passed; the live PR records latest-head cloud checks and merge state.  
 Current phase: P2 — playable prototype verified locally on phone and TV; inspect PR #3 for integration state.  
-Next task: Inspect PR #3 and finish delivery only if outstanding; then plan encrypted source persistence and Room catalogue storage so the library survives app restart.
+Next task: Diagnose the cloud TV test-cleanup stall and finish PR #3. Then implement the approved Cinema A design with dark and light modes for source setup, library and playback; persistence follows this visual refresh.
 
 ## 1. Start here in a new chat
 
@@ -33,6 +33,7 @@ This tracker records project state; it is not a substitute for source code, test
 | Purchase verification | Separate from monitoring. Client-only tradeoffs versus managed secure verification must be decided before billing work. | Open |
 | Advanced scope | Cloud sync, recording/downloads, multiview, casting, extra playback engines, and web dashboard deferred. | Proposed first-release boundary |
 | GitHub delivery | `FireAmun/Iptv`, base `main`; PR/check/merge/delete cycle authorized for normal changes. | Confirmed user instruction |
+| Visual design | Cinema A approved by owner, including a matching light mode; use Broadcast's denser layout when Live TV guide work arrives. [Editable concepts](https://www.figma.com/design/2Hg2v6XoCHTlmyDTZSI9te). | Approved 25 October; production application pending |
 
 The architecture is a delivered draft, not evidence of implemented or tested functionality. Branding, the complete free/paid offer, detailed UI design, and release compatibility remain unsettled.
 
@@ -53,6 +54,7 @@ The architecture is a delivered draft, not evidence of implemented or tested fun
 | A11 | Android CI, device tests, and APK delivery | [PR #2 checks](https://github.com/FireAmun/Iptv/pull/2/checks), [workflow](.github/workflows/ci.yml) | Build/lint/test-APK job, phone API 28 and TV API 36 smoke jobs, and required aggregate gate. APK/report artifacts retained seven days. Each device runs both activity tests covering language round trip, RTL/LTR, recreation, TV focus and D-pad activation. Require actual latest-head green results before merging; the earlier local suspension was superseded by D07. |
 | A12 | M3U/playback slice design and implementation plan | [Design](docs/superpowers/specs/2026-10-24-m3u-playback-design.md), [plan](docs/superpowers/plans/2026-10-24-m3u-playback.md) | Delivered and implemented. Owner selected file plus URL import and explicitly re-authorized local hands-on testing alongside CI. |
 | A13 | Session M3U library and Media3 player | [Playback guide](docs/development/m3u-playback.md), `core/model`, `core/data`, `core/playback`, app/mobile/TV | Implemented: bounded streaming parser, cancellable imports, HTTP consent, safe labels/errors, virtualized lists, lifecycle release, native playback controls, Arabic/English. Local 19 JVM tests, 8 API 34 phone tests and 8 API 36 TV tests passed locally; independent review passed. [PR #3](https://github.com/FireAmun/Iptv/pull/3) records cloud verification and delivery state. Session-only library, no database/source persistence. |
+| A14 | Approved Cinema visual direction | [Concepts and palette](docs/design/README.md), [design](docs/superpowers/specs/2026-10-25-cinema-design.md), [implementation plan](docs/superpowers/plans/2026-10-25-cinema.md) | Three editable Figma directions and nine inspected previews delivered. Owner chose A plus light mode. Production implementation pending after PR #3; light Figma export QA limited by connected Starter tool cap. |
 
 ## 4. Status vocabulary
 
@@ -102,12 +104,12 @@ P1 must include TV feasibility in the earliest proof. Do not build an extensive 
 | D12 | Credential persistence integration | Prove Keystore-backed encryption, optional Tink integration, and backup exclusions; DataStore does not encrypt by itself. | Source storage and P5 |
 | D13 | Codec gaps | No device codec gaps demonstrated; FFmpeg audio or libVLC is not included by default. | Only any demonstrated unsupported codec requirement |
 | D14 | Google Play readiness | Account type/date, verification state, store projects, test resources, and signing setup not inspected. Recheck current requirements when relevant. | P9; prepare independently when authorized |
-| D15 | Final scope and design review | Working scope is documented; any additions/changes need to be reconciled with the first implementation plan. Detailed visual screens are not yet designed. | A stable implementation baseline; not more external idea discussions |
+| D15 | Final scope and design review | Cinema A with light mode approved; see A14. Implement existing journeys first. Future catalogue/guide screens require their data capabilities. | Production visual refresh; no further design-choice question |
 | D16 | Server-enforced branch protection | GitHub rejected protection with HTTP 403: this private repository needs Pro. Auto-merge remains unavailable; remote merged-branch deletion is enabled. Agents still enforce the authorized PR/CI/merge flow. | Server-side enforcement only; no plan or visibility changes authorized/performed |
 
 ## 7. Current blockers and risks
 
-M3U import/playback and local phone/TV checks pass. Integration requires green latest-head cloud checks on PR #3. The first cloud TV attempt timed out during recreation with graphics-buffer errors; a renderer change is under verification. Inspect the live PR for its resolution before treating this historical failure as a current blocker. Never infer a passing runtime test from a build or a job configuration.
+M3U import/playback and local phone/TV checks pass. PR #3 remains open: cloud TV stalled again after the renderer change. Logs place both long stalls after the final test locale reset, after playback/recreation assertions; graphics errors do not establish the cause. A separate attempt exited during emulator unlock before tests. Test-only phase markers and an opt-in 90-second per-test watchdog now capture safe Java stacks and fail stalled runs. No production fix is justified until the blocking stack is captured. Require complete latest-head phone and TV reports before merge.
 
 - Physical hardware/source availability remains unknown. Local manual testing is re-authorized with one emulator at a time; no host firewall/driver/reboot changes. Preserve the earlier incident and SDK tool-copy limitation in environment notes.
 - The app dependency combination builds on installed JDK 21. CI also uses Java 21; local activation still defaults to bundled JBR 25, so follow the build guide's explicit Java selection.
@@ -140,9 +142,11 @@ M3U import/playback and local phone/TV checks pass. Integration requires green l
 
 For future checks, record the exact meaningful command or report path, outcome, relevant tool/build version, and physical device when applicable. Never replace a failure with an assumed pass or claim completion from another agent's summary without checking evidence.
 
+25 October diagnostic verification: `:app:assembleDebugAndroidTest` passed. A forced two-second CancellationFlowTest run failed with instrumentation termination and retained `IptvTestDiagnostics` stacks in its report logcat. The complete API 36 TV suite then passed all 8 tests in 1m 20s with the 90-second per-test limit; XML has zero failures/errors/skips. Independent diagnostic review found no actionable issues. Repository seven tests, Markdown links, actionlint and diff checks passed. Cloud run [40123533464](https://github.com/FireAmun/Iptv/actions/runs/40123533464) at `72aa0bb` had 8 phone passes but no complete TV result; the diagnostic revision needs fresh CI.
+
 ## 9. Next-session handoff
 
-**Task:** Inspect [PR #3](https://github.com/FireAmun/Iptv/pull/3) and the actual branch state. Complete exact-head CI/merge/delete if outstanding, then plan the first P3 persistence slice: encrypted source storage, Room catalogue identity and atomic refresh. Do not recreate already merged branches.
+**Task:** Inspect [PR #3](https://github.com/FireAmun/Iptv/pull/3) and the actual branch state. Verify diagnostic timeout failure locally, run the complete TV suite, and capture/fix the cloud test-cleanup stall. Complete exact-head CI/merge/delete, then implement approved Cinema A plus matching light mode. Source persistence follows this owner-prioritized visual refresh. Do not repeat the design-choice question or recreate merged branches.
 
 **Inputs:** [M3U/playback guide](docs/development/m3u-playback.md), [slice plan](docs/superpowers/plans/2026-10-24-m3u-playback.md), A01/A02, actual GitHub and workspace state.
 
