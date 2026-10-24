@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "Iptv"
-include(":app", ":ui:mobile", ":ui:tv")
+include(":app", ":ui:mobile", ":ui:tv", ":core:model", ":core:data", ":core:playback")

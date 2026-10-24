@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.core.os.LocaleListCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -18,7 +19,9 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class WelcomeTest {
-    @get:Rule val compose = createEmptyComposeRule()
+    @get:Rule(order = 0) val diagnostics = TestDiagnostics()
+    @get:Rule(order = 1) val locales = RestoreLocalesRule(diagnostics)
+    @get:Rule(order = 2) val compose = createEmptyComposeRule()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @Test fun mobileLanguageSelectionUpdatesDirectionAndSurvivesRecreation() {
@@ -41,6 +44,9 @@ class WelcomeTest {
                 }
                 val switch = compose.onNodeWithTag("language_switch")
                 if (tv) {
+                    compose.waitUntil(timeoutMillis = 5000) {
+                        compose.onAllNodesWithTag("language_switch").fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } }
+                    }
                     switch.assertIsFocused().performKeyInput {
                         keyDown(Key.DirectionCenter)
                         keyUp(Key.DirectionCenter)
@@ -76,10 +82,10 @@ class WelcomeTest {
                 scenario.recreate()
                 compose.onNodeWithTag("language_switch").assertTextEquals("العربية")
             } finally {
-                scenario.onActivity { setLocale("") }
-                compose.waitForIdle()
+                diagnostics.phase(TestDiagnostics.Phase.BEFORE_SCENARIO_CLOSE)
             }
         }
+        diagnostics.phase(TestDiagnostics.Phase.AFTER_SCENARIO_CLOSE)
     }
 
     private fun setLocale(tags: String) {

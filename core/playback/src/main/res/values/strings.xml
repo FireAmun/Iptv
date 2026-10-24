@@ -1,0 +1,3 @@
+<resources>
+    <string name="playback_error">Unable to play this entry. Check your source or retry.</string>
+</resources>

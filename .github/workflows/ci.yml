@@ -89,7 +89,7 @@ jobs:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
           log-accepted-android-sdk-licenses: false
       - name: Build, lint, and run local Android unit tests
-        run: bash ./gradlew --no-daemon --console=plain testDebugUnitTest lintDebug assembleDebug :app:assembleDebugAndroidTest
+        run: bash ./gradlew --no-daemon --console=plain :core:model:test :core:data:test testDebugUnitTest lintDebug assembleDebug :app:assembleDebugAndroidTest
       - name: Save installable prototype
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -144,7 +144,7 @@ jobs:
           cmdline-tools-version: '15859902'
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
           log-accepted-android-sdk-licenses: false
-      - name: Run language, RTL, persistence, and remote tests
+      - name: Run import, playback, language, and remote tests
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: ${{ matrix.api }}
@@ -154,8 +154,8 @@ jobs:
           ram-size: 2048M
           disk-size: 2048M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: bash ./gradlew --no-daemon --console=plain :app:connectedDebugAndroidTest
+          emulator-options: -no-window -gpu swiftshader -noaudio -no-boot-anim -no-snapshot
+          script: bash ./gradlew --no-daemon --console=plain :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.diagnosticTimeoutSeconds=90
       - name: Save device test reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

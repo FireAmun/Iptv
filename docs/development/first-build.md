@@ -1,6 +1,6 @@
 # First Android build
 
-This milestone creates the app shell: mobile/tablet and TV launchers, English/Arabic resources, persistent language selection, and TV remote focus. Source import and media playback are next; the prototype contains no channels.
+The original app-shell milestone delivered mobile/tablet and TV launchers, English/Arabic resources, persistent language selection, and TV remote focus. The current prototype also includes [M3U import and playback](m3u-playback.md); it supplies no channels.
 
 ## Build and install
 
@@ -25,11 +25,11 @@ adb shell am start -n com.fireamun.iptv.prototype/.TvActivity
 ./gradlew.bat --no-daemon --console=plain :app:connectedDebugAndroidTest
 ```
 
-Run with one emulator/device connected. Connected tests exercise English → Arabic → English, RTL/LTR, activity recreation and TV D-pad activation/focus. There are no app business-rule JVM tests in this scaffold; `testDebugUnitTest` reporting NO-SOURCE is not behavioral coverage. [PR #2's checks](https://github.com/FireAmun/Iptv/pull/2/checks) hold the actual phone/TV execution results.
+Run with one emulator/device connected. Connected tests exercise English → Arabic → English, RTL/LTR, recreation, TV focus, file/URL import and playback lifecycle. The original shell had no business-rule JVM tests; the current slice adds model, parser, transport and ViewModel tests. Use the additional core JVM commands in [the playback guide](m3u-playback.md).
 
-## Local device testing is suspended
+## Local device testing authorization
 
-The owner reported a prior laptop restart and cancelled a Windows Firewall network-access prompt during this session. We started SDK ADB and a headless TV emulator; no elevation, driver install, firewall-rule change or reboot command was issued. ADB's TCP listener was observed on `127.0.0.1:5037`. Windows recorded the earlier shutdown as unexpected; the cause is unresolved. The project emulator and ADB were stopped, and will not be restarted automatically in this milestone.
+During the app-shell milestone the owner reported a prior laptop restart and cancelled a Windows Firewall network-access prompt. No elevation, driver install, firewall-rule change or reboot command was issued. ADB's TCP listener was observed on `127.0.0.1:5037`. Windows recorded an unexpected shutdown; its cause remains unresolved. The tools were stopped then. On 24 October 2026 the owner explicitly re-authorized local hands-on app testing alongside CI: use one emulator at a time with no host firewall/driver/reboot changes. See [the playback guide](m3u-playback.md).
 
 The TV AVD was recreated with the installed TV API 36 image and reached ADB online before being stopped. This is not a completed UI or playback test. SDK Manager's versioned local copy also contained an unreadable JAR; the intact downloaded tools were used for AVD recreation. Local SDK/tool integrity and reboot investigation remain separate environment follow-up work.
 

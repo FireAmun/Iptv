@@ -45,8 +45,8 @@ Core and UI modules have `src/main/kotlin` and `src/test/kotlin` directories. `.
 
 ## Current state
 
-The first Android build configures `:app`, `:ui:mobile`, and `:ui:tv`, with separate entry screens, Arabic/English resources, and persistent language selection. The remaining core directories reserve future boundaries. The temporary prototype application ID is `com.fireamun.iptv.prototype`; branding remains open.
+The prototype configures `:app`, `:ui:mobile`, `:ui:tv`, `:core:model`, `:core:data`, and `:core:playback`. It supports Arabic/English, session-only M3U file/URL import, entry selection and Media3 playback. The remaining core directories reserve future boundaries. The temporary application ID is `com.fireamun.iptv.prototype`; branding remains open.
 
-See [build/install instructions and device-test limitations](docs/development/first-build.md) and [the implementation plan](docs/superpowers/plans/2026-10-24-first-android-build.md). Next: local M3U import and Media3 playback. This app shell does not yet load sources or play media.
+See [build/install instructions](docs/development/first-build.md), [M3U/playback behavior and manual testing](docs/development/m3u-playback.md), and [the current plan](docs/superpowers/plans/2026-10-24-m3u-playback.md). The library is not persisted across process death; catalogues/EPG and protected source storage are later slices.
 
 Keep provider credentials and private source URLs out of tracked files. Machine SDK paths belong in an ignored `local.properties` when build configuration is introduced.
