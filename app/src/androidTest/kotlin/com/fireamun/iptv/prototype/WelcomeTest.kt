@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.core.os.LocaleListCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -41,6 +42,9 @@ class WelcomeTest {
                 }
                 val switch = compose.onNodeWithTag("language_switch")
                 if (tv) {
+                    compose.waitUntil(timeoutMillis = 5000) {
+                        compose.onAllNodesWithTag("language_switch").fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } }
+                    }
                     switch.assertIsFocused().performKeyInput {
                         keyDown(Key.DirectionCenter)
                         keyUp(Key.DirectionCenter)

@@ -1,0 +1,137 @@
+package com.fireamun.iptv.prototype
+
+import android.app.Activity
+import android.app.Instrumentation
+import android.content.Intent
+import android.net.Uri
+import android.view.View
+import android.view.ViewGroup
+import androidx.lifecycle.Lifecycle
+import androidx.media3.ui.PlayerView
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.core.os.LocaleListCompat
+import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.pressBack
+import androidx.test.espresso.intent.Intents
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import mockwebserver3.Dispatcher
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
+import mockwebserver3.RecordedRequest
+import okio.Buffer
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+class PlaylistFlowTest {
+    @get:Rule val compose = createEmptyComposeRule()
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
+
+    @Test fun mobileImportsUrlAndPlaysThenReturnsToItsLibrary() = exerciseUrl(MobileActivity::class.java, false)
+    @Test fun tvImportsUrlAndRemotePlaybackRestoresEntryFocus() = exerciseUrl(TvActivity::class.java, true)
+
+    @Test fun pickedFileIsReadThroughItsGrantedContentUri() {
+        val uri = Uri.parse("content://com.fireamun.iptv.prototype.test.fixtures/playlist")
+        instrumentation.targetContext.contentResolver.openOutputStream(uri)!!.use {
+            it.write("#EXTM3U\n#EXTINF:-1,File channel\nhttps://example.invalid/live\n".toByteArray())
+        }
+        Intents.init()
+        try {
+            Intents.intending(hasAction(Intent.ACTION_OPEN_DOCUMENT)).respondWith(
+                Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)),
+            )
+            launch(MobileActivity::class.java).use { scenario ->
+                scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("en")) }
+                compose.onNodeWithTag("import_file").performClick()
+                waitForChannel()
+                compose.onNodeWithText("File channel").assertIsDisplayed()
+                scenario.recreate()
+                compose.onNodeWithText("File channel").assertIsDisplayed()
+                scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList()) }
+                compose.waitForIdle()
+            }
+        } finally { Intents.release() }
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    private fun exerciseUrl(activity: Class<out Activity>, tv: Boolean) {
+        MockWebServer().use { server ->
+            val clip = instrumentation.context.assets.open("synthetic-test.mp4").use { it.readBytes() }
+            server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse = when (request.url.encodedPath) {
+                    "/playlist" -> MockResponse(body = "#EXTM3U\n#EXTINF:-1,Fixture channel\n${server.url("/clip.mp4")}\n")
+                    "/clip.mp4" -> MockResponse.Builder().addHeader("Content-Type", "video/mp4").body(Buffer().write(clip)).build()
+                    else -> MockResponse(code = 404)
+                }
+            }
+            server.start()
+            launch(activity).use { scenario ->
+                try {
+                    scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("en")) }
+                    compose.onNodeWithTag("source_url").performTextInput(server.url("/playlist").toString())
+                    if (tv) compose.onNodeWithTag("source_url").performImeAction()
+                    else compose.onNodeWithTag("import_url").performScrollTo().performClick()
+                    approveHttp(tv)
+                    waitForChannel()
+                    compose.waitUntil(timeoutMillis = 5000) {
+                        var focused = false
+                        scenario.onActivity { focused = it.hasWindowFocus() }
+                        focused
+                    }
+                    val channel = compose.onNodeWithTag("channel_0")
+                    if (tv) channel.assertIsFocused().performKeyInput { keyDown(Key.DirectionCenter); keyUp(Key.DirectionCenter) }
+                    else channel.performClick()
+                    approveHttp(tv)
+                    compose.waitUntil(timeoutMillis = 20_000) {
+                        compose.onAllNodesWithText("Playing").fetchSemanticsNodes().isNotEmpty()
+                    }
+                    compose.onNodeWithTag("playback_status").assertTextEquals("Playing")
+                    scenario.moveToState(Lifecycle.State.CREATED)
+                    scenario.onActivity {
+                        val playerView = findPlayerView(it.window.decorView)
+                        org.junit.Assert.assertNull("Background playback must detach immediately", playerView?.player)
+                    }
+                    scenario.moveToState(Lifecycle.State.RESUMED)
+                    compose.waitUntil(timeoutMillis = 20_000) { compose.onAllNodesWithText("Playing").fetchSemanticsNodes().isNotEmpty() }
+                    pressBack()
+                    waitForChannel()
+                    compose.onNodeWithText("Fixture channel").assertIsDisplayed()
+                    if (tv) compose.onNodeWithTag("channel_0").assertIsFocused()
+                } finally {
+                    scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList()) }
+                    compose.waitForIdle()
+                }
+            }
+        }
+    }
+
+    private fun launch(activity: Class<out Activity>): ActivityScenario<Activity> = ActivityScenario.launch(
+        Intent(instrumentation.targetContext, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
+    private fun waitForChannel() = compose.waitUntil(timeoutMillis = 20_000) {
+        compose.onAllNodesWithTag("channel_0").fetchSemanticsNodes().isNotEmpty()
+    }
+    private fun findPlayerView(view: View): PlayerView? {
+        if (view is PlayerView) return view
+        if (view is ViewGroup) for (index in 0 until view.childCount) findPlayerView(view.getChildAt(index))?.let { return it }
+        return null
+    }
+    @OptIn(ExperimentalTestApi::class)
+    private fun approveHttp(tv: Boolean) {
+        if (tv) {
+            compose.waitUntil(timeoutMillis = 5000) {
+                compose.onAllNodesWithTag("http_cancel").fetchSemanticsNodes().any { it.config[SemanticsProperties.Focused] }
+            }
+            compose.onNodeWithTag("http_cancel").assertIsFocused().performKeyInput { keyDown(Key.DirectionRight); keyUp(Key.DirectionRight) }
+            compose.onNodeWithTag("http_confirm").assertIsFocused().performKeyInput { keyDown(Key.DirectionCenter); keyUp(Key.DirectionCenter) }
+        } else compose.onNodeWithTag("http_confirm").performClick()
+    }
+}

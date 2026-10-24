@@ -1,0 +1,28 @@
+<resources>
+    <string name="tv_import_file">Choose file</string>
+    <string name="tv_url_label">M3U URL</string>
+    <string name="tv_import_url">Load playlist</string>
+    <string name="tv_loading">Loading playlist…</string>
+    <string name="tv_cancel">Cancel</string>
+    <string name="tv_empty">No entries yet.</string>
+    <string name="tv_loaded">%1$d entries · available for this session</string>
+    <string name="tv_entry">Entry %1$d</string>
+    <string name="tv_http_title">Unencrypted connection</string>
+    <string name="tv_http_body">This address uses HTTP. Others on the network may see its content and credentials. Continue with this connection?</string>
+    <string name="tv_continue">Continue</string>
+    <string name="tv_no_picker">No file picker is available. Use an M3U URL.</string>
+    <string name="tv_invalid_address">Enter a full HTTP or HTTPS address.</string>
+    <string name="tv_read_failed">Unable to read that file. Choose it again.</string>
+    <string name="tv_network_failed">Unable to load the source. Check its address, access and your connection.</string>
+    <string name="tv_limit">This playlist exceeds the import limits. Choose a smaller playlist.</string>
+    <string name="tv_hls">This is a playback manifest. Import an M3U catalogue instead.</string>
+    <string name="tv_invalid_playlist">This is not a supported M3U catalogue, or it has no playable entries.</string>
+    <string name="tv_back">Back</string>
+    <string name="tv_retry">Retry</string>
+    <string name="tv_preparing">Preparing</string>
+    <string name="tv_buffering">Buffering</string>
+    <string name="tv_playing">Playing</string>
+    <string name="tv_paused">Paused</string>
+    <string name="tv_ended">Finished</string>
+    <string name="tv_playback_failed">Unable to play this entry. Check your source or retry.</string>
+</resources>

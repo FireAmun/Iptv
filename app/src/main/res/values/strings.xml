@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">IPTV Prototype</string>
+    <string name="player_title">Player</string>
 </resources>

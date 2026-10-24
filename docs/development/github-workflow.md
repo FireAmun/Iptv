@@ -27,9 +27,9 @@ This is the agent/project delivery policy, not an unattended bot that merges arb
 - Workflow validation using pinned actionlint 1.7.12.
 - A final `CI` gate that fails when available checks fail or do not finish successfully.
 
-CI requires the complete wrapper and runs `testDebugUnitTest`, `lintDebug`, `assembleDebug`, and `:app:assembleDebugAndroidTest` with Java 21 and SDK 36/Build Tools 36.0.0. It publishes the debug APK. A partial wrapper/settings setup fails CI rather than silently bypassing Android checks.
+CI requires the complete wrapper and runs `:core:model:test`, `:core:data:test`, `testDebugUnitTest`, `lintDebug`, `assembleDebug`, and `:app:assembleDebugAndroidTest` with Java 21 and SDK 36/Build Tools 36.0.0. It publishes the debug APK. A partial wrapper/settings setup fails CI rather than silently bypassing Android checks.
 
-Device smoke jobs run `:app:connectedDebugAndroidTest` on API 28 phone and API 36 Android TV emulators on disposable Linux runners. The final gate requires both matrix legs and the Android build to succeed. These tests cover launch, language/RTL, persistence through recreation, and TV remote focus/activation. They do not prove media playback, billing, or physical-device compatibility. App JVM unit tasks currently have no business-rule tests. The old bootstrap Android skip was only repository coverage.
+Device jobs run `:app:connectedDebugAndroidTest` on API 28 phone and API 36 Android TV emulators on disposable Linux runners. The final gate requires both matrix legs and the Android build to succeed. Eight tests cover language/RTL, recreation, TV focus, file/URL import and cancellation, synthetic playback lifecycle, and transport consent. Nineteen JVM tests cover model/parser/transport/ViewModel behavior. These do not establish private-provider, codec, billing or physical-device compatibility. The old bootstrap Android skip was only repository coverage.
 
 Actions are pinned to commit SHAs; workflow tokens have read-only repository access and checkout does not retain credentials. Gradle caches are read-only off `main`. No provider credentials or release signing material are required by this workflow.
 

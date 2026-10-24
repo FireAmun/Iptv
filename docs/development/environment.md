@@ -2,7 +2,7 @@
 
 Checked: 24 October 2026 (Asia/Riyadh).
 
-This is the observed local inventory after tool setup and the first Android compilation. See [the build guide](first-build.md) for commands and device-test restrictions; [progress](../../progress.md) records current verification.
+This is the observed local inventory after tool setup and the M3U/playback slice. See [the build guide](first-build.md) for commands and device-test restrictions; [progress](../../progress.md) records current verification.
 
 | Item | Observed state |
 | --- | --- |
@@ -15,9 +15,9 @@ This is the observed local inventory after tool setup and the first Android comp
 | Command-line tools | Tools 23 / Android CLI 1.0.16625370 at `.tools/android-cli`; checksum verified. Tools 22 archive verified and extracted under `.tools/android-sdk-manager`. Its SDK `cmdline-tools/22.0` copy later failed class loading; a copied JAR was not a readable ZIP. Original extracted JAR contained the class. AVD recreation used the intact original libraries with explicit SDK tools root. Repair/verify the SDK copy before relying on that manager again. |
 | Platform-tools / emulator | ADB/platform-tools 37.0.1 and emulator 37.2.12 installed; executable versions checked. Emulator `-accel-check` exited 0 and detected usable AEHD 2.0. No Windows feature or driver installation was required. |
 | TV system image | Android TV API 36 x86_64 revision 4 installed and present in SDK Manager's installed-package list. |
-| Devices | No physical devices. Existing phone AVDs preserved. Project TV AVD recreated with `tv_1080p`, reached ADB online, then stopped. Local emulator/ADB testing suspended after owner's firewall prompt and earlier unexpected shutdown report; use CI device runners for this milestone. No local UI/playback test completed. |
+| Devices | No physical devices. Existing phone AVDs preserved; project `Iptv_Phone_API_34` uses the installed API 34 Google APIs x86_64 image. Local API 34 tests and hands-on file/playback checks passed. Project TV AVD uses API 36 / `tv_1080p`. Owner re-authorized hands-on testing after earlier suspension: one emulator at a time, no firewall/driver/reboot changes. Earlier host shutdown remains unexplained. |
 | Git / GitHub CLI | Available and authenticated for the specified repository; PR delivery is documented separately. |
-| App verification | Debug app and instrumentation APK compile; lint passed on Java 21. App JVM tasks have NO-SOURCE. See tracker for actual CI device results. No source import or media playback implemented. |
+| App verification | Version 0.2.0 debug/test APKs compile; lint, 19 JVM tests and 8 local API 34 device tests pass on Java 21. M3U import and synthetic Media3 playback observed manually. See tracker/PR for cloud phone/TV results. |
 
 ## Using the tools
 
@@ -28,10 +28,10 @@ gradle --version
 android --no-metrics --version
 ```
 
-Do not start local ADB/emulator automatically while the environment incident is unresolved. The SDK Manager copy also needs integrity repair before use; the inventory above separates original archives from the later copy failure.
+The owner explicitly authorized local app testing after the earlier suspension. Use one emulator at a time; no host firewall, driver or reboot changes. The SDK Manager copy also needs integrity repair before use; the inventory above separates original archives from the later copy failure.
 
 SDK Manager 22 needs a correct SDK root/layout for image discovery. The later class-loading failure in the versioned copy is documented above; do not treat earlier executable checks as proof that copy still works. Native-access warnings occurred with Java 25. Binary downloads, checksums, and installation logs are kept under ignored `.tools/` and are not pushed to GitHub.
 
-Compose/TV and entry-point libraries resolve through Gradle. Media3, Room, and other architecture packages will be added when their capabilities are implemented; no standalone framework installation or hosted backend is required.
+Compose/TV and entry-point libraries resolve through Gradle. Media3 1.11.1, OkHttp 5.3.2 and Coroutines 1.10.2 are included. Room and other architecture packages will be added when their capabilities are implemented; no standalone framework installation or hosted backend is required.
 
 Prototype baseline: minSdk 28, compile/target 36, temporary ID `com.fireamun.iptv.prototype`. Release identity and supported hardware remain open. Keep local SDK paths in ignored machine configuration.

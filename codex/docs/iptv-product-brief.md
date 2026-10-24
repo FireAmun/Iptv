@@ -1,16 +1,16 @@
 # Arabic and English IPTV Player — Product Brief
 
 Date: 22 October 2026  
-Status: Idea analysis and product planning; implementation has not been authorized.  
+Status: Historical product-planning record; later implementation authorization and delivery are tracked in [progress](../../progress.md).  
 Working name: Undecided
 
-Architecture: [Draft architecture specification, 24 October 2026](../../docs/superpowers/specs/2026-10-24-iptv-architecture-design.md). The user authorized preparing this document; application implementation remains a separate step.
+Architecture: [Draft architecture specification, 24 October 2026](../../docs/superpowers/specs/2026-10-24-iptv-architecture-design.md). The owner subsequently authorized implementation, local testing and normal GitHub delivery; use the progress tracker for current scope and evidence.
 
 ## 1. Purpose and scope of this document
 
 Capture the IPTV product idea discussed with the user, including agreed direction, proposed features, research, commercial options, and questions to resolve. This is a planning record, not an approved technical specification or a claim that every proposed feature is feasible on every device.
 
-The user explicitly clarified that we are still analyzing the idea. Do not scaffold, implement, publish, or purchase services based on this document alone.
+The original discussion was planning only. Later explicit user instructions authorized building the app. This document alone does not authorize publishing or purchasing services.
 
 ## 2. Product concept
 
@@ -36,7 +36,7 @@ The intended offer combines attractive Arabic design, easy setup, a substantial 
 | Monetization | Alternatives under consideration | As of 24 October 2026, the user is considering one-time purchase or yearly renewal. The supplied stack proposal uses a one-time unlock; the final model, free access/trial, price, and device limits remain open. |
 | Feature breadth | Confirmed ambition | Learn from established players and aim for a comprehensive product; exact launch scope is not approved. |
 | Technology | Recommended direction | Native Android with Kotlin, Compose/Compose for TV, and Media3 is the working recommendation following the user's 24 October proposal. See section 18 for details and unresolved technical choices. |
-| Implementation | Not authorized | Continue idea analysis until the user explicitly asks to build. |
+| Implementation | Subsequently authorized | App development and PR delivery are underway; see the current progress tracker. Publication remains separate. |
 
 “All devices” currently means the agreed Android device categories. It does not promise an initial release for iOS, Apple TV, Samsung Tizen, LG webOS, Windows, or every smart TV operating system. Android-based TV boxes also need compatibility testing.
 
