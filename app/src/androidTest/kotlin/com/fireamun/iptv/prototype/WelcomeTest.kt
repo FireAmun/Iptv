@@ -20,7 +20,8 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class WelcomeTest {
     @get:Rule(order = 0) val diagnostics = TestDiagnostics()
-    @get:Rule(order = 1) val compose = createEmptyComposeRule()
+    @get:Rule(order = 1) val locales = RestoreLocalesRule(diagnostics)
+    @get:Rule(order = 2) val compose = createEmptyComposeRule()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @Test fun mobileLanguageSelectionUpdatesDirectionAndSurvivesRecreation() {
@@ -81,12 +82,6 @@ class WelcomeTest {
                 scenario.recreate()
                 compose.onNodeWithTag("language_switch").assertTextEquals("العربية")
             } finally {
-                diagnostics.phase(TestDiagnostics.Phase.BEFORE_LOCALE_RESET)
-                scenario.onActivity { setLocale("") }
-                diagnostics.phase(TestDiagnostics.Phase.AFTER_LOCALE_RESET)
-                diagnostics.phase(TestDiagnostics.Phase.BEFORE_COMPOSE_IDLE)
-                compose.waitForIdle()
-                diagnostics.phase(TestDiagnostics.Phase.AFTER_COMPOSE_IDLE)
                 diagnostics.phase(TestDiagnostics.Phase.BEFORE_SCENARIO_CLOSE)
             }
         }

@@ -109,7 +109,7 @@ P1 must include TV feasibility in the earliest proof. Do not build an extensive 
 
 ## 7. Current blockers and risks
 
-M3U import/playback and local phone/TV checks pass. PR #3 remains open: cloud TV stalled again after the renderer change. Logs place both long stalls after the final test locale reset, after playback/recreation assertions; graphics errors do not establish the cause. A separate attempt exited during emulator unlock before tests. Test-only phase markers and an opt-in 90-second per-test watchdog now capture safe Java stacks and fail stalled runs. No production fix is justified until the blocking stack is captured. Require complete latest-head phone and TV reports before merge.
+M3U import/playback and local phone/TV checks pass. PR #3 remains open. Cloud and local diagnostic stacks confirmed a Compose/Espresso synchronization stall after the unasserted final locale reset, with main idle. [Investigation and harness fix](docs/development/tv-test-cleanup.md): restore locale after activity closure and Compose disposal, preserving every behavioral assertion. The deeper framework mechanism is not established; no production/GPU fix is claimed. Local and fresh latest-head phone/TV verification are required before merge.
 
 - Physical hardware/source availability remains unknown. Local manual testing is re-authorized with one emulator at a time; no host firewall/driver/reboot changes. Preserve the earlier incident and SDK tool-copy limitation in environment notes.
 - The app dependency combination builds on installed JDK 21. CI also uses Java 21; local activation still defaults to bundled JBR 25, so follow the build guide's explicit Java selection.
@@ -143,6 +143,8 @@ M3U import/playback and local phone/TV checks pass. PR #3 remains open: cloud TV
 For future checks, record the exact meaningful command or report path, outcome, relevant tool/build version, and physical device when applicable. Never replace a failure with an assumed pass or claim completion from another agent's summary without checking evidence.
 
 25 October diagnostic verification: `:app:assembleDebugAndroidTest` passed. A forced two-second CancellationFlowTest run failed with instrumentation termination and retained `IptvTestDiagnostics` stacks in its report logcat. The complete API 36 TV suite then passed all 8 tests in 1m 20s with the 90-second per-test limit; XML has zero failures/errors/skips. Independent diagnostic review found no actionable issues. Repository seven tests, Markdown links, actionlint and diff checks passed. Cloud run [40123533464](https://github.com/FireAmun/Iptv/actions/runs/40123533464) at `72aa0bb` had 8 phone passes but no complete TV result; the diagnostic revision needs fresh CI.
+
+25 October cleanup fix verification: diagnostic run [40140423491](https://github.com/FireAmun/Iptv/actions/runs/40140423491) captured the same cleanup synchronization stack as the local reproduction. After moving locale restoration outside Compose/scenario lifetime, the complete local API 36 TV suite passed all 8 tests in 1m 41s, zero failures/errors/skips. Logs show scenario closure preceding locale reset. Independent review approved the test-only fix; fresh CI on its pushed revision remains required.
 
 ## 9. Next-session handoff
 
