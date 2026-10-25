@@ -37,9 +37,10 @@ import com.fireamun.iptv.core.designsystem.*
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.LibraryState
 import com.fireamun.iptv.core.model.PlaybackStatus
+import com.fireamun.iptv.core.model.ContentKind
 
 @Composable
-private fun CinemaButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, primary: Boolean = false, content: @Composable RowScope.() -> Unit) {
+internal fun CinemaButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, primary: Boolean = false, content: @Composable RowScope.() -> Unit) {
     val p = cinemaPalette()
     Button(onClick = onClick, modifier = modifier, enabled = enabled,
         shape = ButtonDefaults.shape(shape = RoundedCornerShape(12.dp)),
@@ -50,9 +51,10 @@ private fun CinemaButton(onClick: () -> Unit, modifier: Modifier = Modifier, ena
 }
 
 @Composable
-fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit) {
+fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit) {
     var url by remember { mutableStateOf("") }
     var enteringUrl by remember { mutableStateOf(false) }
+    var enteringLogin by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val window = LocalWindowInfo.current
@@ -77,17 +79,18 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                                 Column(Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                                     Text(stringResource(R.string.tv_title), fontWeight = FontWeight.ExtraBold, fontSize = 40.sp, lineHeight = 48.sp, letterSpacing = (-1).sp)
                                     Text(stringResource(R.string.tv_description), style = MaterialTheme.typography.bodyMedium, color = p.muted)
-                                    SourceActions(state.importing, { enteringUrl = true }, { url = ""; keyboard?.hide(); onImportFile() })
+                                    SourceActions(state.importing, { enteringLogin = true }, { enteringUrl = true }, { url = ""; keyboard?.hide(); onImportFile() })
                                 }
                                 CinemaIllustration(Modifier.weight(1f).height(240.dp))
                             }
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(stringResource(R.string.tv_library), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold)
+                                    if (state.canGoBack) CinemaButton(onClick = onLibraryBack, modifier = Modifier.testTag("library_back")) { Text(stringResource(R.string.tv_back)) }
+                                    Text(state.collectionTitle ?: state.sourceName ?: stringResource(R.string.tv_library), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold)
                                     Text(stringResource(R.string.tv_loaded, state.channels.size), color = p.muted, style = MaterialTheme.typography.bodySmall)
                                 }
-                                SourceActions(state.importing, { enteringUrl = true }, { url = ""; keyboard?.hide(); onImportFile() })
+                                SourceActions(state.importing, { enteringLogin = true }, { enteringUrl = true }, { url = ""; keyboard?.hide(); onImportFile() })
                             }
                         }
                         if (state.importing) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -106,12 +109,15 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
                             channel.group?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                            contentLabel(channel.kind)?.let { Text(stringResource(it), style = MaterialTheme.typography.labelSmall) }
+                            if (channel.kind == ContentKind.EPISODE && channel.season != null && channel.episode != null) Text(stringResource(R.string.tv_episode_number, channel.season!!, channel.episode!!), style = MaterialTheme.typography.bodySmall)
                         }
-                        Text("▶", fontSize = 20.sp)
+                        Text(if (channel.kind == ContentKind.SERIES) "↳" else "▶", fontSize = 20.sp)
                     }
                 }
             }
         }
+        if (enteringLogin) TvServerLogin(onDismiss = { enteringLogin = false }, onSubmit = { name, server, username, password -> enteringLogin = false; onServerLogin(name, server, username, password) })
         if (enteringUrl) {
             val inputFocus = remember { FocusRequester() }
             var inputFocused by remember { mutableStateOf(false) }
@@ -151,8 +157,8 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
             }
         }
     }
-    LaunchedEffect(state.channels, state.selectedId, window.isWindowFocused, enteringUrl, state.needsHttpApproval) {
-        if (!window.isWindowFocused || enteringUrl || state.needsHttpApproval) return@LaunchedEffect
+    LaunchedEffect(state.channels, state.selectedId, window.isWindowFocused, enteringUrl, enteringLogin, state.needsHttpApproval) {
+        if (!window.isWindowFocused || enteringUrl || enteringLogin || state.needsHttpApproval) return@LaunchedEffect
         withFrameNanos { }
         if (targetId == null) languageFocus.requestFocus()
         else { list.scrollToItem(state.channels.indexOfFirst { it.id == targetId } + 1); withFrameNanos { }; entryFocus.requestFocus() }
@@ -160,10 +166,13 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
 }
 
 @Composable
-private fun SourceActions(importing: Boolean, onUrl: () -> Unit, onFile: () -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        CinemaButton(onClick = onUrl, primary = true, enabled = !importing, modifier = Modifier.testTag("add_url")) { Text(stringResource(R.string.tv_add_url), fontWeight = FontWeight.Bold) }
-        CinemaButton(onClick = onFile, enabled = !importing, modifier = Modifier.testTag("import_file")) { Text(stringResource(R.string.tv_import_file)) }
+private fun SourceActions(importing: Boolean, onLogin: () -> Unit, onUrl: () -> Unit, onFile: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CinemaButton(onClick = onLogin, primary = true, enabled = !importing, modifier = Modifier.testTag("add_login")) { Text(stringResource(R.string.tv_server_login), fontWeight = FontWeight.Bold) }
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            CinemaButton(onClick = onUrl, enabled = !importing, modifier = Modifier.testTag("add_url")) { Text(stringResource(R.string.tv_url_short)) }
+            CinemaButton(onClick = onFile, enabled = !importing, modifier = Modifier.testTag("import_file")) { Text(stringResource(R.string.tv_file_short)) }
+        }
     }
 }
 
@@ -188,6 +197,12 @@ fun TvPlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetr
 }
 
 private fun importMessage(error: ImportError): Int = when (error) {
+    ImportError.INVALID_LOGIN -> R.string.tv_invalid_login
+    ImportError.AUTH_FAILED -> R.string.tv_auth_failed
+    ImportError.ACCOUNT_DISABLED -> R.string.tv_account_disabled
+    ImportError.ACCOUNT_EXPIRED -> R.string.tv_account_expired
+    ImportError.SERVER_RESPONSE -> R.string.tv_server_response
+    ImportError.NO_CONTENT -> R.string.tv_no_content
     ImportError.NO_FILE_PICKER -> R.string.tv_no_picker
     ImportError.INVALID_ADDRESS -> R.string.tv_invalid_address
     ImportError.READ_FAILED -> R.string.tv_read_failed
@@ -195,6 +210,13 @@ private fun importMessage(error: ImportError): Int = when (error) {
     ImportError.TOO_LARGE, ImportError.LINE_TOO_LONG, ImportError.FIELD_TOO_LONG, ImportError.TOO_MANY_ENTRIES, ImportError.TIME_LIMIT -> R.string.tv_limit
     ImportError.HLS_MANIFEST -> R.string.tv_hls
     else -> R.string.tv_invalid_playlist
+}
+private fun contentLabel(kind: ContentKind): Int? = when (kind) {
+    ContentKind.LIVE -> R.string.tv_live
+    ContentKind.MOVIE -> R.string.tv_movie
+    ContentKind.SERIES -> R.string.tv_series
+    ContentKind.EPISODE -> R.string.tv_episode
+    ContentKind.UNKNOWN -> null
 }
 private fun playbackMessage(status: PlaybackStatus): Int = when (status) {
     PlaybackStatus.PREPARING -> R.string.tv_preparing

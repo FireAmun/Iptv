@@ -1,0 +1,22 @@
+<resources>
+    <string name="mobile_server_login">تسجيل الدخول إلى الخادم</string>
+    <string name="mobile_login_description">أدخل بيانات مزوّد الخدمة المتوافق مع Xtream. تسجيل الدخول متاح خلال هذه الجلسة فقط.</string>
+    <string name="mobile_playlist_name">اسم القائمة</string>
+    <string name="mobile_server_url">رابط الخادم</string>
+    <string name="mobile_username">اسم المستخدم</string>
+    <string name="mobile_password">كلمة المرور</string>
+    <string name="mobile_connect">اتصال</string>
+    <string name="mobile_invalid_login">أدخل اسم القائمة ورابط الخادم الكامل واسم المستخدم وكلمة المرور.</string>
+    <string name="mobile_auth_failed">تعذر تسجيل الدخول. تحقق من اسم المستخدم وكلمة المرور.</string>
+    <string name="mobile_account_disabled">حساب المزوّد غير نشط. راجع مزوّد الخدمة.</string>
+    <string name="mobile_account_expired">انتهت صلاحية حساب المزوّد.</string>
+    <string name="mobile_server_response">أرسل الخادم استجابة غير مدعومة.</string>
+    <string name="mobile_no_content">لا يتوفر محتوى مدعوم هنا.</string>
+    <string name="mobile_live">بث مباشر</string>
+    <string name="mobile_movie">فيلم</string>
+    <string name="mobile_series">مسلسل</string>
+    <string name="mobile_episode">حلقة</string>
+    <string name="mobile_episode_number">الموسم %1$d · الحلقة %2$d</string>
+    <string name="mobile_url_short">رابط M3U</string>
+    <string name="mobile_file_short">ملف</string>
+</resources>

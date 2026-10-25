@@ -6,6 +6,8 @@ import com.fireamun.iptv.core.data.HttpPlaylistLoader
 import com.fireamun.iptv.core.data.M3uParser
 import com.fireamun.iptv.core.data.PlaylistEntry
 import com.fireamun.iptv.core.data.ImportFailure
+import com.fireamun.iptv.core.data.XtreamConnection
+import com.fireamun.iptv.core.data.XtreamLoader
 import com.fireamun.iptv.core.model.LibraryState
 import com.fireamun.iptv.core.model.MediaAddress
 import com.fireamun.iptv.core.model.ImportError
@@ -30,6 +32,8 @@ class LibraryViewModel(
     private val parser: M3uParser = M3uParser(),
     private val loadUrl: suspend (MediaAddress) -> List<PlaylistEntry> = HttpPlaylistLoader()::load,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val loadXtream: suspend (XtreamConnection) -> List<PlaylistEntry> = XtreamLoader()::load,
+    private val loadEpisodes: suspend (XtreamConnection, Long) -> List<PlaylistEntry> = XtreamLoader()::episodes,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(LibraryState())
     val state = mutableState.asStateFlow()
@@ -39,6 +43,8 @@ class LibraryViewModel(
     private var importJob: Job? = null
     private var generation = 0
     private var pending: (() -> Unit)? = null
+    private var activeXtream: XtreamConnection? = null
+    private var parent: Pair<List<PlaylistEntry>, LibraryState>? = null
 
     fun importFile(cancelOpen: () -> Unit = {}, open: () -> InputStream) = startImport {
         coroutineScope {
@@ -72,7 +78,25 @@ class LibraryViewModel(
         requireHttpApproval(address) { startImport { loadUrl(address) } }
     }
 
-    private fun startImport(load: suspend () -> List<PlaylistEntry>) {
+    fun importXtream(name: String, server: String, username: String, password: String) {
+        val label = name.trim()
+        val source = XtreamConnection.create(server, username, password)
+        if (label.isBlank() || label.length > 128 || label.any { it.isISOControl() } || source == null) {
+            reportError(ImportError.INVALID_LOGIN)
+            return
+        }
+        cancelImport()
+        requireHttpApproval(source.address) {
+            startImport(onSuccess = { entries ->
+                library = entries
+                activeXtream = source
+                parent = null
+                mutableState.value = LibraryState(channels = entries.map { it.channel }, sourceName = label)
+            }) { loadXtream(source) }
+        }
+    }
+
+    private fun startImport(onSuccess: ((List<PlaylistEntry>) -> Unit)? = null, load: suspend () -> List<PlaylistEntry>) {
         cancelImport()
         val current = generation
         mutableState.value = mutableState.value.copy(importing = true, error = null)
@@ -82,8 +106,13 @@ class LibraryViewModel(
                 ensureActive()
                 if (entries.isEmpty()) throw ImportFailure(ImportError.EMPTY)
                 if (current == generation) {
-                    library = entries
-                    mutableState.value = LibraryState(channels = entries.map { it.channel })
+                    if (onSuccess != null) onSuccess(entries)
+                    else {
+                        library = entries
+                        activeXtream = null
+                        parent = null
+                        mutableState.value = LibraryState(channels = entries.map { it.channel })
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -119,7 +148,27 @@ class LibraryViewModel(
         if (mutableState.value.importing) return
         val entry = library.firstOrNull { it.channel.id == id } ?: return
         mutableState.value = mutableState.value.copy(selectedId = id, error = null)
-        requireHttpApproval(entry.address) { mutablePlayback.value = entry.address }
+        val source = activeXtream
+        val seriesId = entry.seriesId
+        if (source != null && seriesId != null) {
+            val root = library to mutableState.value
+            requireHttpApproval(source.address) {
+                startImport(onSuccess = { entries ->
+                    parent = root
+                    library = entries
+                    mutableState.value = LibraryState(channels = entries.map { it.channel }, sourceName = root.second.sourceName,
+                        collectionTitle = entry.channel.title, canGoBack = true)
+                }) { loadEpisodes(source, seriesId) }
+            }
+        } else entry.address?.let { address -> requireHttpApproval(address) { mutablePlayback.value = address } }
+    }
+    fun backToCatalog() {
+        val root = parent ?: return
+        cancelImport()
+        closePlayback()
+        library = root.first
+        mutableState.value = root.second.copy(importing = false, needsHttpApproval = false, error = null)
+        parent = null
     }
     fun closePlayback() { mutablePlayback.value = null }
     fun cancelImport() {

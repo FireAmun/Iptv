@@ -16,4 +16,6 @@ Project-local binary tools live under ignored `.tools/`. Check [the environment 
 
 To open the existing phone in its own window without Android Studio, run `./scripts/start-phone.ps1` in PowerShell. It uses `ANDROID_HOME` or the default Windows Android SDK, requires `Iptv_Phone_API_34`, and declines to start another device while any QEMU emulator is running. Close the phone window when finished. Emulator logs stay under ignored `.tools/`.
 
+CI invokes `device-tests.sh` inside its emulator runner. It preserves the connected-test exit code and collects only synthetic test screenshots from emulator temporary storage before shutdown. Device reports and previews are uploaded together; this wrapper does not launch or modify a local emulator.
+
 The environment exposes Android CLI from project-local command-line tools 23 and the Java SDK/AVD Manager from tools 22 installed in the existing SDK's standard `cmdline-tools/22.0` directory. The tools-23 `sdkmanager` wrapper is superseded on PATH by the Java manager because the new CLI stalled while resolving the TV image. Use `sdkmanager --list_installed` for SDK inventory or `android --no-metrics --sdk="$env:ANDROID_HOME" sdk list` for the new CLI.

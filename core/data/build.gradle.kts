@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(libs.okhttp)
     implementation(libs.coroutines.core)
+    implementation(libs.gson)
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver)
     testImplementation(libs.okhttp.tls)

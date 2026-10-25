@@ -1,0 +1,22 @@
+<resources>
+    <string name="tv_server_login">تسجيل الدخول إلى الخادم</string>
+    <string name="tv_login_description">أدخل بيانات مزوّد الخدمة المتوافق مع Xtream. تسجيل الدخول متاح خلال هذه الجلسة فقط.</string>
+    <string name="tv_playlist_name">اسم القائمة</string>
+    <string name="tv_server_url">رابط الخادم</string>
+    <string name="tv_username">اسم المستخدم</string>
+    <string name="tv_password">كلمة المرور</string>
+    <string name="tv_connect">اتصال</string>
+    <string name="tv_invalid_login">أدخل اسم القائمة ورابط الخادم الكامل واسم المستخدم وكلمة المرور.</string>
+    <string name="tv_auth_failed">تعذر تسجيل الدخول. تحقق من اسم المستخدم وكلمة المرور.</string>
+    <string name="tv_account_disabled">حساب المزوّد غير نشط. راجع مزوّد الخدمة.</string>
+    <string name="tv_account_expired">انتهت صلاحية حساب المزوّد.</string>
+    <string name="tv_server_response">أرسل الخادم استجابة غير مدعومة.</string>
+    <string name="tv_no_content">لا يتوفر محتوى مدعوم هنا.</string>
+    <string name="tv_live">بث مباشر</string>
+    <string name="tv_movie">فيلم</string>
+    <string name="tv_series">مسلسل</string>
+    <string name="tv_episode">حلقة</string>
+    <string name="tv_episode_number">الموسم %1$d · الحلقة %2$d</string>
+    <string name="tv_url_short">رابط M3U</string>
+    <string name="tv_file_short">ملف</string>
+</resources>
