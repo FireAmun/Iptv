@@ -7,6 +7,9 @@ import org.junit.Assert.*
 /** Synthetic/empty test screens only; never call this during private-provider testing. */
 internal fun captureSyntheticPreview(instrumentation: Instrumentation, name: String) {
     require(name.matches(Regex("[a-z0-9-]+")))
+    // Compose semantics may be ready before the previous startup frame leaves the display.
+    instrumentation.waitForIdleSync()
+    instrumentation.uiAutomation.waitForIdle(100, 5000)
     fun command(value: String): ByteArray {
         val descriptor = instrumentation.uiAutomation.executeShellCommand(value)
         return ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }

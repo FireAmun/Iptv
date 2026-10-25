@@ -14,13 +14,13 @@
         android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.Iptv">
-        <activity android:name=".MobileActivity" android:exported="true">
+        <activity android:name=".MobileActivity" android:exported="true" android:theme="@style/Theme.Amar.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".TvActivity" android:exported="true">
+        <activity android:name=".TvActivity" android:exported="true" android:theme="@style/Theme.Amar.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />

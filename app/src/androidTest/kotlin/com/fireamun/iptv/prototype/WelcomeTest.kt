@@ -39,6 +39,8 @@ class WelcomeTest {
                     compose.onAllNodesWithText("العربية").fetchSemanticsNodes().isNotEmpty()
                 }
                 val switch = compose.onNodeWithTag("language_switch")
+                compose.onNodeWithTag("app_brand").assertTextEquals("Amar Iptv")
+                assertEquals("Amar Iptv", instrumentation.targetContext.applicationInfo.loadLabel(instrumentation.targetContext.packageManager).toString())
                 if (tv) {
                     compose.waitUntil(timeoutMillis = 5000) {
                         compose.onAllNodesWithTag("language_switch").fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } }
@@ -58,6 +60,7 @@ class WelcomeTest {
                     assertEquals(View.LAYOUT_DIRECTION_RTL, it.resources.configuration.layoutDirection)
                 }
                 scenario.recreate()
+                compose.onNodeWithTag("app_brand").assertTextEquals("Amar Iptv")
                 compose.onNodeWithText(arabicTitle).assertIsDisplayed()
                 compose.onNodeWithTag("language_switch").assertTextEquals("English")
                 if (tv) compose.onNodeWithTag("language_switch").assertIsFocused()

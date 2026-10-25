@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">مشغّل IPTV التجريبي</string>
+    <string name="app_name">@string/amar_app_name</string>
     <string name="player_title">المشغّل</string>
 </resources>
