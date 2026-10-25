@@ -1,0 +1,11 @@
+<resources>
+    <string name="tv_saving">جارٍ حفظ القائمة…</string>
+    <string name="tv_restoring">جارٍ تحميل المكتبة المحفوظة…</string>
+    <string name="tv_saved_at">تم حفظ القائمة: %1$s</string>
+    <string name="tv_loaded_saved">%1$d عنصر</string>
+    <string name="tv_refresh_source">تحديث القائمة</string>
+    <string name="tv_remove_source">إزالة القائمة</string>
+    <string name="tv_remove_title">إزالة القائمة المحفوظة؟</string>
+    <string name="tv_remove_body">ستُحذف القائمة المحفوظة وبيانات دخول المزوّد من هذا الجهاز. يمكنك إضافتها مجددًا.</string>
+    <string name="tv_storage_failed">تعذرت قراءة المكتبة أو حفظها. إذا استمرت المشكلة، أزل القائمة المحفوظة وأضفها مجددًا.</string>
+</resources>

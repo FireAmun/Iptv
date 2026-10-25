@@ -10,7 +10,9 @@ import java.io.InputStreamReader
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.CharacterCodingException
 
-class PlaylistEntry(val channel: Channel, val address: MediaAddress?, val seriesId: Long? = null)
+class PlaylistEntry(val channel: Channel, val address: MediaAddress?, val seriesId: Long? = null, val providerKey: String? = null) {
+    override fun toString(): String = "[protected catalogue entry]"
+}
 class ImportFailure(val code: ImportError) : IOException(code.name)
 data class ParserLimits(val maxBytes: Long = 8L * 1024 * 1024, val maxLineChars: Int = 16 * 1024, val maxFieldChars: Int = 512, val maxEntries: Int = 10_000, val maxMillis: Long = 5_000)
 

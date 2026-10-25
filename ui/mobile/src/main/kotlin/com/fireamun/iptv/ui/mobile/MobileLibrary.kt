@@ -31,10 +31,11 @@ import com.fireamun.iptv.core.model.PlaybackStatus
 import com.fireamun.iptv.core.model.ContentKind
 
 @Composable
-fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit) {
+fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit, onRefreshSource: () -> Unit, onRemoveSource: () -> Unit) {
     var url by remember { mutableStateOf("") }
     var enteringUrl by remember { mutableStateOf(false) }
     var enteringLogin by remember { mutableStateOf(false) }
+    var confirmingRemoval by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val list = rememberLazyListState()
     fun submit() { val submitted = url; url = ""; enteringUrl = false; keyboard?.hide(); onImportUrl(submitted) }
@@ -59,12 +60,21 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 LinearProgressIndicator(Modifier.fillMaxWidth())
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(stringResource(R.string.mobile_loading), Modifier.weight(1f))
-                                    TextButton(onClick = onCancelImport) { Text(stringResource(R.string.mobile_cancel), color = p.text) }
+                                    Text(stringResource(if (state.saving) R.string.mobile_saving else if (state.restoring) R.string.mobile_restoring else R.string.mobile_loading), Modifier.weight(1f))
+                                    if (!state.saving && !state.restoring) TextButton(onClick = onCancelImport) { Text(stringResource(R.string.mobile_cancel), color = p.text) }
                                 }
                             }
                         }
                         state.error?.let { Text(stringResource(importMessage(it)), color = p.error, modifier = Modifier.testTag("import_error")) }
+                        if (state.hasSavedSource) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                state.savedAtMillis?.let { Text(stringResource(R.string.mobile_saved_at, java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(it))), color = p.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("saved_source")) }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(onClick = onRefreshSource, enabled = !state.importing && !state.storageBlocked, modifier = Modifier.testTag("refresh_source")) { Text(stringResource(R.string.mobile_refresh_source), color = p.text) }
+                                    TextButton(onClick = { confirmingRemoval = true }, enabled = !state.importing, modifier = Modifier.testTag("remove_source")) { Text(stringResource(R.string.mobile_remove_source), color = p.text) }
+                                }
+                            }
+                        }
                         if (state.channels.isEmpty()) {
                             CinemaIllustration(Modifier.fillMaxWidth().height(160.dp))
                             Text(stringResource(R.string.mobile_title), fontWeight = FontWeight.ExtraBold, fontSize = 38.sp, lineHeight = 44.sp, letterSpacing = (-1).sp)
@@ -72,19 +82,19 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                         } else {
                             if (state.canGoBack) TextButton(onClick = onLibraryBack, modifier = Modifier.testTag("library_back")) { Text(stringResource(R.string.mobile_back), color = p.text) }
                             Text(state.collectionTitle ?: state.sourceName ?: stringResource(R.string.mobile_library), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.headlineLarge)
-                            Text(stringResource(R.string.mobile_loaded, state.channels.size), style = MaterialTheme.typography.bodySmall, color = p.muted)
+                            Text(stringResource(if (state.hasSavedSource) R.string.mobile_loaded_saved else R.string.mobile_loaded, state.channels.size), style = MaterialTheme.typography.bodySmall, color = p.muted)
                         }
-                        Button(onClick = { enteringLogin = true }, enabled = !state.importing, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("add_login"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_server_login), fontWeight = FontWeight.Bold) }
+                        Button(onClick = { enteringLogin = true }, enabled = !state.importing && !state.storageBlocked, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("add_login"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_server_login), fontWeight = FontWeight.Bold) }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedButton(onClick = { enteringUrl = true }, enabled = !state.importing, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("add_url"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_add_url), color = p.text) }
-                            OutlinedButton(onClick = { url = ""; keyboard?.hide(); onImportFile() }, enabled = !state.importing, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("import_file"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_import_file), color = p.text) }
+                            OutlinedButton(onClick = { enteringUrl = true }, enabled = !state.importing && !state.storageBlocked, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("add_url"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_add_url), color = p.text) }
+                            OutlinedButton(onClick = { url = ""; keyboard?.hide(); onImportFile() }, enabled = !state.importing && !state.storageBlocked, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("import_file"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_import_file), color = p.text) }
                         }
                         if (state.channels.isNotEmpty()) HorizontalDivider(color = p.outline.copy(alpha = .35f))
                     }
                 }
                 items(state.channels, key = { it.id }) { channel ->
                     val title = channel.title ?: stringResource(R.string.mobile_entry, channel.id + 1)
-                    Surface(color = p.panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().testTag("channel_${channel.id}").clickable(enabled = !state.importing) { onSelectChannel(channel.id) }) {
+                    Surface(color = p.panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().testTag("channel_${channel.id}").clickable(enabled = !state.importing && !state.storageBlocked) { onSelectChannel(channel.id) }) {
                         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(50.dp).background(p.raised, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Text(title.take(1), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = p.text) }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -100,6 +110,10 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
             }
         }
         if (enteringLogin) MobileServerLogin(onDismiss = { enteringLogin = false }, onSubmit = { name, server, username, password -> enteringLogin = false; onServerLogin(name, server, username, password) })
+        if (confirmingRemoval) AlertDialog(onDismissRequest = { confirmingRemoval = false },
+            title = { Text(stringResource(R.string.mobile_remove_title)) }, text = { Text(stringResource(R.string.mobile_remove_body)) },
+            confirmButton = { Button(onClick = { confirmingRemoval = false; onRemoveSource() }, modifier = Modifier.testTag("remove_confirm")) { Text(stringResource(R.string.mobile_remove_source)) } },
+            dismissButton = { TextButton(onClick = { confirmingRemoval = false }, modifier = Modifier.testTag("remove_cancel")) { Text(stringResource(R.string.mobile_cancel), color = p.text) } })
         if (enteringUrl) AlertDialog(onDismissRequest = { enteringUrl = false; url = "" },
             title = { Text(stringResource(R.string.mobile_add_url), fontWeight = FontWeight.Bold) },
             text = { OutlinedTextField(value = url, onValueChange = { if (it.length <= 4096) url = it }, modifier = Modifier.fillMaxWidth().testTag("source_url"), singleLine = true,
@@ -132,6 +146,7 @@ fun MobilePlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, on
 }
 
 private fun importMessage(error: ImportError): Int = when (error) {
+    ImportError.STORAGE -> R.string.mobile_storage_failed
     ImportError.INVALID_LOGIN -> R.string.mobile_invalid_login
     ImportError.AUTH_FAILED -> R.string.mobile_auth_failed
     ImportError.ACCOUNT_DISABLED -> R.string.mobile_account_disabled

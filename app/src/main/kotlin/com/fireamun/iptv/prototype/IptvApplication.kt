@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
 
 class IptvApplication : Application() {
+    val libraryStore by lazy { com.fireamun.iptv.core.storage.RoomLibraryStore.open(this) }
     override fun onCreate() {
         super.onCreate()
         Appearance.apply(this)

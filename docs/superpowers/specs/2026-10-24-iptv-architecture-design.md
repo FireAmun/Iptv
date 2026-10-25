@@ -25,7 +25,8 @@ The proposed modules below are boundaries to create when needed, not a requireme
 | `app` | Manifest, mobile/TV entry activities, Hilt wiring, worker registration, release configuration. Composes other modules. |
 | `core:model` | IDs, immutable catalogue/playback/entitlement types, and stable error codes. No UI, database, networking, or billing SDK dependencies. |
 | `core:designsystem` | Approved Cinema colour/type tokens and original UI illustration shared by device-specific Material adapters. No source, catalogue or playback ownership. |
-| `core:data` | Source adapters, parsers, Room entities/DAOs, repositories, search index, refresh coordination, and encrypted source persistence. Depends on `core:model`. |
+| `core:data` | JVM source adapters/parsers, protected source encoding, persistence/repository contracts and refresh coordination. Depends on `core:model`; Android Room/Keystore details live in `core:storage`. Search/EPG repositories remain future work. |
+| `core:storage` | Current Android Room/Keystore implementation of the data-layer persistence contract. Isolated from JVM-only parsers/loaders so their existing test tasks remain fast and unchanged. Added in the saved-library slice. |
 | `core:playback` | One active Media3 player per device, media session, stream resolution through repository interfaces, track selection, resume, and typed playback state. Depends on `core:model` and injected interfaces. |
 | `core:remote` | Discovery, pairing/trust storage, encrypted transport, protocol validation, and command routing through injected interfaces. Depends on `core:model`; does not own the player. |
 | `core:billing` | Play Billing adapter, purchase processing/restoration, verification adapter, and entitlement state. Depends on `core:model`. |
@@ -68,6 +69,8 @@ Every asynchronous screen has loading, empty, ready, and actionable error states
 ## 4. Local data and import model
 
 Room stores structured catalogue and user state; DataStore stores small preferences. Source authentication fields and sensitive URLs/headers use encrypted local persistence with Keystore-protected keys. Raw source or playback URLs can contain credentials, so they are not ordinary debug strings or telemetry dimensions.
+
+Implementation note (25 October): the initial saved-library slice uses Android `core:storage` and standard AES-GCM/Keystore envelope protection; Tink was a candidate rather than a dependency requirement. It stages the existing bounded in-memory parsed catalogue, then activates source/catalogue rows transactionally. Full incremental database import, Paging, multiple sources, episode caching and user-state tables below remain roadmap work; do not treat this slice as completion of the data architecture.
 
 | Record | Identity and contents |
 | --- | --- |

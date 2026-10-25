@@ -73,11 +73,11 @@ internal class XtreamJson(private val limits: ParserLimits, private val nanoTime
             val id = row.id
             if (id != null && id > 0) {
                 val channel = Channel(offset + entries.size, row.name, categories[row.category], kind)
-                if (kind == ContentKind.SERIES) entries.add(PlaylistEntry(channel, null, id))
+                if (kind == ContentKind.SERIES) entries.add(PlaylistEntry(channel, null, id, "${kind.name}:$id"))
                 else {
                     val ext = if (kind == ContentKind.LIVE) liveExtension else row.extension?.takeIf { it.isNotBlank() } ?: "mp4"
                     val address = source.playbackAddress(kind, id, ext) ?: throw ImportFailure(ImportError.SERVER_RESPONSE)
-                    entries.add(PlaylistEntry(channel, address))
+                    entries.add(PlaylistEntry(channel, address, providerKey = "${kind.name}:$id"))
                 }
             }
         }

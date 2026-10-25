@@ -127,15 +127,7 @@ class XtreamFlowTest {
     private fun snapshot(name: String) {
         // Synthetic test screens only. Files survive Gradle's APK uninstall for CI review.
         compose.waitForIdle()
-        fun command(value: String): ByteArray {
-            val descriptor = instrumentation.uiAutomation.executeShellCommand(value)
-            return android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
-        }
-        command("mkdir -p /data/local/tmp/iptv-previews")
-        command("screencap -p /data/local/tmp/iptv-previews/$name.png")
-        val png = command("cat /data/local/tmp/iptv-previews/$name.png")
-        org.junit.Assert.assertTrue("Synthetic preview must be a PNG", png.size > 8)
-        org.junit.Assert.assertArrayEquals(byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a), png.copyOfRange(0, 8))
+        captureSyntheticPreview(instrumentation, name)
     }
     private fun approve(tv: Boolean) {
         compose.waitUntil(5000) { compose.onAllNodesWithTag("http_confirm").fetchSemanticsNodes().isNotEmpty() }

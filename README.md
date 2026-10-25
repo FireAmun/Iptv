@@ -22,7 +22,8 @@ iptv/
 │       └── androidTest/    Device/emulator tests
 ├── core/
 │   ├── model/              Shared IDs, state, errors, and boundary types
-│   ├── data/               Source adapters, import, repositories, Room, search, EPG
+│   ├── data/               Source adapters, import, protected source/persistence contracts
+│   ├── storage/            Android Room catalogue and Keystore-protected fields
 │   ├── playback/           Media3 player ownership and playback coordination
 │   ├── remote/             Local discovery, pairing, trust, and remote protocol
 │   ├── billing/            Play purchases, verification adapter, and entitlements
@@ -46,8 +47,8 @@ Core and UI modules have `src/main/kotlin` and `src/test/kotlin` directories. `.
 
 ## Current state
 
-The prototype configures `:app`, `:ui:mobile`, `:ui:tv`, `:core:model`, `:core:data`, `:core:playback`, and `:core:designsystem`. It supports Arabic/English, session-only M3U file/URL import and Xtream-compatible server login, live/movie/series entries, episode navigation and Media3 playback. Cinema appearance adds a saved dark/light choice, shared palette/fonts and separate phone/TV layouts; see the tracker for integration status. The remaining core directories reserve future boundaries. The temporary application ID is `com.fireamun.iptv.prototype`; branding remains open.
+The prototype configures `:app`, `:ui:mobile`, `:ui:tv`, `:core:model`, `:core:data`, `:core:storage`, `:core:playback`, and `:core:designsystem`. It supports Arabic/English, M3U file/URL import and Xtream-compatible server login, cached active-library restoration, live/movie/series entries, episode navigation and Media3 playback. Cinema appearance adds a saved dark/light choice, shared palette/fonts and separate phone/TV layouts; see the tracker for integration status. The remaining core directories reserve future boundaries. The temporary application ID is `com.fireamun.iptv.prototype`; branding remains open.
 
-See [build/install instructions](docs/development/first-build.md), [M3U/playback behavior and manual testing](docs/development/m3u-playback.md), and [server login](docs/development/xtream-login.md). The library is not persisted across process death; database storage, EPG and protected source persistence are later slices.
+See [build/install instructions](docs/development/first-build.md), [M3U/playback behavior and manual testing](docs/development/m3u-playback.md), [server login](docs/development/xtream-login.md) and [saved-library behavior/protection](docs/development/saved-library.md). One active source/root catalogue is saved; multiple sources, search/EPG, favourites and persistent playback resume remain later slices.
 
 Keep provider credentials and private source URLs out of tracked files. Machine SDK paths belong in an ignored `local.properties` when build configuration is introduced.
