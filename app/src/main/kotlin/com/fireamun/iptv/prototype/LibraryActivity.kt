@@ -61,8 +61,9 @@ abstract class LibraryActivity : AppCompatActivity() {
                     else MobilePlayback(title, status, library::closePlayback, { retry++ }, surface)
                 }
             } else {
-                if (television) TvWelcome(state, { toggleAppLanguage() }, ::chooseFile, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) })
-                else MobileWelcome(state, { toggleAppLanguage() }, ::chooseFile, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) })
+                BackHandler(enabled = state.canGoBack) { library.backToCatalog() }
+                if (television) TvWelcome(state, { toggleAppLanguage() }, ::chooseFile, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog)
+                else MobileWelcome(state, { toggleAppLanguage() }, ::chooseFile, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog)
             }
         }
     }

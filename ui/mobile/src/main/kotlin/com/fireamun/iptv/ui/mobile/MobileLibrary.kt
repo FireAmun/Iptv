@@ -28,11 +28,13 @@ import com.fireamun.iptv.core.designsystem.*
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.LibraryState
 import com.fireamun.iptv.core.model.PlaybackStatus
+import com.fireamun.iptv.core.model.ContentKind
 
 @Composable
-fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit) {
+fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit) {
     var url by remember { mutableStateOf("") }
     var enteringUrl by remember { mutableStateOf(false) }
+    var enteringLogin by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val list = rememberLazyListState()
     fun submit() { val submitted = url; url = ""; enteringUrl = false; keyboard?.hide(); onImportUrl(submitted) }
@@ -55,11 +57,13 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                             Text(stringResource(R.string.mobile_title), fontWeight = FontWeight.ExtraBold, fontSize = 38.sp, lineHeight = 44.sp, letterSpacing = (-1).sp)
                             Text(stringResource(R.string.mobile_description), style = MaterialTheme.typography.bodyMedium, color = p.muted)
                         } else {
-                            Text(stringResource(R.string.mobile_library), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.headlineLarge)
+                            if (state.canGoBack) TextButton(onClick = onLibraryBack, modifier = Modifier.testTag("library_back")) { Text(stringResource(R.string.mobile_back), color = p.text) }
+                            Text(state.collectionTitle ?: state.sourceName ?: stringResource(R.string.mobile_library), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.headlineLarge)
                             Text(stringResource(R.string.mobile_loaded, state.channels.size), style = MaterialTheme.typography.bodySmall, color = p.muted)
                         }
+                        Button(onClick = { enteringLogin = true }, enabled = !state.importing, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("add_login"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_server_login), fontWeight = FontWeight.Bold) }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(onClick = { enteringUrl = true }, enabled = !state.importing, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("add_url"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_add_url), fontWeight = FontWeight.Bold) }
+                            OutlinedButton(onClick = { enteringUrl = true }, enabled = !state.importing, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("add_url"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_add_url), color = p.text) }
                             OutlinedButton(onClick = { url = ""; keyboard?.hide(); onImportFile() }, enabled = !state.importing, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("import_file"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_import_file), color = p.text) }
                         }
                         if (state.importing) {
@@ -81,13 +85,16 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 channel.group?.let { Text(it, color = p.muted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                contentLabel(channel.kind)?.let { Text(stringResource(it), color = p.focus, style = MaterialTheme.typography.labelSmall) }
+                                if (channel.kind == ContentKind.EPISODE && channel.season != null && channel.episode != null) Text(stringResource(R.string.mobile_episode_number, channel.season!!, channel.episode!!), color = p.muted, style = MaterialTheme.typography.bodySmall)
                             }
-                            Text("▶", color = p.focus, fontSize = 18.sp)
+                            Text(if (channel.kind == ContentKind.SERIES) "↳" else "▶", color = p.focus, fontSize = 18.sp)
                         }
                     }
                 }
             }
         }
+        if (enteringLogin) MobileServerLogin(onDismiss = { enteringLogin = false }, onSubmit = { name, server, username, password -> enteringLogin = false; onServerLogin(name, server, username, password) })
         if (enteringUrl) AlertDialog(onDismissRequest = { enteringUrl = false; url = "" },
             title = { Text(stringResource(R.string.mobile_add_url), fontWeight = FontWeight.Bold) },
             text = { OutlinedTextField(value = url, onValueChange = { if (it.length <= 4096) url = it }, modifier = Modifier.fillMaxWidth().testTag("source_url"), singleLine = true,
@@ -120,6 +127,12 @@ fun MobilePlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, on
 }
 
 private fun importMessage(error: ImportError): Int = when (error) {
+    ImportError.INVALID_LOGIN -> R.string.mobile_invalid_login
+    ImportError.AUTH_FAILED -> R.string.mobile_auth_failed
+    ImportError.ACCOUNT_DISABLED -> R.string.mobile_account_disabled
+    ImportError.ACCOUNT_EXPIRED -> R.string.mobile_account_expired
+    ImportError.SERVER_RESPONSE -> R.string.mobile_server_response
+    ImportError.NO_CONTENT -> R.string.mobile_no_content
     ImportError.NO_FILE_PICKER -> R.string.mobile_no_picker
     ImportError.INVALID_ADDRESS -> R.string.mobile_invalid_address
     ImportError.READ_FAILED -> R.string.mobile_read_failed
@@ -127,6 +140,13 @@ private fun importMessage(error: ImportError): Int = when (error) {
     ImportError.TOO_LARGE, ImportError.LINE_TOO_LONG, ImportError.FIELD_TOO_LONG, ImportError.TOO_MANY_ENTRIES, ImportError.TIME_LIMIT -> R.string.mobile_limit
     ImportError.HLS_MANIFEST -> R.string.mobile_hls
     else -> R.string.mobile_invalid_playlist
+}
+private fun contentLabel(kind: ContentKind): Int? = when (kind) {
+    ContentKind.LIVE -> R.string.mobile_live
+    ContentKind.MOVIE -> R.string.mobile_movie
+    ContentKind.SERIES -> R.string.mobile_series
+    ContentKind.EPISODE -> R.string.mobile_episode
+    ContentKind.UNKNOWN -> null
 }
 private fun playbackMessage(status: PlaybackStatus): Int = when (status) {
     PlaybackStatus.PREPARING -> R.string.mobile_preparing

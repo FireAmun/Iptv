@@ -1,0 +1,22 @@
+<resources>
+    <string name="tv_server_login">Server login</string>
+    <string name="tv_login_description">Use your Xtream-compatible provider details. Login is available for this session only.</string>
+    <string name="tv_playlist_name">Playlist name</string>
+    <string name="tv_server_url">Server URL (http:// or https://)</string>
+    <string name="tv_username">Username</string>
+    <string name="tv_password">Password</string>
+    <string name="tv_connect">Connect</string>
+    <string name="tv_invalid_login">Enter a playlist name, a full server URL, username and password.</string>
+    <string name="tv_auth_failed">Login failed. Check your username and password.</string>
+    <string name="tv_account_disabled">This provider account is not active. Check with your provider.</string>
+    <string name="tv_account_expired">This provider account has expired.</string>
+    <string name="tv_server_response">This server returned an unsupported response.</string>
+    <string name="tv_no_content">No supported content is available here.</string>
+    <string name="tv_live">Live TV</string>
+    <string name="tv_movie">Movie</string>
+    <string name="tv_series">Series</string>
+    <string name="tv_episode">Episode</string>
+    <string name="tv_episode_number">Season %1$d · Episode %2$d</string>
+    <string name="tv_url_short">M3U URL</string>
+    <string name="tv_file_short">File</string>
+</resources>

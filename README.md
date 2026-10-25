@@ -46,8 +46,8 @@ Core and UI modules have `src/main/kotlin` and `src/test/kotlin` directories. `.
 
 ## Current state
 
-The prototype configures `:app`, `:ui:mobile`, `:ui:tv`, `:core:model`, `:core:data`, `:core:playback`, and `:core:designsystem`. It supports Arabic/English, session-only M3U file/URL import, entry selection and Media3 playback. Cinema appearance adds a saved dark/light choice, shared palette/fonts and separate phone/TV layouts; see the tracker for integration status. The remaining core directories reserve future boundaries. The temporary application ID is `com.fireamun.iptv.prototype`; branding remains open.
+The prototype configures `:app`, `:ui:mobile`, `:ui:tv`, `:core:model`, `:core:data`, `:core:playback`, and `:core:designsystem`. It supports Arabic/English, session-only M3U file/URL import and Xtream-compatible server login, live/movie/series entries, episode navigation and Media3 playback. Cinema appearance adds a saved dark/light choice, shared palette/fonts and separate phone/TV layouts; see the tracker for integration status. The remaining core directories reserve future boundaries. The temporary application ID is `com.fireamun.iptv.prototype`; branding remains open.
 
-See [build/install instructions](docs/development/first-build.md), [M3U/playback behavior and manual testing](docs/development/m3u-playback.md), and [the current plan](docs/superpowers/plans/2026-10-24-m3u-playback.md). The library is not persisted across process death; catalogues/EPG and protected source storage are later slices.
+See [build/install instructions](docs/development/first-build.md), [M3U/playback behavior and manual testing](docs/development/m3u-playback.md), and [server login](docs/development/xtream-login.md). The library is not persisted across process death; database storage, EPG and protected source persistence are later slices.
 
 Keep provider credentials and private source URLs out of tracked files. Machine SDK paths belong in an ignored `local.properties` when build configuration is introduced.

@@ -1,0 +1,22 @@
+<resources>
+    <string name="mobile_server_login">Server login</string>
+    <string name="mobile_login_description">Use your Xtream-compatible provider details. Login is available for this session only.</string>
+    <string name="mobile_playlist_name">Playlist name</string>
+    <string name="mobile_server_url">Server URL (http:// or https://)</string>
+    <string name="mobile_username">Username</string>
+    <string name="mobile_password">Password</string>
+    <string name="mobile_connect">Connect</string>
+    <string name="mobile_invalid_login">Enter a playlist name, a full server URL, username and password.</string>
+    <string name="mobile_auth_failed">Login failed. Check your username and password.</string>
+    <string name="mobile_account_disabled">This provider account is not active. Check with your provider.</string>
+    <string name="mobile_account_expired">This provider account has expired.</string>
+    <string name="mobile_server_response">This server returned an unsupported response.</string>
+    <string name="mobile_no_content">No supported content is available here.</string>
+    <string name="mobile_live">Live TV</string>
+    <string name="mobile_movie">Movie</string>
+    <string name="mobile_series">Series</string>
+    <string name="mobile_episode">Episode</string>
+    <string name="mobile_episode_number">Season %1$d · Episode %2$d</string>
+    <string name="mobile_url_short">M3U URL</string>
+    <string name="mobile_file_short">File</string>
+</resources>

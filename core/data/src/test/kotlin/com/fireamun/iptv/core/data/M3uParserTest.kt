@@ -25,7 +25,7 @@ class M3uParserTest {
     @Test fun permitsPlainEntryWithNoUrlDerivedDisplayLabel() {
         val entry = parse("#EXTM3U\nhttps://host.invalid/private-token\n").single()
         assertNull(entry.channel.title)
-        assertEquals("https://host.invalid/private-token", entry.address.reveal())
+        assertEquals("https://host.invalid/private-token", entry.address!!.reveal())
         assertFalse(entry.toString().contains("private-token"))
     }
     @Test fun attributesInsideQuotedValuesDoNotOverrideRealGroup() {
