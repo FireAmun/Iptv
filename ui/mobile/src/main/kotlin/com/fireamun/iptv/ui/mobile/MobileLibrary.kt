@@ -41,6 +41,9 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
     LaunchedEffect(state.channels, state.selectedId) {
         if (state.channels.isNotEmpty()) list.scrollToItem(state.channels.indexOfFirst { it.id == state.selectedId }.coerceAtLeast(0) + 1)
     }
+    LaunchedEffect(state.importing, state.error) {
+        if (state.importing || state.error != null) list.scrollToItem(0)
+    }
     CinemaTheme {
         val p = cinemaPalette()
         Surface(Modifier.fillMaxSize()) {
@@ -52,6 +55,16 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                             TextButton(onClick = onChangeAppearance, modifier = Modifier.testTag("appearance_switch")) { Text(stringResource(if (isSystemInDarkTheme()) R.string.mobile_light else R.string.mobile_dark), color = p.text, fontSize = 12.sp) }
                             OutlinedButton(onClick = onChangeLanguage, modifier = Modifier.testTag("language_switch"), contentPadding = PaddingValues(horizontal = 12.dp)) { Text(stringResource(R.string.mobile_language), color = p.text, fontSize = 12.sp) }
                         }
+                        if (state.importing) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                LinearProgressIndicator(Modifier.fillMaxWidth())
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(stringResource(R.string.mobile_loading), Modifier.weight(1f))
+                                    TextButton(onClick = onCancelImport) { Text(stringResource(R.string.mobile_cancel), color = p.text) }
+                                }
+                            }
+                        }
+                        state.error?.let { Text(stringResource(importMessage(it)), color = p.error, modifier = Modifier.testTag("import_error")) }
                         if (state.channels.isEmpty()) {
                             CinemaIllustration(Modifier.fillMaxWidth().height(160.dp))
                             Text(stringResource(R.string.mobile_title), fontWeight = FontWeight.ExtraBold, fontSize = 38.sp, lineHeight = 44.sp, letterSpacing = (-1).sp)
@@ -66,14 +79,6 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                             OutlinedButton(onClick = { enteringUrl = true }, enabled = !state.importing, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("add_url"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_add_url), color = p.text) }
                             OutlinedButton(onClick = { url = ""; keyboard?.hide(); onImportFile() }, enabled = !state.importing, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("import_file"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_import_file), color = p.text) }
                         }
-                        if (state.importing) {
-                            LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.mobile_loading), Modifier.weight(1f))
-                                TextButton(onClick = onCancelImport) { Text(stringResource(R.string.mobile_cancel), color = p.text) }
-                            }
-                        }
-                        state.error?.let { Text(stringResource(importMessage(it)), color = p.error, modifier = Modifier.testTag("import_error")) }
                         if (state.channels.isNotEmpty()) HorizontalDivider(color = p.outline.copy(alpha = .35f))
                     }
                 }

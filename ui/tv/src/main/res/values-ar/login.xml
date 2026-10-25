@@ -2,7 +2,7 @@
     <string name="tv_server_login">تسجيل الدخول إلى الخادم</string>
     <string name="tv_login_description">أدخل بيانات مزوّد الخدمة المتوافق مع Xtream. تسجيل الدخول متاح خلال هذه الجلسة فقط.</string>
     <string name="tv_playlist_name">اسم القائمة</string>
-    <string name="tv_server_url">رابط الخادم (http:// أو https://)</string>
+    <string name="tv_server_url">رابط الخادم</string>
     <string name="tv_username">اسم المستخدم</string>
     <string name="tv_password">كلمة المرور</string>
     <string name="tv_connect">اتصال</string>

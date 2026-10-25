@@ -43,6 +43,7 @@ Files: mobile/TV source forms, library row/header metadata, bilingual resources,
 ## Task 4: Device verification and delivery
 
 - [x] Add synthetic Player API instrumentation fixtures and mobile/TV login/playback/series/error journeys.
-- [ ] Verify cloud phone/TV layouts and all device cases. Owner explicitly declined updating their interactive emulator; preserve its session and use cloud screenshots for visual review.
-- [ ] Update progress/docs, obtain independent review, fix actionable findings and complete local checks.
-- [ ] Commit/push/open PR; inspect exact-head results, merge bound to SHA, sync main and delete branch.
+- [x] Inspect cloud phone/TV layouts and device reports; fix observed RTL label/form clipping and short-landscape cancellation visibility. Owner explicitly declined updating their interactive emulator; preserve its session and use cloud screenshots for visual review.
+- [x] Update progress/docs, obtain independent review, fix actionable findings and complete local checks.
+
+Delivery gate: [PR #6](https://github.com/FireAmun/Iptv/pull/6) contains the implementation and reviewed corrections. Initial run `40194446164` passed all 14 phone tests and 13/14 TV tests; the existing cancellation visibility failure is recorded in progress. Require all five checks and both complete device suites at the revised exact head before SHA-bound merge, fast-forward sync and branch removal. Use the live PR for final integration/check state rather than treating the first run as passing evidence.

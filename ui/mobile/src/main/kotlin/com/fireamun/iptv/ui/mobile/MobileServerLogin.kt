@@ -42,7 +42,7 @@ internal fun MobileServerLogin(onSubmit: (String, String, String, String) -> Uni
     AlertDialog(onDismissRequest = ::dismiss,
         title = { Text(stringResource(R.string.mobile_server_login), fontWeight = FontWeight.Bold) },
         text = {
-            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.mobile_login_description), style = MaterialTheme.typography.bodySmall, color = p.muted)
                 LoginField(name, { if (it.length <= 128) name = it }, R.string.mobile_playlist_name, "playlist_name")
                 LoginField(server, { if (it.length <= 2048) server = it }, R.string.mobile_server_url, "server_url", KeyboardType.Uri)

@@ -2,7 +2,7 @@
     <string name="tv_server_login">Server login</string>
     <string name="tv_login_description">Use your Xtream-compatible provider details. Login is available for this session only.</string>
     <string name="tv_playlist_name">Playlist name</string>
-    <string name="tv_server_url">Server URL (http:// or https://)</string>
+    <string name="tv_server_url">Server URL</string>
     <string name="tv_username">Username</string>
     <string name="tv_password">Password</string>
     <string name="tv_connect">Connect</string>

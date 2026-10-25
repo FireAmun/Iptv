@@ -33,7 +33,7 @@ class CancellationFlowTest {
                         instrumentation.targetContext.contentResolver.query(Uri.parse("content://com.fireamun.iptv.prototype.test.fixtures/slow-state"), null, null, null, null)?.use { it.moveToFirst() && it.getInt(0) == 1 } == true
                     }
                     compose.waitUntil(timeoutMillis = 1000) { compose.onAllNodesWithText("Cancel").fetchSemanticsNodes().isNotEmpty() }
-                    compose.onNodeWithText("Cancel").performClick()
+                    compose.onNodeWithText("Cancel").assertIsDisplayed().performClick()
                     // Wait beyond the provider timeout so a late uncaught opening exception cannot pass unnoticed.
                     instrumentation.waitForIdleSync()
                     Thread.sleep(5500)
