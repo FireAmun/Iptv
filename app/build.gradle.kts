@@ -10,8 +10,8 @@ android {
         applicationId = "com.fireamun.iptv.prototype"
         minSdk = 28
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
         testInstrumentationRunner = "com.fireamun.iptv.prototype.ManualFixtureRunner"
     }
     buildFeatures { compose = true }
@@ -25,6 +25,7 @@ kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarg
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:data"))
+    implementation(project(":core:storage"))
     implementation(project(":core:playback"))
     implementation(project(":ui:mobile"))
     implementation(project(":ui:tv"))

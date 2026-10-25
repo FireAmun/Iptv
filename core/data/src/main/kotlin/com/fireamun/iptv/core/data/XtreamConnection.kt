@@ -9,6 +9,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 class XtreamConnection private constructor(private val server: HttpUrl, private val username: String, private val password: String) {
     val address: MediaAddress get() = MediaAddress.parse(server.toString())!!
     override fun toString(): String = "[protected server login]"
+    internal fun writeTo(output: java.io.DataOutput) { output.writeUTF(server.toString()); output.writeUTF(username); output.writeUTF(password) }
 
     internal fun apiUrl(action: String? = null, seriesId: Long? = null): HttpUrl = server.newBuilder()
         .addPathSegment("player_api.php").addQueryParameter("username", username).addQueryParameter("password", password)

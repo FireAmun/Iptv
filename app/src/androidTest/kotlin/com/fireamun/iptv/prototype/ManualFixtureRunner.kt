@@ -15,11 +15,17 @@ import androidx.test.runner.AndroidJUnitRunner
 /** Separate developer fixture host in the test APK; never included in the application. */
 class ManualFixtureRunner : AndroidJUnitRunner() {
     private var manual = false
+    private var persistenceProbe: String? = null
     override fun onCreate(arguments: Bundle?) {
         manual = arguments?.getString("manualFixture") == "true"
+        persistenceProbe = arguments?.getString("persistenceProbe")
         super.onCreate(arguments)
     }
-    override fun onStart() { if (manual) serveFixture() else super.onStart() }
+    override fun onStart() {
+        if (manual) serveFixture()
+        else if (persistenceProbe != null) persistenceProcessProbe(persistenceProbe!!)
+        else super.onStart()
+    }
     private fun serveFixture() {
         val stop = File(targetContext.cacheDir, "manual-qa-stop")
         stop.delete()

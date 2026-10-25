@@ -1,0 +1,11 @@
+<resources>
+    <string name="mobile_saving">Saving playlist…</string>
+    <string name="mobile_restoring">Loading saved library…</string>
+    <string name="mobile_saved_at">Playlist saved: %1$s</string>
+    <string name="mobile_loaded_saved">%1$d entries</string>
+    <string name="mobile_refresh_source">Refresh playlist</string>
+    <string name="mobile_remove_source">Remove playlist</string>
+    <string name="mobile_remove_title">Remove saved playlist?</string>
+    <string name="mobile_remove_body">This removes the saved playlist and provider login from this device. You can add them again.</string>
+    <string name="mobile_storage_failed">Unable to read or save the library. If this keeps happening, remove the saved playlist and add it again.</string>
+</resources>

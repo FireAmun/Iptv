@@ -2,7 +2,7 @@
 
 This P2 slice imports a user-selected file or M3U URL, displays safe entry labels/groups and plays a selected HTTP/HTTPS entry through Media3. Phone/tablet and TV use separate controls; native Media3 controls support touch and D-pad. It supplies no channels or subscriptions.
 
-The library exists for the current process/session. Activity/language recreation retains it through the ViewModel; process death requires importing again. Failed/cancelled imports preserve the previous library. [Xtream server login](xtream-login.md) is a separate implemented source route; database/provider credential persistence, EPG, parental controls, phone pairing and billing remain later work. Background playback is not implemented: stopping the activity detaches/releases the player; foregrounding prepares it again. Persistent VOD resume is deferred.
+The original P2 implementation was session-only. Version 0.5.0 [saves one active source/root catalogue](saved-library.md), including file imports, and restores it after process death without an automatic network request. Failed/cancelled downloads preserve the previous library. [Xtream server login](xtream-login.md) is another implemented source route; EPG, parental controls, phone pairing and billing remain later work. Background playback is not implemented: stopping the activity detaches/releases the player; foregrounding prepares it again. Persistent VOD resume is deferred.
 
 ## Accepted input and provisional limits
 

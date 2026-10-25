@@ -8,10 +8,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
 
 /** Test APK only. CI can bound a stalled test and retain safe Java stacks in its report. */
 class TestDiagnostics : TestRule {
-    enum class Phase { TEST_START, BEFORE_LOCALE_RESET, AFTER_LOCALE_RESET, BEFORE_COMPOSE_IDLE, AFTER_COMPOSE_IDLE, BEFORE_SCENARIO_CLOSE, AFTER_SCENARIO_CLOSE, COMPLETE }
+    enum class Phase { TEST_START, BEFORE_LIBRARY_RESET, AFTER_LIBRARY_RESET, BEFORE_LOCALE_RESET, AFTER_LOCALE_RESET, BEFORE_COMPOSE_IDLE, AFTER_COMPOSE_IDLE, BEFORE_SCENARIO_CLOSE, AFTER_SCENARIO_CLOSE, COMPLETE }
     private val current = AtomicReference(Phase.TEST_START)
     fun phase(value: Phase) {
         current.set(value)
@@ -35,7 +37,16 @@ class TestDiagnostics : TestRule {
                     Process.killProcess(Process.myPid())
                 }, "iptv-test-diagnostics").apply { isDaemon = true; start() }
             }
-            try { base.evaluate() } finally { finished.set(true); phase(Phase.COMPLETE); watchdog?.interrupt() }
+            fun resetLibrary() {
+                phase(Phase.BEFORE_LIBRARY_RESET)
+                val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as IptvApplication
+                runBlocking(Dispatchers.IO) { app.libraryStore.clear() }
+                phase(Phase.AFTER_LIBRARY_RESET)
+            }
+            try { resetLibrary(); base.evaluate() }
+            finally {
+                try { resetLibrary() } finally { finished.set(true); phase(Phase.COMPLETE); watchdog?.interrupt() }
+            }
         }
     }
     private companion object { const val TAG = "IptvTestDiagnostics" }

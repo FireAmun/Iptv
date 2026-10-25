@@ -8,7 +8,7 @@ Successful login loads live channels, movies and series with their supplied cate
 
 ## Current boundaries
 
-- Library and credentials are session-only; activity recreation retains them, process death does not. Encrypted source persistence/Room follow separately.
+- Version 0.5.0 [saves the active source and root catalogue](saved-library.md) using Room/protected connection storage. Startup uses the cached root without a provider request. Episodes are fetched when opened; episode caching and playback resume remain open.
 - Password entry is masked and cleared on submission/dismissal. Credentials and generated addresses stay out of shared UI state, documentation, error messages and telemetry.
 - Each HTTP login, episode request and playback operation requires explicit unencrypted-connection consent. HTTPS is preferable when the provider supports it.
 - Requests stay on the entered server. API redirects, response-supplied alternate hosts/direct-source fields, cookies, cache and logging interceptors are excluded.
