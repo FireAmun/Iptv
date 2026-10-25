@@ -27,6 +27,18 @@ adb shell am start -n com.fireamun.iptv.prototype/.TvActivity
 
 Run with one emulator/device connected. Connected tests exercise English → Arabic → English, RTL/LTR, recreation, TV focus, file/URL import and playback lifecycle. The original shell had no business-rule JVM tests; the current slice adds model, parser, transport and ViewModel tests. Use the additional core JVM commands in [the playback guide](m3u-playback.md).
 
+## Run the phone without Android Studio
+
+From the project folder in PowerShell, including the VS Code terminal:
+
+```powershell
+./scripts/start-phone.ps1
+```
+
+This starts `Iptv_Phone_API_34` in a separate window using the installed SDK. Android Studio is not required. Close any other emulator first; the launcher does not terminate a running device. No build or reinstall is needed just to use the phone. Open IPTV from its launcher, or drag the local debug APK onto the emulator if it is not installed.
+
+On the prepared workstation, the local desktop shortcut **IPTV Phone** and the ignored VS Code task **IPTV: Start phone emulator** invoke this script. In VS Code use **Terminal → Run Task → IPTV: Start phone emulator**. These shortcuts are machine-local settings; the script is shared in Git.
+
 ## Local device testing authorization
 
 During the app-shell milestone the owner reported a prior laptop restart and cancelled a Windows Firewall network-access prompt. No elevation, driver install, firewall-rule change or reboot command was issued. ADB's TCP listener was observed on `127.0.0.1:5037`. Windows recorded an unexpected shutdown; its cause remains unresolved. The tools were stopped then. On 24 October 2026 the owner explicitly re-authorized local hands-on app testing alongside CI: use one emulator at a time with no host firewall/driver/reboot changes. See [the playback guide](m3u-playback.md).
