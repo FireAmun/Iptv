@@ -24,6 +24,7 @@ The proposed modules below are boundaries to create when needed, not a requireme
 | --- | --- |
 | `app` | Manifest, mobile/TV entry activities, Hilt wiring, worker registration, release configuration. Composes other modules. |
 | `core:model` | IDs, immutable catalogue/playback/entitlement types, and stable error codes. No UI, database, networking, or billing SDK dependencies. |
+| `core:designsystem` | Approved Cinema colour/type tokens and original UI illustration shared by device-specific Material adapters. No source, catalogue or playback ownership. |
 | `core:data` | Source adapters, parsers, Room entities/DAOs, repositories, search index, refresh coordination, and encrypted source persistence. Depends on `core:model`. |
 | `core:playback` | One active Media3 player per device, media session, stream resolution through repository interfaces, track selection, resume, and typed playback state. Depends on `core:model` and injected interfaces. |
 | `core:remote` | Discovery, pairing/trust storage, encrypted transport, protocol validation, and command routing through injected interfaces. Depends on `core:model`; does not own the player. |

@@ -14,6 +14,7 @@ android {
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 dependencies {
+    implementation(project(":core:designsystem"))
     implementation(project(":core:model"))
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

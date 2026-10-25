@@ -43,7 +43,9 @@ abstract class LibraryActivity : AppCompatActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT), navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
+        val dark = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val bars = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT) else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+        enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
         setContent {
             val state by library.state.collectAsStateWithLifecycle()
             val address by library.playback.collectAsStateWithLifecycle()
@@ -59,8 +61,8 @@ abstract class LibraryActivity : AppCompatActivity() {
                     else MobilePlayback(title, status, library::closePlayback, { retry++ }, surface)
                 }
             } else {
-                if (television) TvWelcome(state, { toggleAppLanguage() }, ::chooseFile, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp)
-                else MobileWelcome(state, { toggleAppLanguage() }, ::chooseFile, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp)
+                if (television) TvWelcome(state, { toggleAppLanguage() }, ::chooseFile, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) })
+                else MobileWelcome(state, { toggleAppLanguage() }, ::chooseFile, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) })
             }
         }
     }

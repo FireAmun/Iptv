@@ -8,12 +8,10 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.Lifecycle
 import androidx.media3.ui.PlayerView
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.core.os.LocaleListCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.intent.Intents
@@ -51,8 +49,8 @@ class PlaylistFlowTest {
                 Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)),
             )
             launch(MobileActivity::class.java).use { scenario ->
-                scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("en")) }
                 compose.onNodeWithTag("import_file").performClick()
+                Intents.intended(hasAction(Intent.ACTION_OPEN_DOCUMENT))
                 waitForChannel()
                 compose.onNodeWithText("File channel").assertIsDisplayed()
                 scenario.recreate()
@@ -77,10 +75,16 @@ class PlaylistFlowTest {
             server.start()
             launch(activity).use { scenario ->
                 try {
-                    scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("en")) }
+                    if (tv) {
+                        compose.waitUntil(5000) { compose.onNodeWithTag("language_switch").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
+                        compose.onNodeWithTag("add_url").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
+                        compose.waitUntil(5000) { compose.onNodeWithTag("add_url").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
+                        compose.onNodeWithTag("add_url").assertIsFocused().performKeyInput { keyDown(Key.DirectionCenter); keyUp(Key.DirectionCenter) }
+                    } else compose.onNodeWithTag("add_url").performClick()
+                    compose.waitUntil(5000) { compose.onAllNodesWithTag("source_url").fetchSemanticsNodes().isNotEmpty() }
                     compose.onNodeWithTag("source_url").performTextInput(server.url("/playlist").toString())
                     if (tv) compose.onNodeWithTag("source_url").performImeAction()
-                    else compose.onNodeWithTag("import_url").performScrollTo().performClick()
+                    else compose.onNodeWithTag("import_url").performClick()
                     approveHttp(tv)
                     waitForChannel()
                     compose.waitUntil(timeoutMillis = 5000) {

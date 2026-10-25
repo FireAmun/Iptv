@@ -3,12 +3,10 @@ package com.fireamun.iptv.prototype
 import android.app.Activity
 import android.content.Intent
 import android.view.View
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.core.os.LocaleListCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -37,8 +35,6 @@ class WelcomeTest {
         val intent = Intent(instrumentation.targetContext, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         ActivityScenario.launch<Activity>(intent).use { scenario ->
             try {
-                // AppCompat needs a live delegate to access LocaleManager on API 33+.
-                scenario.onActivity { setLocale("en") }
                 compose.waitUntil(timeoutMillis = 10_000) {
                     compose.onAllNodesWithText("العربية").fetchSemanticsNodes().isNotEmpty()
                 }
@@ -88,7 +84,4 @@ class WelcomeTest {
         diagnostics.phase(TestDiagnostics.Phase.AFTER_SCENARIO_CLOSE)
     }
 
-    private fun setLocale(tags: String) {
-        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tags))
-    }
 }

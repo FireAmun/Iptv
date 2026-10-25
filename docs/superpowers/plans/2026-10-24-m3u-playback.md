@@ -52,9 +52,9 @@
 
 - [x] Update progress, build/run documentation, module responsibilities and provisional limits/known gaps. Record local manual observations and actual test results.
 - [x] Run repository checks, local Android checks and independent review; address findings before opening the PR.
-- [ ] Follow authorized branch/PR/check/merge/delete workflow. Bind merge to the reviewed, tested latest SHA; sync main fast-forward only.
+- [x] Follow authorized branch/PR/check/merge/delete workflow. Bind merge to the reviewed, tested latest SHA; sync main fast-forward only.
 
-Cloud delivery is tracked on [PR #3](https://github.com/FireAmun/Iptv/pull/3). Local Java 21 checks passed 19 JVM tests and eight instrumentation tests each on API 34 phone and API 36 TV. The final delivery checkbox remains conditional on latest-head cloud checks and confirmed merge/cleanup.
+Cloud delivery completed in [PR #3](https://github.com/FireAmun/Iptv/pull/3), merged as `2ba4feeed34abee6821eb0f9c39b1a7aa0e861b6`. [Exact-head CI](https://github.com/FireAmun/Iptv/actions/runs/40141636364) at `5137afd44c018d854cda9baa89462e17061ed486` passed, with 8 tests per cloud phone/TV device and no failures/errors/skips. Local Java 21 checks passed 19 JVM tests and eight instrumentation tests each on API 34 phone and API 36 TV. Main synced fast-forward and work branches removed.
 
 ## Self-review
 

@@ -1,6 +1,6 @@
 # First Android build
 
-The original app-shell milestone delivered mobile/tablet and TV launchers, English/Arabic resources, persistent language selection, and TV remote focus. The current prototype also includes [M3U import and playback](m3u-playback.md); it supplies no channels.
+The original app-shell milestone delivered mobile/tablet and TV launchers, English/Arabic resources, persistent language selection, and TV remote focus. The current prototype also includes [M3U import and playback](m3u-playback.md) and the approved [Cinema dark/light appearance](../design/app/README.md); it supplies no channels. See the tracker for PR integration status.
 
 ## Build and install
 

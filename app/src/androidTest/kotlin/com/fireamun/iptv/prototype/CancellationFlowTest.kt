@@ -4,10 +4,8 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.content.Intent
 import android.net.Uri
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
-import androidx.core.os.LocaleListCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
@@ -30,7 +28,6 @@ class CancellationFlowTest {
                 Intent().setData(Uri.parse("content://com.fireamun.iptv.prototype.test.fixtures/slow")).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)))
             ActivityScenario.launch<MobileActivity>(Intent(instrumentation.targetContext, MobileActivity::class.java)).use { scenario ->
                 try {
-                    scenario.onActivity { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("en")) }
                     compose.onNodeWithTag("import_file").performClick()
                     compose.waitUntil(timeoutMillis = 4000) {
                         instrumentation.targetContext.contentResolver.query(Uri.parse("content://com.fireamun.iptv.prototype.test.fixtures/slow-state"), null, null, null, null)?.use { it.moveToFirst() && it.getInt(0) == 1 } == true
