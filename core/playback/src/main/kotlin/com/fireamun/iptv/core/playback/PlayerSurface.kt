@@ -9,6 +9,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.DefaultTimeBar
+import androidx.compose.ui.graphics.toArgb
+import com.fireamun.iptv.core.designsystem.Cinema
 import com.fireamun.iptv.core.model.MediaAddress
 import com.fireamun.iptv.core.model.PlaybackStatus
 
@@ -22,6 +25,13 @@ fun PlaybackSurface(address: MediaAddress, retry: Int, onStatus: (PlaybackStatus
         val session = remember { LifecyclePlayerSession(context.applicationContext, address) { statusCallback(it) } }
         AndroidView(modifier = modifier.testTag("player_surface"), factory = { viewContext ->
             PlayerView(viewContext).apply {
+                setBackgroundColor(android.graphics.Color.BLACK)
+                setShutterBackgroundColor(android.graphics.Color.BLACK)
+                findViewById<DefaultTimeBar>(androidx.media3.ui.R.id.exo_progress)?.apply {
+                    setPlayedColor(Cinema.Saffron.toArgb())
+                    setScrubberColor(Cinema.Saffron.toArgb())
+                    setBufferedColor(Cinema.Sand.toArgb())
+                }
                 keepScreenOn = true
                 useController = true
                 setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)

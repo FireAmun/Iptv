@@ -1,85 +1,118 @@
 package com.fireamun.iptv.ui.mobile
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.fireamun.iptv.core.designsystem.*
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.LibraryState
 import com.fireamun.iptv.core.model.PlaybackStatus
 
 @Composable
-fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit) {
+fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit) {
     var url by remember { mutableStateOf("") }
+    var enteringUrl by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val list = rememberLazyListState()
-    fun submit() { val submitted = url; url = ""; keyboard?.hide(); onImportUrl(submitted) }
+    fun submit() { val submitted = url; url = ""; enteringUrl = false; keyboard?.hide(); onImportUrl(submitted) }
     LaunchedEffect(state.channels, state.selectedId) {
         if (state.channels.isNotEmpty()) list.scrollToItem(state.channels.indexOfFirst { it.id == state.selectedId }.coerceAtLeast(0) + 1)
     }
-    MaterialTheme(colorScheme = darkColorScheme()) {
+    CinemaTheme {
+        val p = cinemaPalette()
         Surface(Modifier.fillMaxSize()) {
-            LazyColumn(modifier = Modifier.safeDrawingPadding().imePadding(), state = list, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(modifier = Modifier.safeDrawingPadding().imePadding().widthIn(max = 800.dp), state = list, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item(key = "header") {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text(stringResource(R.string.mobile_title), style = MaterialTheme.typography.headlineLarge)
-                        Text(stringResource(R.string.mobile_description), style = MaterialTheme.typography.bodyLarge)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = onChangeLanguage, modifier = Modifier.testTag("language_switch")) { Text(stringResource(R.string.mobile_language)) }
-                            OutlinedButton(onClick = { url = ""; keyboard?.hide(); onImportFile() }, enabled = !state.importing, modifier = Modifier.testTag("import_file")) { Text(stringResource(R.string.mobile_import_file)) }
+                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { Text("iptv.", style = MaterialTheme.typography.headlineLarge.copy(textDirection = androidx.compose.ui.text.style.TextDirection.Ltr), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp) }
+                            TextButton(onClick = onChangeAppearance, modifier = Modifier.testTag("appearance_switch")) { Text(stringResource(if (isSystemInDarkTheme()) R.string.mobile_light else R.string.mobile_dark), color = p.text, fontSize = 12.sp) }
+                            OutlinedButton(onClick = onChangeLanguage, modifier = Modifier.testTag("language_switch"), contentPadding = PaddingValues(horizontal = 12.dp)) { Text(stringResource(R.string.mobile_language), color = p.text, fontSize = 12.sp) }
                         }
-                        OutlinedTextField(value = url, onValueChange = { if (it.length <= 4096) url = it }, modifier = Modifier.fillMaxWidth().testTag("source_url"), enabled = !state.importing, singleLine = true,
-                            label = { Text(stringResource(R.string.mobile_url_label)) }, visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { submit() }))
-                        Button(onClick = { submit() }, enabled = !state.importing && url.isNotBlank(), modifier = Modifier.testTag("import_url")) { Text(stringResource(R.string.mobile_import_url)) }
+                        if (state.channels.isEmpty()) {
+                            CinemaIllustration(Modifier.fillMaxWidth().height(160.dp))
+                            Text(stringResource(R.string.mobile_title), fontWeight = FontWeight.ExtraBold, fontSize = 38.sp, lineHeight = 44.sp, letterSpacing = (-1).sp)
+                            Text(stringResource(R.string.mobile_description), style = MaterialTheme.typography.bodyMedium, color = p.muted)
+                        } else {
+                            Text(stringResource(R.string.mobile_library), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.headlineLarge)
+                            Text(stringResource(R.string.mobile_loaded, state.channels.size), style = MaterialTheme.typography.bodySmall, color = p.muted)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(onClick = { enteringUrl = true }, enabled = !state.importing, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("add_url"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_add_url), fontWeight = FontWeight.Bold) }
+                            OutlinedButton(onClick = { url = ""; keyboard?.hide(); onImportFile() }, enabled = !state.importing, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("import_file"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_import_file), color = p.text) }
+                        }
                         if (state.importing) {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Text(stringResource(R.string.mobile_loading))
-                            TextButton(onClick = onCancelImport) { Text(stringResource(R.string.mobile_cancel)) }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(stringResource(R.string.mobile_loading), Modifier.weight(1f))
+                                TextButton(onClick = onCancelImport) { Text(stringResource(R.string.mobile_cancel), color = p.text) }
+                            }
                         }
-                        state.error?.let { Text(stringResource(importMessage(it)), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("import_error")) }
-                        Text(stringResource(if (state.channels.isEmpty()) R.string.mobile_empty else R.string.mobile_loaded, state.channels.size))
+                        state.error?.let { Text(stringResource(importMessage(it)), color = p.error, modifier = Modifier.testTag("import_error")) }
+                        if (state.channels.isNotEmpty()) HorizontalDivider(color = p.outline.copy(alpha = .35f))
                     }
                 }
                 items(state.channels, key = { it.id }) { channel ->
-                    ListItem(headlineContent = { Text(channel.title ?: stringResource(R.string.mobile_entry, channel.id + 1), maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                        supportingContent = channel.group?.let { group -> { Text(group, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
-                        modifier = Modifier.fillMaxWidth().testTag("channel_${channel.id}").clickable(enabled = !state.importing) { onSelectChannel(channel.id) })
+                    val title = channel.title ?: stringResource(R.string.mobile_entry, channel.id + 1)
+                    Surface(color = p.panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().testTag("channel_${channel.id}").clickable(enabled = !state.importing) { onSelectChannel(channel.id) }) {
+                        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(50.dp).background(p.raised, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Text(title.take(1), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = p.text) }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                channel.group?.let { Text(it, color = p.muted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                            }
+                            Text("▶", color = p.focus, fontSize = 18.sp)
+                        }
+                    }
                 }
             }
         }
+        if (enteringUrl) AlertDialog(onDismissRequest = { enteringUrl = false; url = "" },
+            title = { Text(stringResource(R.string.mobile_add_url), fontWeight = FontWeight.Bold) },
+            text = { OutlinedTextField(value = url, onValueChange = { if (it.length <= 4096) url = it }, modifier = Modifier.fillMaxWidth().testTag("source_url"), singleLine = true,
+                label = { Text(stringResource(R.string.mobile_url_label)) }, colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = p.focus, cursorColor = p.focus, focusedLabelColor = p.focus), visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank()) submit() })) },
+            confirmButton = { Button(onClick = { submit() }, enabled = url.isNotBlank(), modifier = Modifier.testTag("import_url")) { Text(stringResource(R.string.mobile_import_url)) } },
+            dismissButton = { TextButton(onClick = { enteringUrl = false; url = "" }) { Text(stringResource(R.string.mobile_cancel), color = p.text) } })
         if (state.needsHttpApproval) AlertDialog(onDismissRequest = onDismissHttp,
             title = { Text(stringResource(R.string.mobile_http_title)) }, text = { Text(stringResource(R.string.mobile_http_body)) },
             confirmButton = { Button(onClick = onApproveHttp, modifier = Modifier.testTag("http_confirm")) { Text(stringResource(R.string.mobile_continue)) } },
-            dismissButton = { TextButton(onClick = onDismissHttp) { Text(stringResource(R.string.mobile_cancel)) } })
+            dismissButton = { TextButton(onClick = onDismissHttp) { Text(stringResource(R.string.mobile_cancel), color = p.text) } })
     }
 }
 
 @Composable
 fun MobilePlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetry: () -> Unit, player: @Composable (Modifier) -> Unit) {
-    MaterialTheme(colorScheme = darkColorScheme()) {
+    CinemaTheme {
+        val p = cinemaPalette()
         Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.safeDrawingPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TextButton(onClick = onBack) { Text(stringResource(R.string.mobile_back)) }
-                    Text(title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge)
+            Column(Modifier.safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = onBack) { Text(stringResource(R.string.mobile_back), color = p.text) }
+                    Text(title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     if (status == PlaybackStatus.FAILED) Button(onClick = onRetry, modifier = Modifier.testTag("playback_retry")) { Text(stringResource(R.string.mobile_retry)) }
                 }
-                Text(stringResource(playbackMessage(status)), Modifier.testTag("playback_status"))
+                Surface(color = p.panel, shape = RoundedCornerShape(8.dp)) { Text(stringResource(playbackMessage(status)), Modifier.testTag("playback_status").padding(horizontal = 12.dp, vertical = 6.dp), color = if (status == PlaybackStatus.FAILED) p.error else p.muted, style = MaterialTheme.typography.labelMedium) }
                 player(Modifier.weight(1f).fillMaxWidth())
             }
         }

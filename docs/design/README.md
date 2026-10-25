@@ -1,6 +1,6 @@
 # IPTV design directions — 25 October 2026
 
-Status: owner approved Cinema A with matching light mode on 25 October 2026. Production implementation is next; final branding remains open.
+Status: owner approved Cinema A with matching light mode on 25 October 2026. Prototype implementation is under verification; [actual app screenshots](app/README.md) accompany the original editable concepts. Final branding remains open.
 
 Figma: https://www.figma.com/design/2Hg2v6XoCHTlmyDTZSI9te
 

@@ -1,6 +1,8 @@
 <resources>
     <style name="Theme.Iptv" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowBackground">#101820</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">#F2ECDD</item>
+        <item name="colorAccent">#765615</item>
+        <item name="colorControlHighlight">#40765615</item>
     </style>
 </resources>

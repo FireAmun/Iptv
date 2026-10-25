@@ -9,6 +9,7 @@ Arabic and English IPTV player for Android phones, tablets, and Android TV/Googl
 - [Architecture specification](docs/superpowers/specs/2026-10-24-iptv-architecture-design.md)
 - [Project instructions](AGENTS.md)
 - [GitHub delivery and CI](docs/development/github-workflow.md)
+- [Cinema design and app previews](docs/design/README.md)
 
 ## Directory layout
 
@@ -45,7 +46,7 @@ Core and UI modules have `src/main/kotlin` and `src/test/kotlin` directories. `.
 
 ## Current state
 
-The prototype configures `:app`, `:ui:mobile`, `:ui:tv`, `:core:model`, `:core:data`, and `:core:playback`. It supports Arabic/English, session-only M3U file/URL import, entry selection and Media3 playback. The remaining core directories reserve future boundaries. The temporary application ID is `com.fireamun.iptv.prototype`; branding remains open.
+The prototype configures `:app`, `:ui:mobile`, `:ui:tv`, `:core:model`, `:core:data`, `:core:playback`, and `:core:designsystem`. It supports Arabic/English, session-only M3U file/URL import, entry selection and Media3 playback. Cinema appearance adds a saved dark/light choice, shared palette/fonts and separate phone/TV layouts; see the tracker for integration status. The remaining core directories reserve future boundaries. The temporary application ID is `com.fireamun.iptv.prototype`; branding remains open.
 
 See [build/install instructions](docs/development/first-build.md), [M3U/playback behavior and manual testing](docs/development/m3u-playback.md), and [the current plan](docs/superpowers/plans/2026-10-24-m3u-playback.md). The library is not persisted across process death; catalogues/EPG and protected source storage are later slices.
 
