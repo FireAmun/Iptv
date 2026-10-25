@@ -59,5 +59,6 @@ Files: persistence device flows, test isolation, process probe/runner, CI device
 - [ ] Exercise cached file/URL/Xtream root and phone/TV removal/restart with synthetic sources; inspect encrypted storage and atomic failure cases.
 - [ ] CI process probe: seed, force-stop, verify different PID with real Room/Keystore, clear; preserve every failure exit code.
 - [ ] Run appropriate local checks and independent review; fix actionable findings.
-- [ ] Update progress with PR #6's actual merge evidence and current persistence artifacts/limits.
-- [ ] Commit/push/open one PR; inspect exact-head complete phone/TV XML and process-probe evidence, merge bound to SHA, FF-sync main and remove work branch.
+- [x] Update progress with PR #6's actual merge evidence and current persistence artifacts/limits.
+
+Delivery is [PR #7](https://github.com/FireAmun/Iptv/pull/7). Local checks/review pass and real device/process fixtures exist. Use the PR's final latest-head reports and merge state as integration truth. Require complete phone/TV XML, different-PID process-probe logs and visual inspection before SHA-bound merge, FF-only main sync and branch cleanup.
