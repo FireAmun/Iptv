@@ -52,7 +52,7 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                 item(key = "header") {
                     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { Text("iptv.", style = MaterialTheme.typography.headlineLarge.copy(textDirection = androidx.compose.ui.text.style.TextDirection.Ltr), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp) }
+                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { AmarWordmark(p.text, Modifier.testTag("app_brand"), 22.sp) }
                             TextButton(onClick = onChangeAppearance, modifier = Modifier.testTag("appearance_switch")) { Text(stringResource(if (isSystemInDarkTheme()) R.string.mobile_light else R.string.mobile_dark), color = p.text, fontSize = 12.sp) }
                             OutlinedButton(onClick = onChangeLanguage, modifier = Modifier.testTag("language_switch"), contentPadding = PaddingValues(horizontal = 12.dp)) { Text(stringResource(R.string.mobile_language), color = p.text, fontSize = 12.sp) }
                         }
@@ -135,7 +135,10 @@ fun MobilePlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, on
             Column(Modifier.safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = onBack) { Text(stringResource(R.string.mobile_back), color = p.text) }
-                    Text(title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        AmarWordmark(p.muted, Modifier.testTag("app_brand"), 12.sp)
+                        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
                     if (status == PlaybackStatus.FAILED) Button(onClick = onRetry, modifier = Modifier.testTag("playback_retry")) { Text(stringResource(R.string.mobile_retry)) }
                 }
                 Surface(color = p.panel, shape = RoundedCornerShape(8.dp)) { Text(stringResource(playbackMessage(status)), Modifier.testTag("playback_status").padding(horizontal = 12.dp, vertical = 6.dp), color = if (status == PlaybackStatus.FAILED) p.error else p.muted, style = MaterialTheme.typography.labelMedium) }

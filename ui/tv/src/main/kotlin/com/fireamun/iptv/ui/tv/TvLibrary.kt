@@ -71,7 +71,7 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                 item(key = "header") {
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { Text("iptv.", style = MaterialTheme.typography.headlineLarge.copy(textDirection = androidx.compose.ui.text.style.TextDirection.Ltr), fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, letterSpacing = (-1).sp) }
+                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { AmarWordmark(p.text, Modifier.testTag("app_brand"), 30.sp) }
                             CinemaButton(onClick = onChangeAppearance, modifier = Modifier.testTag("appearance_switch")) { Text(stringResource(if (isSystemInDarkTheme()) R.string.tv_light else R.string.tv_dark)) }
                             CinemaButton(onClick = onChangeLanguage, modifier = Modifier.focusRequester(languageFocus).testTag("language_switch")) { Text(stringResource(R.string.tv_language)) }
                         }
@@ -212,7 +212,10 @@ fun TvPlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetr
             Column(Modifier.safeDrawingPadding().padding(32.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     CinemaButton(onClick = onBack) { Text(stringResource(R.string.tv_back)) }
-                    Text(title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        AmarWordmark(p.muted, Modifier.testTag("app_brand"), 12.sp)
+                        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
                     if (status == PlaybackStatus.FAILED) CinemaButton(onClick = onRetry, primary = true, modifier = Modifier.focusRequester(retryFocus).testTag("playback_retry")) { Text(stringResource(R.string.tv_retry)) }
                 }
                 Text(stringResource(playbackMessage(status)), Modifier.testTag("playback_status"), color = if (status == PlaybackStatus.FAILED) p.error else p.muted, style = MaterialTheme.typography.labelMedium)

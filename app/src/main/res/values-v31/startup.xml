@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.Amar.Starting" parent="Theme.Amar.Starting.Base">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/amar_launch_animated</item>
+        <item name="android:windowSplashScreenBrandingImage">@drawable/amar_wordmark</item>
+    </style>
+</resources>

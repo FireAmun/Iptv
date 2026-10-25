@@ -14,6 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModel
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
+import com.fireamun.iptv.core.designsystem.AmarStartupScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.PlaybackStatus
@@ -50,7 +53,9 @@ abstract class LibraryActivity : AppCompatActivity() {
         }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
+        val systemSplash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        systemSplash.setOnExitAnimationListener { it.remove() }
         refreshingFile = savedInstanceState?.getBoolean("refreshingFile") ?: false
         val dark = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val bars = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT) else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
@@ -58,8 +63,19 @@ abstract class LibraryActivity : AppCompatActivity() {
         setContent {
             val state by library.state.collectAsStateWithLifecycle()
             val address by library.playback.collectAsStateWithLifecycle()
+            // A recreated activity has already consumed this launch, even if rotated mid-intro.
+            var introFinished by remember { mutableStateOf(savedInstanceState != null) }
+            val showStartup = !introFinished || state.restoring
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = if (showStartup) true else !dark
+                    isAppearanceLightNavigationBars = if (showStartup) false else !dark
+                }
+            }
             val active = address
-            if (active != null) {
+            if (showStartup) {
+                AmarStartupScreen(onIntroFinished = { introFinished = true })
+            } else if (active != null) {
                 key(active) {
                     var status by remember { mutableStateOf(PlaybackStatus.PREPARING) }
                     var retry by remember { mutableIntStateOf(0) }

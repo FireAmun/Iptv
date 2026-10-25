@@ -1,0 +1,13 @@
+<resources>
+    <style name="Theme.Amar.Starting.Base" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0B0B0B</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/amar_launch_mark</item>
+        <item name="windowSplashScreenAnimationDuration">900</item>
+        <item name="postSplashScreenTheme">@style/Theme.Iptv</item>
+        <item name="android:statusBarColor">#0B0B0B</item>
+        <item name="android:navigationBarColor">#0B0B0B</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+    <style name="Theme.Amar.Starting" parent="Theme.Amar.Starting.Base" />
+</resources>

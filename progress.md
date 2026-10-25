@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 25 October 2026 (Asia/Riyadh)  
-Overall status: M3U/playback, Cinema dark/light, standalone launcher and Xtream login are merged through [PR #6](https://github.com/FireAmun/Iptv/pull/6). Saved active-source/Room work is implemented in [PR #7](https://github.com/FireAmun/Iptv/pull/7); its live checks/merge state record final delivery.  
-Current phase: P3 persistence slice implemented with local verification; cloud device/process verification is the delivery gate. P4 appearance/basic device playback delivered. P3 and P4 are not complete.  
-Next task: Finish latest-head verification/integration of PR #7 only if outstanding. Then continue multiple-source management, search/EPG and the remaining P3/P4 capabilities.
+Overall status: Core import/playback, Cinema dark/light, Xtream login and encrypted saved active library are merged through [PR #7](https://github.com/FireAmun/Iptv/pull/7). Amar Iptv branding and animated startup are implemented on `feat/amar-branding-startup`; fresh cloud checks and integration remain pending.  
+Current phase: P3 saved-source slice delivered; P4 branding/startup verification active. P3 and P4 remain incomplete overall.  
+Next task: Finish latest-head phone/TV verification and delivery of Amar Iptv branding, then update the owner's emulator without clearing its saved library. Continue multiple-source management, search/EPG afterward.
 
 ## 1. Start here in a new chat
 
@@ -35,7 +35,7 @@ This tracker records project state; it is not a substitute for source code, test
 | GitHub delivery | `FireAmun/Iptv`, base `main`; PR/check/merge/delete cycle authorized for normal changes. | Confirmed user instruction |
 | Visual design | Cinema A approved with matching light mode; shared layout and saved explicit appearance. [Editable concepts](https://www.figma.com/design/2Hg2v6XoCHTlmyDTZSI9te), [implemented previews](docs/design/app/README.md). Broadcast's denser guide layout follows when guide data exists. | Approved 25 October; prototype implemented |
 
-The architecture is a delivered draft, not evidence of implemented or tested functionality. Branding, the complete free/paid offer, detailed UI design, and release compatibility remain unsettled.
+The architecture is a delivered draft, not evidence of implemented or tested functionality. The name Amar Iptv and Cinema visual direction are confirmed. Permanent Play identity, the complete free/paid offer, remaining screens and release compatibility remain unsettled.
 
 ## 3. Documents and delivered artifacts
 
@@ -98,13 +98,13 @@ P1 must include TV feasibility in the earliest proof. Do not build an extensive 
 | D03 | Purchase ownership/device policy | Baseline restores using purchasing Google account; cross-account households and a custom device cap are not designed. | P6 |
 | D04 | Purchase verification | Choose client-only limitations or a managed verifier without a custom hosted backend. | P6 |
 | D05 | Offline access, refunds, annual expiry | Set last-known-access behavior and any expiry/grace rules; distinguish service errors from confirmed revocation. | P6 |
-| D06 | Product name, identity, visual direction | No final name/logo chosen. Prototype ID is `com.fireamun.iptv.prototype`; select permanent identity before Play registration. | Branding and permanent Play setup; not local prototype research |
+| D06 | Product name, identity, visual direction | Owner selected Amar Iptv, gold/black animated welcome, and Cinema dark/light. Prototype ID remains `com.fireamun.iptv.prototype` to preserve data; select permanent identity before Play registration. | Permanent Play setup |
 | D07 | Hardware and authorized source inventory | No physical devices/private provider verified. Owner explicitly re-authorized local hands-on app testing on 24 October 2026: one emulator at a time, no host firewall/driver/reboot changes. Earlier unexpected shutdown remains unresolved. Use a self-generated video and synthetic playlists; never put credentials here. | Physical-device/provider compatibility claims |
 | D08 | Toolchain and version control | Updated tools installed and executable checks passed; Git initialized with specified remote and a work branch. Wrapper and app-shell pins now exist; local Java 21 build/lint passed. See A08/A09. | First Android build configuration |
 | D09 | minSdk / compatible dependency versions | Prototype minSdk 28, compile/target 36; Gradle 9.6.0 / AGP 9.4.0 with fixed Compose/TV dependencies. Android 9 remains a test baseline, not a release support promise. | Dependency pinning and release support claims |
 | D10 | Remote transport implementation | Ktor CIO is a candidate; prove Android TLS, lifecycle, and reconnect compatibility. QR-first pairing; code-only pairing is not finalized. | P5 transport choice |
 | D11 | Import resource/performance limits | Prototype limits implemented: 8 MiB, 16,384 code units/line, 512/label, 10,000 entries, five-second parse budget. Real-device/performance measurements remain outstanding. | Import hardening / P8 |
-| D12 | Credential persistence integration | Prove Keystore-backed encryption, optional Tink integration, and backup exclusions; DataStore does not encrypt by itself. | Source storage and P5 |
+| D12 | Credential persistence integration | Room plus Keystore-backed encryption and backup exclusions delivered for one active source in PR #7. Pairing credentials and multi-source policy remain future work. | P5 / multiple sources |
 | D13 | Codec gaps | No device codec gaps demonstrated; FFmpeg audio or libVLC is not included by default. | Only any demonstrated unsupported codec requirement |
 | D14 | Google Play readiness | Account type/date, verification state, store projects, test resources, and signing setup not inspected. Recheck current requirements when relevant. | P9; prepare independently when authorized |
 | D15 | Final scope and design review | Cinema A with light mode approved; see A14. Implement existing journeys first. Future catalogue/guide screens require their data capabilities. | Production visual refresh; no further design-choice question |
@@ -157,9 +157,9 @@ For future checks, record the exact meaningful command or report path, outcome, 
 
 ## 9. Next-session handoff
 
-**Task:** Inspect [PR #7](https://github.com/FireAmun/Iptv/pull/7) and actual workspace; finish saved-library verification/delivery only if outstanding, then multiple sources/search/EPG. [Design](docs/superpowers/specs/2026-10-25-saved-library-design.md), [plan](docs/superpowers/plans/2026-10-25-saved-library.md). PR #6 merged as `9e527f78d9a39703be2a3192c5506c21c704bb4e` after all five checks passed at `f406c2acfe3373069fb8039773a37ecd2b89d151` in run `40196064454`; downloaded XML verified 14 phone + 14 TV tests, zero failures/errors/skips, and updated form PNGs were visually inspected. Main was FF-synced, its tree matched the tested head, and both work branches were removed. Do not repeat completed delivery work or resolved design questions.
+**Task:** Finish the current Amar Iptv branding/startup slice. [Design notes](docs/design/amar-branding.md) describe the approved name, native black splash, gold-to-black welcome, motion and reduced-motion behavior. Inspect the actual branch/PR before continuing. PR #7 is already merged; do not repeat saved-library implementation or delivery.
 
-The owner is using the standalone emulator and explicitly declined updating it during this feature on 25 October. Preserve that session and use cloud devices for this slice. Desktop/VS Code shortcuts are intentionally local; the PowerShell script and instructions are versioned.
+The owner later explicitly requested updating their emulator, superseding the earlier feature-stage request to keep its old build. Its existing API 34 phone was updated from v0.3.0 to v0.5.0 with `adb install -r`, then launched and verified in the foreground. No uninstall, data clear or instrumentation was performed. Preserve its saved library and private contents; use disposable cloud devices for instrumentation. A v0.6.0 update is intended after branding verification.
 
 **Inputs:** [M3U/playback guide](docs/development/m3u-playback.md), [slice plan](docs/superpowers/plans/2026-10-24-m3u-playback.md), A01/A02, actual GitHub and workspace state.
 
@@ -167,7 +167,7 @@ The owner is using the standalone emulator and explicitly declined updating it d
 
 **Verification source:** Cinema local checks: 20 JVM + ten tests each on API 34 phone and API 36 TV, plus hands-on [screenshots](docs/design/app/README.md). Current device XML contains the phone run; both report sets were inspected and copied before replacement. Exact-head [PR #4 checks](https://github.com/FireAmun/Iptv/pull/4/checks) separately record cloud API 28 phone and API 36 TV results. Treat the live PR as the source for completed merge/branch cleanup. Debug APK: `app/build/outputs/apk/debug/app-debug.apk`; CI artifact `iptv-debug` expires after seven days.
 
-**Known limits:** Merged version 0.4.0 has session-only file/URL/Xtream sources; persistence is the active unmerged slice. Language and appearance preferences persist. Background playback releases the player and prepares afresh on return. EPG/search, pairing, billing, telemetry, favourites and persistent playback resume remain open. Provisional import limits need hardware measurements; private providers, physical TV boxes, endurance and codec gaps remain unverified.
+**Known limits:** Merged v0.5.0 saves one active file/URL/Xtream source with Room and Keystore encryption; episode lists are fetched on demand. Language/appearance preferences persist. Background playback releases the player and prepares afresh on return. Multiple sources, EPG/search, pairing, billing, telemetry, favourites and persistent playback resume remain open. Physical TV boxes, real providers, endurance and codec gaps remain unverified.
 
 ## 10. Session log
 
@@ -213,3 +213,9 @@ Owner approved encrypted active-source saving and Room. Delivery is [PR #7](http
 Local build/app+test APK/lint passed and reports show 39 JVM tests (2 model, 24 data, 2 storage crypto, 11 app), zero failures/errors/skips. Thirteen Python repository/script checks passed. Independent review found and corrected file-refresh losing IDs and command-substitution masking timeout/ADB failure. Regressions cover actual picker-to-refresh mapping, database identity reuse and explicit failure-code propagation. An initial file-refresh unit check used real IO outside its test scheduler; injecting the test dispatcher fixed that test race without delaying production behavior. Latest storage exception mapping also converts provider failures to a fixed storage error.
 
 Device fixtures cover actual Room/Keystore reopen, protected data absent from database bytes, transaction/encryption failure retention, missing key/tampered ciphertext, 601-entry multi-batch refresh, cached phone/TV restart/removal, file/URL refresh and Arabic/light controls. CI adds seed/force-stop/restore under different target PIDs and synthetic PNG previews. These require fresh cloud evidence before merge; no local emulator install, reset or test is performed because the owner chose to preserve their session. Keep the earlier unexplained shutdown and current environment restrictions intact.
+
+## Saved-library delivery and Amar branding - 25 October 2026
+
+PR #7 merged as `0c39a39bb6d677b28169544a2e0c64501675e9aa` after all five checks passed at `c6d2fb88aad79be85a419b2c717dbc70653a0feb` in [run 40220641292](https://github.com/FireAmun/Iptv/actions/runs/40220641292), attempt 2. Downloaded XML confirms 25 phone API 28 and 25 TV API 36 tests, zero failures/errors/skips. Separate force-stop probes restored Room/Keystore state under different PIDs (phone 4065 to 4107; TV 4675 to 4717), then cleared synthetic fixtures. Actual phone/TV dark-English and light-Arabic previews were inspected. Attempt 1's TV ADB-offline failure occurred before app installation/tests; the unchanged head passed on the failed-job rerun. Main matched the tested tree, was FF-synced, and both work branches were removed. Earlier paragraphs describe historical work-in-progress, superseded by this delivery evidence.
+
+The owner selected Amar Iptv and an animated gold/black startup. Implemented shared phone/TV home/player wordmarks, app label and TV banner, native black/vector splash and Compose gradient welcome with bouncing logo, glow/specks and dots. Version 0.6.0/code 6 preserves the application ID and storage. [Branding notes](docs/design/amar-branding.md). Independent review caught the mid-intro recreation replay; replacing restored intro state with a per-Activity launch-consumed initializer fixes that path. Final local Java 21 build/app+test APK/lint passed after the fix; 39 JVM tests and 13 Python repository/script tests passed. Markdown links, actionlint and whitespace checks passed. Independent follow-up review found no remaining actionable blockers. The fresh cloud device gate remains pending. No local instrumentation, firewall, driver or reboot changes; the earlier unexpected-shutdown cause remains unresolved.
