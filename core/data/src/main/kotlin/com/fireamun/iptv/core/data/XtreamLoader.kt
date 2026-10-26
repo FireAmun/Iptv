@@ -17,7 +17,8 @@ class XtreamLoader(private val limits: ParserLimits = ParserLimits(), client: Ok
     private val parser = XtreamJson(limits)
     private val http = client.newBuilder().apply { interceptors().clear(); networkInterceptors().clear() }
         .eventListener(EventListener.NONE).authenticator(Authenticator.NONE).proxyAuthenticator(Authenticator.NONE)
-        .cookieJar(CookieJar.NO_COOKIES).cache(null).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
+        // These are read-only catalogue GETs. Recover when a provider closes a pooled socket.
+        .cookieJar(CookieJar.NO_COOKIES).cache(null).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(true)
         .callTimeout(120, TimeUnit.SECONDS).connectTimeout(15, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).build()
 
     suspend fun load(source: XtreamConnection): List<PlaylistEntry> = withTimeoutOrNull(300_000) {
