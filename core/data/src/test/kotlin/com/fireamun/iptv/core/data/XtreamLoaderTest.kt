@@ -17,6 +17,32 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okio.buffer
 
 class XtreamLoaderTest {
+    @Test fun closedReusedConnectionIsRecoveredBeforeNextCatalogueResponse() = runBlocking {
+        MockWebServer().use { server ->
+            val normal = fixtures()
+            val closed = java.util.concurrent.atomic.AtomicBoolean()
+            val attempts = java.util.concurrent.CopyOnWriteArrayList<RecordedRequest>()
+            server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse {
+                    if (request.url.queryParameter("action") == "get_series_categories") {
+                        attempts.add(request)
+                        if (closed.compareAndSet(false, true)) {
+                            return MockResponse.Builder().onResponseStart(mockwebserver3.SocketEffect.CloseSocket()).build()
+                        }
+                    }
+                    return normal.dispatch(request)
+                }
+            }
+            server.start()
+            val result = XtreamLoader().load(XtreamConnection.create(server.url("/").toString(), "fixture-user", "fixture-password")!!)
+            assertEquals(3, result.size)
+            assertEquals(2, attempts.size)
+            assertTrue("Failure must occur on a previously working pooled connection", attempts[0].exchangeIndex > 0)
+            assertNotEquals(attempts[0].connectionIndex, attempts[1].connectionIndex)
+            assertTrue(attempts.all { it.url.encodedPath == "/player_api.php" && it.url.port == server.port })
+        }
+    }
+
     @Test fun credentialsAreEncodedAndRedactedAndServerInputIsStrict() {
         val source = XtreamConnection.create("https://example.invalid/prefix/", "u+/", "p?&")!!
         val api = source.apiUrl("get_live_streams")

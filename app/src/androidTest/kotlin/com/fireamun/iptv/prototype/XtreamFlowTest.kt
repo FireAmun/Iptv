@@ -43,11 +43,17 @@ class XtreamFlowTest {
     private fun exercise(activity: Class<out Activity>, tv: Boolean, accountLink: Boolean = false) {
         val clip = instrumentation.context.assets.open("synthetic-test.mp4").use { it.readBytes() }
         MockWebServer().use { server ->
+            val closedConnection = java.util.concurrent.atomic.AtomicBoolean()
+            val categoryAttempts = java.util.concurrent.CopyOnWriteArrayList<RecordedRequest>()
             server.dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest): MockResponse {
                     if (request.url.encodedPath == "/get.php") return MockResponse(code = 404)
                     if (request.url.encodedPath.startsWith("/series/")) return MockResponse.Builder().addHeader("Content-Type", "video/mp4").body(Buffer().write(clip)).build()
                     if (request.url.queryParameter("password") == "wrong") return MockResponse(body = """{"user_info":{"auth":0}}""")
+                    if (request.url.queryParameter("action") == "get_series_categories") {
+                        categoryAttempts.add(request)
+                        if (closedConnection.compareAndSet(false, true)) return MockResponse.Builder().onResponseStart(mockwebserver3.SocketEffect.CloseSocket()).build()
+                    }
                     return MockResponse(body = when (request.url.queryParameter("action")) {
                         null -> """{"user_info":{"auth":1,"status":"Active","allowed_output_formats":["ts"]}}"""
                         "get_live_streams" -> """[{"stream_id":10,"name":"Live fixture"}]"""
@@ -82,12 +88,15 @@ class XtreamFlowTest {
                 compose.onNodeWithText("Live fixture").assertExists()
                 compose.onNodeWithText("Film fixture").assertExists()
                 compose.onNodeWithTag("server_password").assertDoesNotExist()
+                org.junit.Assert.assertEquals(2, categoryAttempts.size)
+                org.junit.Assert.assertTrue(categoryAttempts[0].exchangeIndex > 0)
+                org.junit.Assert.assertNotEquals(categoryAttempts[0].connectionIndex, categoryAttempts[1].connectionIndex)
                 if (accountLink) {
-                    org.junit.Assert.assertEquals(8, server.requestCount)
+                    org.junit.Assert.assertEquals(9, server.requestCount)
                     scenario.close()
                     scenario = ActivityScenario.launch<Activity>(intent)
                     compose.waitUntil(20_000) { compose.onAllNodesWithText("Series fixture").fetchSemanticsNodes().isNotEmpty() }
-                    org.junit.Assert.assertEquals(8, server.requestCount)
+                    org.junit.Assert.assertEquals(9, server.requestCount)
                 }
                 if (tv) awaitFocus("channel_0")
                 click("channel_2", tv)
@@ -150,8 +159,12 @@ class XtreamFlowTest {
     }
     private fun approve(tv: Boolean) {
         compose.waitUntil(5000) { compose.onAllNodesWithTag("http_confirm").fetchSemanticsNodes().isNotEmpty() }
-        if (tv) awaitFocus("http_cancel")
-        click("http_confirm", tv)
+        if (tv) {
+            awaitFocus("http_cancel")
+            compose.onNodeWithTag("http_cancel").assertIsDisplayed().assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
+            awaitFocus("http_confirm")
+            compose.onNodeWithTag("http_confirm").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        } else compose.onNodeWithTag("http_confirm").performClick()
     }
     private fun click(tag: String, tv: Boolean) {
         if (tv) {
