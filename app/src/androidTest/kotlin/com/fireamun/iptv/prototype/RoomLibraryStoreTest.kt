@@ -117,4 +117,31 @@ class RoomLibraryStoreTest {
             assertEquals(601, refreshed.entries.map { it.channel.id }.toSet().size)
         } finally { store.close() }
     }
+
+    @Test fun largeCatalogueSurvivesEncryptedSaveRefreshAndReopen() = fixture { name, protector ->
+        val input = (0 until 100_000).map { index ->
+            PlaylistEntry(Channel(index, "Large fixture $index", "Synthetic", ContentKind.LIVE),
+                MediaAddress.parse("https://example.invalid/live/$index"), providerKey = "LIVE:$index")
+        }
+        val store = RoomLibraryStore.open(context, name, protector)
+        val firstId: Int
+        val lastId: Int
+        try {
+            val saved = store.save(SourceSpec.file(), input)
+            firstId = saved.entries.first().channel.id
+            lastId = saved.entries.last().channel.id
+            val refreshed = store.save(SourceSpec.file(), input.reversed(), true, saved.sourceId)
+            assertEquals(100_000, refreshed.entries.size)
+            assertEquals(lastId, refreshed.entries.first().channel.id)
+            assertEquals(firstId, refreshed.entries.last().channel.id)
+        } finally { store.close() }
+        val reopened = RoomLibraryStore.open(context, name, protector)
+        try {
+            val restored = reopened.restore()!!
+            assertEquals(100_000, restored.entries.size)
+            assertEquals(lastId, restored.entries.first().channel.id)
+            assertEquals(firstId, restored.entries.last().channel.id)
+            assertTrue(restored.entries.last().address!!.reveal().endsWith("/0"))
+        } finally { reopened.close() }
+    }
 }

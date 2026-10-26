@@ -14,6 +14,64 @@ import java.util.concurrent.TimeUnit
 
 class HttpPlaylistLoaderTest {
     private val playlist = "#EXTM3U\n#EXTINF:-1,Example\nhttps://example.invalid/live\n"
+    @Test fun unavailableAccountDownloadFallsBackToSameServerApi() = runBlocking {
+        MockWebServer().use { server ->
+            val fixtures = XtreamLoaderTest.fixtures()
+            server.dispatcher = object : mockwebserver3.Dispatcher() {
+                override fun dispatch(request: mockwebserver3.RecordedRequest): MockResponse =
+                    if (request.url.encodedPath == "/get.php") MockResponse(code = 404) else fixtures.dispatch(request)
+            }
+            server.start()
+            val address = MediaAddress.parse(server.url("/get.php?username=fixture-user&password=fixture-password&type=m3u&output=ts").toString())!!
+            val result = HttpPlaylistLoader().load(address)
+            assertEquals(3, result.size)
+            assertNotNull(result.last().seriesId)
+            val saved = SourceSpec.decode(SourceSpec.url(address).encode())
+            assertNotNull("URL imports must retain API episode support after restart", saved.xtream)
+            assertEquals(server.url("/player_api.php").encodedPath, saved.xtream!!.apiUrl().encodedPath)
+            repeat(8) { assertEquals(server.port, server.takeRequest().url.port) }
+        }
+    }
+
+    @Test fun ordinaryAndRestrictedDownloadLinksNeverTriggerApiFallback() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            for (path in listOf("/playlist.m3u", "/get.php?username=u&password=p&type=m3u&category_id=4", "/get.php?username=u&username=v&password=p&type=m3u")) {
+                server.enqueue(MockResponse(code = 404))
+                try { HttpPlaylistLoader().load(MediaAddress.parse(server.url(path).toString())!!); fail("Expected HTTP error") }
+                catch (failure: ImportFailure) { assertEquals(ImportError.HTTP_ERROR, failure.code); assertNull(failure.cause) }
+            }
+            assertEquals(3, server.requestCount)
+        }
+    }
+    @Test fun redirectedOrRejectedAccountExportsNeverTriggerApiFallback() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val address = MediaAddress.parse(server.url("/get.php?username=u&password=p&type=m3u").toString())!!
+            server.enqueue(MockResponse(code = 403))
+            try { HttpPlaylistLoader().load(address); fail("Expected rejection") }
+            catch (failure: ImportFailure) { assertEquals(ImportError.HTTP_ERROR, failure.code) }
+            server.enqueue(MockResponse.Builder().code(302).addHeader("Location", "/missing").build())
+            server.enqueue(MockResponse(code = 404))
+            try { HttpPlaylistLoader().load(address); fail("Expected redirect destination error") }
+            catch (failure: ImportFailure) { assertEquals(ImportError.HTTP_ERROR, failure.code) }
+            assertEquals(3, server.requestCount)
+        }
+    }
+
+    @Test fun accountExportRecognitionPreservesPrefixAndEncodedCredentials() {
+        val address = MediaAddress.parse("https://example.invalid/prefix/get.php?username=u%2B%2F&password=p%3F%26&type=m3u_plus&output=m3u8")!!
+        val source = XtreamConnection.fromPlaylistUrl(address)!!
+        assertEquals("/prefix/player_api.php", source.apiUrl().encodedPath)
+        assertEquals("u+/", source.apiUrl().queryParameter("username"))
+        assertEquals("p?&", source.apiUrl().queryParameter("password"))
+        for (url in listOf(
+            "https://example.invalid/get.php?username=u&password=p&type=hls",
+            "https://example.invalid/get.php?username=&password=p&type=m3u",
+            "https://example.invalid/get.php?username=u&password=p&type=m3u#fragment",
+            "https://embedded:password@example.invalid/get.php?username=u&password=p&type=m3u",
+        )) assertNull(XtreamConnection.fromPlaylistUrl(MediaAddress.parse(url)!!))
+    }
     @Test fun clientIncompatibleAddressIsASafeValidationFailure() = runBlocking {
         val address = requireNotNull(MediaAddress.parse("https://[fe80::1%25en0]/live"))
         try { HttpPlaylistLoader().load(address); fail("Expected invalid address") }

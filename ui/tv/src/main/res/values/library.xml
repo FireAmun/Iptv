@@ -14,7 +14,9 @@
     <string name="tv_invalid_address">Enter a full HTTP or HTTPS address.</string>
     <string name="tv_read_failed">Unable to read that file. Choose it again.</string>
     <string name="tv_network_failed">Unable to load the source. Check its address, access and your connection.</string>
-    <string name="tv_limit">This playlist exceeds the import limits. Choose a smaller playlist.</string>
+    <string name="tv_limit">This source is larger than this version can import (100,000 items or 64 MiB per response).</string>
+    <string name="tv_import_timeout">The source took too long to load. Check your connection and try again.</string>
+    <string name="tv_import_field">The source contains an unusually long label or playlist line. Check the source format.</string>
     <string name="tv_hls">This is a playback manifest. Import an M3U catalogue instead.</string>
     <string name="tv_invalid_playlist">This is not a supported M3U catalogue, or it has no playable entries.</string>
     <string name="tv_back">Back</string>

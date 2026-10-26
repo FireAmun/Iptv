@@ -20,7 +20,7 @@ class SourceSpec private constructor(val kind: SourceKind, val name: String?, va
     }.toByteArray()
     companion object {
         fun file() = SourceSpec(SourceKind.FILE, null, null, null)
-        fun url(address: MediaAddress) = SourceSpec(SourceKind.URL, null, address, null)
+        fun url(address: MediaAddress) = SourceSpec(SourceKind.URL, null, address, XtreamConnection.fromPlaylistUrl(address))
         fun xtream(name: String, connection: XtreamConnection): SourceSpec {
             if (name.isBlank() || name.length > 128 || name.any { it.isISOControl() }) throw ImportFailure(ImportError.INVALID_LOGIN)
             return SourceSpec(SourceKind.XTREAM, name, null, connection)

@@ -10,8 +10,8 @@ android {
         applicationId = "com.fireamun.iptv.prototype"
         minSdk = 28
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.7.0"
+        versionCode = 8
+        versionName = "0.7.1"
         testInstrumentationRunner = "com.fireamun.iptv.prototype.ManualFixtureRunner"
     }
     buildFeatures { compose = true }

@@ -165,7 +165,9 @@ private fun importMessage(error: ImportError): Int = when (error) {
     ImportError.INVALID_ADDRESS -> R.string.mobile_invalid_address
     ImportError.READ_FAILED -> R.string.mobile_read_failed
     ImportError.NETWORK, ImportError.HTTP_ERROR -> R.string.mobile_network_failed
-    ImportError.TOO_LARGE, ImportError.LINE_TOO_LONG, ImportError.FIELD_TOO_LONG, ImportError.TOO_MANY_ENTRIES, ImportError.TIME_LIMIT -> R.string.mobile_limit
+    ImportError.TIME_LIMIT -> R.string.mobile_import_timeout
+    ImportError.LINE_TOO_LONG, ImportError.FIELD_TOO_LONG -> R.string.mobile_import_field
+    ImportError.TOO_LARGE, ImportError.TOO_MANY_ENTRIES -> R.string.mobile_limit
     ImportError.HLS_MANIFEST -> R.string.mobile_hls
     else -> R.string.mobile_invalid_playlist
 }

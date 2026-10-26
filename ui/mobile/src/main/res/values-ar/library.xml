@@ -14,7 +14,9 @@
     <string name="mobile_invalid_address">أدخل عنوان HTTP أو HTTPS كاملًا.</string>
     <string name="mobile_read_failed">تعذّرت قراءة الملف. اختره مرة أخرى.</string>
     <string name="mobile_network_failed">تعذّر تحميل المصدر. تحقّق من العنوان وصلاحية الوصول والاتصال.</string>
-    <string name="mobile_limit">تتجاوز هذه القائمة حدود الاستيراد. اختر قائمة أصغر.</string>
+    <string name="mobile_limit">هذا المصدر أكبر مما يستطيع هذا الإصدار استيراده (100,000 عنصر أو 64 ميبيبايت لكل استجابة).</string>
+    <string name="mobile_import_timeout">استغرق تحميل المصدر وقتًا طويلًا. تحقق من الاتصال وحاول مجددًا.</string>
+    <string name="mobile_import_field">يحتوي المصدر على اسم أو سطر طويل جدًا. تحقق من تنسيق المصدر.</string>
     <string name="mobile_hls">هذا ملف تشغيل بث. استورد قائمة قنوات M3U بدلًا منه.</string>
     <string name="mobile_invalid_playlist">هذه ليست قائمة M3U مدعومة، أو لا تحتوي على عناصر قابلة للتشغيل.</string>
     <string name="mobile_back">رجوع</string>

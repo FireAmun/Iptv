@@ -25,6 +25,7 @@ class MediaAddress private constructor(private val raw: String) {
 
 enum class ContentKind { UNKNOWN, LIVE, MOVIE, SERIES, EPISODE }
 enum class SourceKind { FILE, URL, XTREAM }
+const val MAX_CATALOGUE_ENTRIES = 100_000
 data class SavedSource(val id: String, val name: String?, val kind: SourceKind?, val ordinal: Int) {
     override fun toString() = "[saved playlist]"
 }

@@ -34,7 +34,7 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
         val envelope = envelope(row)
         return try {
             val rows = dao.entries(row.sourceId)
-            require(rows.isNotEmpty() && rows.size <= 10_000)
+            require(rows.isNotEmpty() && rows.size <= MAX_CATALOGUE_ENTRIES)
             val cipher = AesGcm { SecretKeySpec(envelope.key, "AES") }
             val entries = rows.map { entry ->
                 currentCoroutineContext().ensureActive()
@@ -115,7 +115,7 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
 
     override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): SavedLibrary = guarded {
         mutex.withLock {
-            require(entries.isNotEmpty() && entries.size <= 10_000)
+            require(entries.isNotEmpty() && entries.size <= MAX_CATALOGUE_ENTRIES)
             val previous = if (refreshing && targetSourceId != null) dao.source(targetSourceId) else dao.source()
             require(previous != null || dao.sources().isEmpty())
             // Retry orphan-key cleanup strictly before a fresh import; no saved source depends on it.

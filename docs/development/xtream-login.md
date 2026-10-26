@@ -12,8 +12,9 @@ Successful login loads live channels, movies and series with their supplied cate
 - Password entry is masked and cleared on submission/dismissal. Credentials and generated addresses stay out of shared UI state, documentation, error messages and telemetry.
 - Each HTTP login, episode request and playback operation requires explicit unencrypted-connection consent. HTTPS is preferable when the provider supports it.
 - Requests stay on the entered server. API redirects, response-supplied alternate hosts/direct-source fields, cookies, cache and logging interceptors are excluded.
-- Limits: 8 MiB decompressed per response, depth 32, 512-character provider fields/credentials, 128-character playlist name, 10,000 catalogue/episode entries, five-second parse budget, 20-second calls and 60-second import budget. These are provisional protection limits.
-- This is an initial compatibility adapter. Physical boxes and private providers have not been validated; unsupported responses produce fixed local errors.
+- Version 0.7.1 resource guards: 64 MiB decompressed per response, 100,000 combined catalogue/episode entries, 120-second parser/call budget and 300-second overall API import budget. Depth 32, 512-character fields/credentials and 128-character playlist names are unchanged. Room save/restore uses the same entry capacity. These guards do not define a subscription tier; timeout and malformed-field messages are separate from capacity errors.
+- Recognized account download links can use the [same-server API fallback](m3u-playback.md) when their original M3U endpoint is unavailable. This preserves series episode support and protected source restoration.
+- This is an initial compatibility adapter. Physical boxes, provider playback/codec compatibility and endurance remain unverified; unsupported responses produce fixed local errors. An owner-supplied account was used only for read-only import investigation, with no private inputs or responses retained in project documentation or fixtures.
 
 ## Verification
 
