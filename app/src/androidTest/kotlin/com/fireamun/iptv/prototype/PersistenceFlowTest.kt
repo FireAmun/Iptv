@@ -80,6 +80,7 @@ class PersistenceFlowTest {
             compose.waitForIdle()
             captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-remove-light-ar")
             click("remove_cancel", tv)
+            if (tv) awaitFocus("channel_0")
             assertNotNull(runBlocking { store.restore() })
             click("remove_source", tv)
             if (tv) awaitFocus("remove_cancel")
