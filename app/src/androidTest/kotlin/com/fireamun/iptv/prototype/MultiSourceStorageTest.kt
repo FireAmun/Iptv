@@ -23,7 +23,7 @@ class MultiSourceStorageTest {
     @get:Rule val diagnostics = TestDiagnostics()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
-    private fun entry(title: String, path: String = title) = PlaylistEntry(Channel(0, title, null), MediaAddress.parse("https://example.invalid/$path"))
+    private fun entry(title: String, path: String = title.replace(' ', '-')) = PlaylistEntry(Channel(0, title, null), MediaAddress.parse("https://example.invalid/$path") ?: error("Invalid synthetic fixture address"))
     private fun fixture(test: suspend (String, KeystoreEnvelope) -> Unit) = runBlocking {
         val name = "multi-${UUID.randomUUID()}.db"
         val protector = KeystoreEnvelope("iptv.test.$name")

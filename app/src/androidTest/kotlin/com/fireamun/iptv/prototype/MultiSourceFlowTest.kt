@@ -51,7 +51,7 @@ class MultiSourceFlowTest {
                 awaitText("Second cached fixture")
                 openManager(tv)
                 if (tv) awaitFocus("source_pick_1")
-                compose.onNodeWithText("Sports").assertIsDisplayed()
+                compose.onNodeWithTag("source_pick_1").assertTextContains("Sports").assertIsDisplayed()
                 captureSyntheticPreview(instrumentation, if (tv) "tv-playlists-dark-en" else "phone-playlists-dark-en")
                 click("source_pick_0", tv)
                 awaitText("First cached fixture")
@@ -76,7 +76,7 @@ class MultiSourceFlowTest {
                 }
                 awaitText("First cached fixture")
                 openManager(tv)
-                compose.onNodeWithText("Family renamed").assertIsDisplayed()
+                compose.onNodeWithTag("source_pick_0").assertTextContains("Family renamed").assertIsDisplayed()
                 captureSyntheticPreview(instrumentation, if (tv) "tv-playlists-light-ar" else "phone-playlists-light-ar")
                 click("source_remove_0", tv)
                 if (tv) awaitFocus("remove_cancel")
