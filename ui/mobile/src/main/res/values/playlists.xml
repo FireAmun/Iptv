@@ -1,0 +1,17 @@
+<resources>
+    <string name="mobile_playlists_title">Playlists</string>
+    <string name="mobile_manage_sources">Playlists (%1$d)</string>
+    <string name="mobile_source_active">Active</string>
+    <string name="mobile_rename_source">Rename</string>
+    <string name="mobile_source_name">Playlist name</string>
+    <string name="mobile_save_source">Save</string>
+    <string name="mobile_close_sources">Close</string>
+    <string name="mobile_remove_named_source">Remove %1$s?</string>
+    <string name="mobile_remove_one_source_body">Remove this playlist and its saved login from this device? Your other playlists will stay.</string>
+    <string name="mobile_file_playlist">File playlist %1$d</string>
+    <string name="mobile_url_playlist">M3U playlist %1$d</string>
+    <string name="mobile_server_playlist">Server playlist %1$d</string>
+    <string name="mobile_generic_playlist">Playlist %1$d</string>
+    <string name="mobile_invalid_name">Enter a playlist name using 1–128 characters.</string>
+    <string name="mobile_switching_source">Opening playlist…</string>
+</resources>

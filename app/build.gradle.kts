@@ -10,11 +10,12 @@ android {
         applicationId = "com.fireamun.iptv.prototype"
         minSdk = 28
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.6.0"
+        versionCode = 7
+        versionName = "0.7.0"
         testInstrumentationRunner = "com.fireamun.iptv.prototype.ManualFixtureRunner"
     }
     buildFeatures { compose = true }
+    sourceSets.getByName("androidTest").assets.directories.add("../core/storage/schemas")
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

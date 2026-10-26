@@ -25,8 +25,15 @@ class MediaAddress private constructor(private val raw: String) {
 
 enum class ContentKind { UNKNOWN, LIVE, MOVIE, SERIES, EPISODE }
 enum class SourceKind { FILE, URL, XTREAM }
+data class SavedSource(val id: String, val name: String?, val kind: SourceKind?, val ordinal: Int) {
+    override fun toString() = "[saved playlist]"
+}
+data class SourceDirectory(val sources: List<SavedSource> = emptyList(), val activeSourceId: String? = null) {
+    override fun toString() = "[saved playlist directory]"
+}
+fun normalizeSourceName(value: String): String? = value.trim().takeIf { it.isNotEmpty() && it.length <= 128 && value.none(Char::isISOControl) }
 data class Channel(val id: Int, val title: String?, val group: String?, val kind: ContentKind = ContentKind.UNKNOWN, val season: Int? = null, val episode: Int? = null)
-enum class ImportError { INVALID_PLAYLIST, HLS_MANIFEST, INVALID_ADDRESS, INVALID_ENCODING, TOO_LARGE, LINE_TOO_LONG, FIELD_TOO_LONG, TOO_MANY_ENTRIES, TIME_LIMIT, EMPTY, READ_FAILED, NETWORK, HTTP_ERROR, NO_FILE_PICKER, INVALID_LOGIN, AUTH_FAILED, ACCOUNT_DISABLED, ACCOUNT_EXPIRED, SERVER_RESPONSE, NO_CONTENT, STORAGE }
+enum class ImportError { INVALID_PLAYLIST, HLS_MANIFEST, INVALID_ADDRESS, INVALID_ENCODING, TOO_LARGE, LINE_TOO_LONG, FIELD_TOO_LONG, TOO_MANY_ENTRIES, TIME_LIMIT, EMPTY, READ_FAILED, NETWORK, HTTP_ERROR, NO_FILE_PICKER, INVALID_LOGIN, AUTH_FAILED, ACCOUNT_DISABLED, ACCOUNT_EXPIRED, SERVER_RESPONSE, NO_CONTENT, STORAGE, INVALID_NAME }
 data class LibraryState(
     val channels: List<Channel> = emptyList(),
     val importing: Boolean = false,
@@ -41,5 +48,8 @@ data class LibraryState(
     val storageBlocked: Boolean = false,
     val hasSavedSource: Boolean = false,
     val restoring: Boolean = false,
+    val sources: List<SavedSource> = emptyList(),
+    val activeSourceId: String? = null,
+    val switchingSource: Boolean = false,
 )
 enum class PlaybackStatus { PREPARING, BUFFERING, PLAYING, PAUSED, ENDED, FAILED }

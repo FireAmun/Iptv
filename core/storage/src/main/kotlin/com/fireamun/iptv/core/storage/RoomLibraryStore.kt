@@ -24,30 +24,102 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     override suspend fun restore(): SavedLibrary? = guarded {
         mutex.withLock {
             database.withTransaction {
-                val row = dao.source() ?: return@withTransaction null
-                val envelope = envelope(row)
-                try {
-                    val rows = dao.entries()
-                    require(rows.isNotEmpty() && rows.size <= 10_000)
-                    val cipher = AesGcm { SecretKeySpec(envelope.key, "AES") }
-                    val entries = rows.map { entry ->
-                        currentCoroutineContext().ensureActive()
-                        val raw = entry.address?.let { cipher.open(it, addressContext(row, entry.id)) }
-                        val address = try { raw?.let { MediaAddress.parse(it.toString(Charsets.UTF_8)) ?: error("Invalid protected address") } } finally { raw?.fill(0) }
-                        val kind = ContentKind.valueOf(entry.kind)
-                        require((kind == ContentKind.SERIES && entry.seriesId != null) || address != null)
-                        PlaylistEntry(Channel(entry.id, entry.title, entry.groupLabel, kind), address, entry.seriesId, entry.providerKey)
-                    }
-                    SavedLibrary(envelope.source, entries, row.savedAt)
-                } finally { envelope.key.fill(0) }
+                val row = dao.source()
+                if (row == null) { require(dao.sources().isEmpty()); null } else restoreRow(row)
             }
         }
     }
 
-    override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean): SavedLibrary = guarded {
+    private suspend fun restoreRow(row: SourceRow): SavedLibrary {
+        val envelope = envelope(row)
+        return try {
+            val rows = dao.entries(row.sourceId)
+            require(rows.isNotEmpty() && rows.size <= 10_000)
+            val cipher = AesGcm { SecretKeySpec(envelope.key, "AES") }
+            val entries = rows.map { entry ->
+                currentCoroutineContext().ensureActive()
+                val raw = entry.address?.let { cipher.open(it, addressContext(row, entry.id)) }
+                val address = try { raw?.let { MediaAddress.parse(it.toString(Charsets.UTF_8)) ?: error("Invalid protected address") } } finally { raw?.fill(0) }
+                val kind = ContentKind.valueOf(entry.kind)
+                require((kind == ContentKind.SERIES && entry.seriesId != null) || address != null)
+                PlaylistEntry(Channel(entry.id, entry.title, entry.groupLabel, kind), address, entry.seriesId, entry.providerKey)
+            }
+            SavedLibrary(envelope.source, entries, row.savedAt, row.sourceId)
+        } finally { envelope.key.fill(0) }
+    }
+
+    override suspend fun directory(): SourceDirectory = guarded {
+        mutex.withLock {
+            database.withTransaction { SourceDirectory(dao.sources().map { summary(it) }, dao.active()) }
+        }
+    }
+
+    private fun summary(row: SourceRow): SavedSource {
+        // An unreadable label must not hide the opaque ID needed for targeted recovery.
+        return try {
+            var kind = row.kind?.let(SourceKind::valueOf)
+            var name: String? = null
+            if (row.label != null) {
+                val bytes = protector.open(row.label, "label:${row.sourceId}")
+                try { name = normalizeSourceName(bytes.toString(Charsets.UTF_8)) ?: error("Invalid protected label") }
+                finally { bytes.fill(0) }
+            } else if (kind == null) {
+                val old = envelope(row)
+                try { kind = old.source.kind; name = old.source.name } finally { old.key.fill(0) }
+            }
+            SavedSource(row.sourceId, name, kind, row.slot)
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { SavedSource(row.sourceId, null, null, row.slot) }
+    }
+
+    override suspend fun activate(sourceId: String): SavedLibrary = guarded {
+        mutex.withLock {
+            database.withTransaction {
+                val row = dao.source(sourceId) ?: error("Missing saved source")
+                // Authenticate the entire target before committing the selected source pointer.
+                restoreRow(row).also { dao.active(ActiveRow(sourceId = sourceId)) }
+            }
+        }
+    }
+
+    override suspend fun rename(sourceId: String, name: String): Unit = guarded {
+        val normalized = normalizeSourceName(name) ?: throw ImportFailure(ImportError.INVALID_NAME)
+        mutex.withLock {
+            database.withTransaction {
+                val row = dao.source(sourceId) ?: error("Missing saved source")
+                val authenticated = envelope(row)
+                val kind = authenticated.source.kind.name
+                authenticated.key.fill(0)
+                dao.source(row.copy(kind = kind, label = sealLabel(normalized, sourceId)))
+            }
+        }
+    }
+
+    override suspend fun remove(sourceId: String): Unit = guarded {
+        mutex.withLock {
+            val empty = database.withTransaction {
+                require(dao.source(sourceId) != null)
+                dao.clearEntries(sourceId); dao.clearIdentities(sourceId); dao.clearSource(sourceId)
+                val remaining = dao.sources()
+                if (remaining.isEmpty()) dao.clearActive()
+                else {
+                    val active = dao.active()
+                    if (remaining.none { it.sourceId == active }) dao.active(ActiveRow(sourceId = remaining.first().sourceId))
+                }
+                remaining.isEmpty()
+            }
+            // Never destroy another saved source's wrapping key, or a rolled-back snapshot's key.
+            if (empty) clearUnusedKey()
+        }
+    }
+
+    override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): SavedLibrary = guarded {
         mutex.withLock {
             require(entries.isNotEmpty() && entries.size <= 10_000)
-            val previous = dao.source()
+            val previous = if (refreshing && targetSourceId != null) dao.source(targetSourceId) else dao.source()
+            require(previous != null || dao.sources().isEmpty())
+            // Retry orphan-key cleanup strictly before a fresh import; no saved source depends on it.
+            if (previous == null) protector.clear()
             // Even replacement must fail closed if an existing key/envelope is unreadable.
             val old = previous?.let { envelope(it) }
             val id = if (refreshing) previous?.sourceId ?: error("Missing saved source") else UUID.randomUUID().toString()
@@ -58,7 +130,10 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
                     try { require(MessageDigest.isEqual(before, after)) } finally { before.fill(0); after.fill(0) }
                 }
                 val secret = if (refreshing) previous!!.secret else sealEnvelope(source, key, id)
-                val row = SourceRow(sourceId = id, generation = UUID.randomUUID().toString(), secret = secret, savedAt = System.currentTimeMillis())
+                val slot = if (refreshing) previous!!.slot else (dao.maxSlot().toLong() + 1).also { require(it <= Int.MAX_VALUE) }.toInt()
+                val row = SourceRow(slot = slot, sourceId = id,
+                    generation = UUID.randomUUID().toString(), secret = secret, savedAt = System.currentTimeMillis(), kind = source.kind.name,
+                    label = if (refreshing) previous!!.label ?: old!!.source.name?.let { sealLabel(it, id) } else source.name?.let { sealLabel(it, id) })
                 val identities = (if (refreshing) dao.identities(id) else emptyList()).associateBy { it.identityKey }.toMutableMap()
                 var nextId = dao.maxId().toLong() + 1
                 val added = mutableListOf<IdentityRow>()
@@ -86,18 +161,18 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
                     remapped.add(PlaylistEntry(channel, entry.address, entry.seriesId, entry.providerKey))
                     val plaintext = entry.address?.reveal()?.toByteArray(Charsets.UTF_8)
                     val encrypted = try { plaintext?.let { cipher.seal(it, addressContext(row, stable.id)) } } finally { plaintext?.fill(0) }
-                    EntryRow(stable.id, index, channel.title, channel.group, channel.kind.name, entry.seriesId, entry.providerKey, encrypted)
+                    EntryRow(stable.id, index, channel.title, channel.group, channel.kind.name, entry.seriesId, entry.providerKey, encrypted, id)
                 }
                 currentCoroutineContext().ensureActive()
                 database.withTransaction {
-                    dao.clearEntries()
-                    if (!refreshing) dao.clearIdentities()
+                    dao.clearEntries(id)
                     added.chunked(250).forEach { dao.insertIdentities(it) }
                     rows.chunked(250).forEach { dao.insertEntries(it) }
                     dao.source(row)
+                    dao.active(ActiveRow(sourceId = id))
                     currentCoroutineContext().ensureActive()
                 }
-                SavedLibrary(source, remapped, row.savedAt)
+                SavedLibrary(source, remapped, row.savedAt, id)
             } finally { key.fill(0); old?.key?.fill(0) }
         }
     }
@@ -105,17 +180,30 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     override suspend fun clear(): Unit = guarded {
         mutex.withLock {
             database.withTransaction {
-                dao.clearEntries(); dao.clearIdentities(); dao.clearSource()
-                protector.clear()
+                dao.clearEntries(); dao.clearIdentities(); dao.clearSource(); dao.clearActive()
             }
+            clearUnusedKey()
         }
     }
     fun close() = database.close()
+
+    private fun clearUnusedKey() {
+        // The DB deletion is committed. Platform cleanup failure must not revive removed data in UI.
+        try { protector.clear() }
+        catch (_: GeneralSecurityException) { }
+        catch (_: java.security.ProviderException) { }
+        catch (_: IOException) { }
+        catch (_: SecurityException) { }
+    }
 
     private fun sealEnvelope(source: SourceSpec, key: ByteArray, id: String): ByteArray {
         val sourceBytes = source.encode()
         val bytes = ByteArrayOutputStream().also { DataOutputStream(it).use { out -> out.write(key); out.write(sourceBytes) } }.toByteArray()
         return try { protector.seal(bytes, "source:$id") } finally { sourceBytes.fill(0); bytes.fill(0) }
+    }
+    private fun sealLabel(name: String, id: String): ByteArray {
+        val bytes = name.toByteArray(Charsets.UTF_8)
+        return try { protector.seal(bytes, "label:$id") } finally { bytes.fill(0) }
     }
     private fun envelope(row: SourceRow): Envelope {
         val bytes = protector.open(row.secret, "source:${row.sourceId}")
@@ -140,6 +228,6 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     }
     companion object {
         fun open(context: Context, name: String = "library.db", protector: EnvelopeProtector = KeystoreEnvelope()) =
-            RoomLibraryStore(Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, name).build(), protector)
+            RoomLibraryStore(Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, name).addMigrations(MIGRATION_1_2).build(), protector)
     }
 }

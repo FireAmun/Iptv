@@ -51,11 +51,12 @@ internal fun CinemaButton(onClick: () -> Unit, modifier: Modifier = Modifier, en
 }
 
 @Composable
-fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit, onRefreshSource: () -> Unit, onRemoveSource: () -> Unit) {
+fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit, onRefreshSource: () -> Unit, onRemoveSource: () -> Unit, onSelectSource: (String) -> Unit, onRenameSource: (String, String) -> Unit, onRemoveSourceById: (String) -> Unit) {
     var url by remember { mutableStateOf("") }
     var enteringUrl by remember { mutableStateOf(false) }
     var enteringLogin by remember { mutableStateOf(false) }
     var confirmingRemoval by remember { mutableStateOf(false) }
+    var managingSources by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val window = LocalWindowInfo.current
@@ -67,7 +68,7 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
     CinemaTheme {
         val p = cinemaPalette()
         Surface(Modifier.fillMaxSize()) {
-            LazyColumn(modifier = Modifier.safeDrawingPadding().imePadding(), state = list, contentPadding = PaddingValues(horizontal = 48.dp, vertical = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(modifier = Modifier.safeDrawingPadding().imePadding().testTag("library_list"), state = list, contentPadding = PaddingValues(horizontal = 48.dp, vertical = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item(key = "header") {
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -88,19 +89,21 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     if (state.canGoBack) CinemaButton(onClick = onLibraryBack, modifier = Modifier.testTag("library_back")) { Text(stringResource(R.string.tv_back)) }
-                                    Text(state.collectionTitle ?: state.sourceName ?: stringResource(R.string.tv_library), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold)
+                                    val active = state.sources.firstOrNull { it.id == state.activeSourceId }
+                                    Text(state.collectionTitle ?: state.sourceName ?: active?.let { tvSourceName(it) } ?: stringResource(R.string.tv_library), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold)
                                     Text(stringResource(if (state.hasSavedSource) R.string.tv_loaded_saved else R.string.tv_loaded, state.channels.size), color = p.muted, style = MaterialTheme.typography.bodySmall)
                                 }
                                 SourceActions(state.importing || state.storageBlocked, { enteringLogin = true }, { enteringUrl = true }, { url = ""; keyboard?.hide(); onImportFile() })
                             }
                         }
                         if (state.importing) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                            Text(stringResource(if (state.saving) R.string.tv_saving else if (state.restoring) R.string.tv_restoring else R.string.tv_loading))
+                            Text(stringResource(if (state.switchingSource) R.string.tv_switching_source else if (state.saving) R.string.tv_saving else if (state.restoring) R.string.tv_restoring else R.string.tv_loading))
                             if (!state.saving && !state.restoring) CinemaButton(onClick = onCancelImport) { Text(stringResource(R.string.tv_cancel)) }
                         }
                         state.error?.let { Text(stringResource(importMessage(it)), color = p.error, modifier = Modifier.testTag("import_error")) }
                         if (state.hasSavedSource) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                if (state.sources.isNotEmpty()) CinemaButton(onClick = { managingSources = true }, enabled = !state.importing, modifier = Modifier.testTag("manage_sources")) { Text(stringResource(R.string.tv_manage_sources, state.sources.size)) }
                                 state.savedAtMillis?.let { Text(stringResource(R.string.tv_saved_at, java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(it))), color = p.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("saved_source")) }
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                     CinemaButton(onClick = onRefreshSource, enabled = !state.importing && !state.storageBlocked, modifier = Modifier.testTag("refresh_source")) { Text(stringResource(R.string.tv_refresh_source)) }
@@ -127,6 +130,7 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                 }
             }
         }
+        if (managingSources) TvSources(state, { managingSources = false }, onSelectSource, onRenameSource, onRemoveSourceById)
         if (enteringLogin) TvServerLogin(onDismiss = { enteringLogin = false }, onSubmit = { name, server, username, password -> enteringLogin = false; onServerLogin(name, server, username, password) })
         if (confirmingRemoval) {
             val cancelFocus = remember { FocusRequester() }
@@ -134,8 +138,9 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                 val dialogWindow = LocalWindowInfo.current
                 Surface(Modifier.widthIn(max = 520.dp), shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
                     Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                        Text(stringResource(R.string.tv_remove_title), style = MaterialTheme.typography.titleLarge)
-                        Text(stringResource(R.string.tv_remove_body))
+                        val source = state.sources.firstOrNull { it.id == state.activeSourceId }
+                        Text(if (source == null) stringResource(R.string.tv_remove_title) else stringResource(R.string.tv_remove_named_source, tvSourceName(source)), style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.tv_remove_one_source_body))
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             CinemaButton(onClick = { confirmingRemoval = false }, modifier = Modifier.focusRequester(cancelFocus).testTag("remove_cancel")) { Text(stringResource(R.string.tv_cancel)) }
                             CinemaButton(onClick = { confirmingRemoval = false; onRemoveSource() }, modifier = Modifier.testTag("remove_confirm")) { Text(stringResource(R.string.tv_remove_source)) }
@@ -227,6 +232,7 @@ fun TvPlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetr
 }
 
 private fun importMessage(error: ImportError): Int = when (error) {
+    ImportError.INVALID_NAME -> R.string.tv_invalid_name
     ImportError.STORAGE -> R.string.tv_storage_failed
     ImportError.INVALID_LOGIN -> R.string.tv_invalid_login
     ImportError.AUTH_FAILED -> R.string.tv_auth_failed

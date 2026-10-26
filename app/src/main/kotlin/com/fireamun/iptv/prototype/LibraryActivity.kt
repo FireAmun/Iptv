@@ -87,8 +87,8 @@ abstract class LibraryActivity : AppCompatActivity() {
                 }
             } else {
                 BackHandler(enabled = state.canGoBack) { library.backToCatalog() }
-                if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource)
-                else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource)
+                if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
+                else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
             }
         }
     }

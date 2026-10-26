@@ -17,13 +17,17 @@ class PersistenceStateTest {
         var refresh = false
         var gate: CompletableDeferred<Unit>? = null
         override suspend fun restore() = value
-        override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean): SavedLibrary {
+        override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): SavedLibrary {
             gate?.await()
             if (fail) throw ImportFailure(ImportError.STORAGE)
             refresh = refreshing
-            return SavedLibrary(source, entries, 1234).also { value = it }
+            return SavedLibrary(source, entries, 1234, "saved").also { value = it }
         }
         override suspend fun clear() { value = null }
+        override suspend fun directory() = SourceDirectory(value?.let { listOf(SavedSource("saved", it.source.name, it.source.kind, 1)) } ?: emptyList(), if (value == null) null else "saved")
+        override suspend fun activate(sourceId: String) = value!!
+        override suspend fun rename(sourceId: String, name: String) {}
+        override suspend fun remove(sourceId: String) { value = null }
     }
     @Test fun restoresCachedLibraryWithoutProviderRequestsAndRequiresFreshHttpConsent() = runTest {
         val source = SourceSpec.xtream("Saved", XtreamConnection.create("http://example.invalid", "u", "p")!!)
@@ -65,8 +69,12 @@ class PersistenceStateTest {
         advanceUntilIdle(); assertTrue(store.refresh)
         val broken = object : LibraryPersistence {
             override suspend fun restore(): SavedLibrary? = throw ImportFailure(ImportError.STORAGE)
-            override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean): SavedLibrary = error("Must not replace unreadable storage")
+            override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): SavedLibrary = error("Must not replace unreadable storage")
             override suspend fun clear() {}
+            override suspend fun directory() = SourceDirectory(listOf(SavedSource("broken", null, null, 1)), "broken")
+            override suspend fun activate(sourceId: String): SavedLibrary = throw ImportFailure(ImportError.STORAGE)
+            override suspend fun rename(sourceId: String, name: String) {}
+            override suspend fun remove(sourceId: String) {}
         }
         val blocked = LibraryViewModel(persistence = broken)
         advanceUntilIdle(); assertTrue(blocked.state.value.storageBlocked)
