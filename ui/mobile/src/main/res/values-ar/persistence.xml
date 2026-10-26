@@ -7,5 +7,5 @@
     <string name="mobile_remove_source">إزالة القائمة</string>
     <string name="mobile_remove_title">إزالة القائمة المحفوظة؟</string>
     <string name="mobile_remove_body">ستُحذف القائمة المحفوظة وبيانات دخول المزوّد من هذا الجهاز. يمكنك إضافتها مجددًا.</string>
-    <string name="mobile_storage_failed">تعذرت قراءة المكتبة أو حفظها. إذا استمرت المشكلة، أزل القائمة المحفوظة وأضفها مجددًا.</string>
+    <string name="mobile_storage_failed">تعذرت قراءة القائمة أو حفظها. افتح قوائم التشغيل لاختيار قائمة أخرى أو إزالة هذه القائمة.</string>
 </resources>

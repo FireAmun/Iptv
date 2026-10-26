@@ -7,5 +7,5 @@
     <string name="tv_remove_source">Remove playlist</string>
     <string name="tv_remove_title">Remove saved playlist?</string>
     <string name="tv_remove_body">This removes the saved playlist and provider login from this device. You can add them again.</string>
-    <string name="tv_storage_failed">Unable to read or save the library. If this keeps happening, remove the saved playlist and add it again.</string>
+    <string name="tv_storage_failed">Unable to read or save the playlist. Open Playlists to choose another saved playlist or remove this one.</string>
 </resources>

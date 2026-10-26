@@ -1,0 +1,17 @@
+<resources>
+    <string name="mobile_playlists_title">قوائم التشغيل</string>
+    <string name="mobile_manage_sources">قوائم التشغيل (%1$d)</string>
+    <string name="mobile_source_active">نشطة</string>
+    <string name="mobile_rename_source">إعادة تسمية</string>
+    <string name="mobile_source_name">اسم قائمة التشغيل</string>
+    <string name="mobile_save_source">حفظ</string>
+    <string name="mobile_close_sources">إغلاق</string>
+    <string name="mobile_remove_named_source">إزالة %1$s؟</string>
+    <string name="mobile_remove_one_source_body">هل تريد إزالة هذه القائمة وبيانات الدخول المحفوظة من هذا الجهاز؟ ستبقى قوائمك الأخرى.</string>
+    <string name="mobile_file_playlist">قائمة ملف %1$d</string>
+    <string name="mobile_url_playlist">قائمة M3U %1$d</string>
+    <string name="mobile_server_playlist">قائمة خادم %1$d</string>
+    <string name="mobile_generic_playlist">قائمة التشغيل %1$d</string>
+    <string name="mobile_invalid_name">أدخل اسمًا لقائمة التشغيل من حرف واحد إلى 128 حرفًا.</string>
+    <string name="mobile_switching_source">جارٍ فتح قائمة التشغيل…</string>
+</resources>

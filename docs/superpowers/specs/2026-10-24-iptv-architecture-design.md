@@ -70,7 +70,7 @@ Every asynchronous screen has loading, empty, ready, and actionable error states
 
 Room stores structured catalogue and user state; DataStore stores small preferences. Source authentication fields and sensitive URLs/headers use encrypted local persistence with Keystore-protected keys. Raw source or playback URLs can contain credentials, so they are not ordinary debug strings or telemetry dimensions.
 
-Implementation note (25 October): the initial saved-library slice uses Android `core:storage` and standard AES-GCM/Keystore envelope protection; Tink was a candidate rather than a dependency requirement. It stages the existing bounded in-memory parsed catalogue, then activates source/catalogue rows transactionally. Full incremental database import, Paging, multiple sources, episode caching and user-state tables below remain roadmap work; do not treat this slice as completion of the data architecture.
+Implementation note (26 October): Android `core:storage` uses standard AES-GCM/Keystore envelope protection; Tink was a candidate rather than a dependency requirement. It stages the existing bounded in-memory parsed catalogue, then activates source/catalogue rows transactionally. The [multiple-playlist slice](2026-10-26-multiple-playlists-design.md) extends this with source-scoped caches, encrypted friendly names and one active selection, preserving schema-1 data in a schema-2 migration. Full incremental database import, Paging, episode caching and user-state tables below remain roadmap work. Consult the tracker/live delivery PR for verification and integration; this does not complete the data architecture.
 
 | Record | Identity and contents |
 | --- | --- |

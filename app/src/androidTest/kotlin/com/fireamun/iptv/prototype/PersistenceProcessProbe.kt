@@ -17,10 +17,13 @@ internal fun AndroidJUnitRunner.persistenceProcessProbe(mode: String) {
             when (mode) {
                 "seed" -> {
                     store.clear()
-                    store.save(source, listOf(
+                    val first = store.save(source, listOf(
                         PlaylistEntry(Channel(0, "Process live", null, ContentKind.LIVE), MediaAddress.parse("https://example.invalid/live/fixture/clip.ts"), providerKey = "LIVE:1"),
                         PlaylistEntry(Channel(1, "Process series", null, ContentKind.SERIES), null, 2, "SERIES:2"),
                     ))
+                    val second = store.save(SourceSpec.file(), listOf(PlaylistEntry(Channel(0, "Process secondary", null), MediaAddress.parse("https://example.invalid/secondary"))))
+                    store.rename(second.sourceId!!, "Process alternate")
+                    store.activate(first.sourceId!!)
                 }
                 "verify" -> {
                     val saved = store.restore() ?: error("Missing fixture")
@@ -28,6 +31,12 @@ internal fun AndroidJUnitRunner.persistenceProcessProbe(mode: String) {
                     check(saved.entries.map { it.channel.title } == listOf("Process live", "Process series"))
                     check(saved.entries.first().address!!.reveal() == "https://example.invalid/live/fixture/clip.ts")
                     check(saved.entries.last().seriesId == 2L && saved.savedAtMillis > 0)
+                    val directory = store.directory()
+                    check(directory.sources.size == 2 && directory.activeSourceId == saved.sourceId)
+                    val second = directory.sources.single { it.id != saved.sourceId }
+                    check(second.name == "Process alternate")
+                    check(store.activate(second.id).entries.single().channel.title == "Process secondary")
+                    store.activate(saved.sourceId!!)
                 }
                 "clear" -> { store.clear(); check(store.restore() == null) }
                 else -> error("Unknown probe")
