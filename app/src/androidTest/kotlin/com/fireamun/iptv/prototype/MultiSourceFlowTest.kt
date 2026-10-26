@@ -81,6 +81,7 @@ class MultiSourceFlowTest {
                 click("source_remove_0", tv)
                 if (tv) awaitFocus("remove_cancel")
                 click("remove_cancel", tv)
+                if (tv) awaitFocus("source_pick_0")
                 assertEquals(2, runBlocking { store.directory().sources.size })
                 click("source_remove_0", tv); click("remove_confirm", tv)
                 awaitText("Second cached fixture")
