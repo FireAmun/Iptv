@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 26 October 2026 (Asia/Riyadh)  
-Overall status: Multiple-playlist management merged in [PR #9](https://github.com/FireAmun/Iptv/pull/9); v0.7.0 is installed on the owner emulator with data preserved. A provider-import compatibility fix is in progress on `fix/large-provider-import`.  
+Overall status: Multiple-playlist management merged in [PR #9](https://github.com/FireAmun/Iptv/pull/9); v0.7.0 is installed on the owner emulator with data preserved. Provider-import compatibility fix v0.7.1 is in [PR #10](https://github.com/FireAmun/Iptv/pull/10).  
 Current phase: P3 large-catalogue/API-link import correction. P3 and P4 remain incomplete overall.  
-Next task: Verify and deliver the v0.7.1 compatibility fix with independent review and latest-head phone/TV CI, then update the owner emulator without clearing data. Search/EPG follows.
+Next task: Inspect [PR #10](https://github.com/FireAmun/Iptv/pull/10), whose live description/checks record final verification, merge, cleanup and emulator install. Complete only outstanding delivery steps; retain owner data. Search/EPG follows.
 
 ## 1. Start here in a new chat
 
@@ -252,3 +252,5 @@ Owner reported valid server login rejected as over-limit and an account M3U URL 
 Version 0.7.1/code 8 raises parser/Room capacity consistently to 100,000 items and 64 MiB per response, with longer bounded import deadlines. Recognized unfiltered account-export 404/405 failures retry only the same server/prefix API; ambiguous/filtered links, rejected authentication and redirected failures do not. Existing protected source encoding and database schema remain unchanged; URL-derived API connection restores series navigation. Phone/TV errors distinguish timeout and malformed fields from catalogue capacity. [Import behavior](docs/development/m3u-playback.md), [server-login boundaries](docs/development/xtream-login.md).
 
 Three new regressions first reproduced large M3U/API rejection and missing link fallback. The patched JVM suite passes 54 cases, zero failures/errors/skips, including 100,000-entry M3U and combined API catalogues, responses above the old byte cap, prefix/credential encoding and restricted fallback. Thirteen Python checks, documentation links, actionlint and whitespace checks pass. Independent review found a restart-test gap: Activity recreation retained the ViewModel. The new phone/TV fallback journeys now close/relaunch before opening/playing a series; follow-up review found no blockers. A real Room/Keystore fixture saves, refreshes and reopens 100,000 synthetic short-address entries. These three new Android cases still require actual latest-head disposable-device CI before merge; local owner instrumentation is forbidden. Peak-memory behavior near the full byte budget and physical-device performance remain unverified. No firewall, virtualization-driver or reboot changes; earlier unexpected shutdown remains unexplained.
+
+Final local Java 21 command `:core:model:test :core:data:test testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug` passed after the review correction (`.tools/large-reviewed-local.log`). Delivery is [PR #10](https://github.com/FireAmun/Iptv/pull/10), branch `fix/large-provider-import`; the live PR records the final tested head, actual device XML/process probes, merge and branch cleanup, and owner update. If already merged/installed, do not repeat these steps based on this pre-CI snapshot. Expected device count is 39 per device; obtain actual results.
