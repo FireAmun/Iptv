@@ -8,8 +8,9 @@ The original P2 implementation was session-only. Version 0.5.0 [saves one active
 
 - UTF-8 extended M3U with optional BOM, LF/CRLF, quoted attributes, labels/groups and HTTP/HTTPS entry URLs. Duplicate entries remain separate.
 - HLS playback manifests are media inputs, not M3U catalogue imports. Import a catalogue pointing to an HLS URL instead.
-- 8 MiB decompressed bytes; 16,384 UTF-16 code units per line; 512 per title/group; 10,000 entries; five-second parser budget checked during reads and before commit. These are prototype protection limits, not measured device-performance promises.
-- The URL loader has a 20-second call timeout and eight-second connection/read timeouts. Default TLS trust is preserved; cross-protocol redirects are disabled.
+- Version 0.7.1 supports up to 100,000 entries and 64 MiB decompressed input, with a 120-second parser budget. Line/field bounds remain 16,384/512 UTF-16 units. The earlier 10,000-entry/8 MiB/five-second prototype caps rejected ordinary large provider catalogues. Limits are resource guards, not a paid feature restriction or physical-device performance promise.
+- The URL loader has a 120-second call timeout, 15-second connect and 30-second read timeout. Default TLS trust is preserved; cross-protocol redirects are disabled.
+- A recognized, unfiltered Xtream `get.php` account link returning 404/405 at the original endpoint retries the same server/prefix through the Player API. The link must contain unique username/password/type parameters (`m3u` or `m3u_plus`), optional `ts`/`m3u8` output and no other parameters, fragment or embedded HTTP credentials. Ordinary links, filtered exports, authentication rejection and redirected failures do not trigger that retry. Original URL storage/refresh and cached series navigation survive restart without changing source encoding.
 - Confirm each HTTP import/playback operation. HTTPS playback rejects plaintext or non-network subresources; an HTTPS master cannot silently load HTTP segments/keys.
 - URLs are masked during entry, cleared on submission and never used as fallback labels or error text. There is no provider logging, analytics, credential persistence or network logging interceptor. Media3 logging is disabled because nested exceptions can contain sensitive addresses.
 
@@ -48,4 +49,4 @@ Hands-on API 34 phone checks used the actual Downloads document picker and a two
 
 On the actual API 36 TV emulator, D-pad activation switched English → Arabic → English; the Arabic layout and focus appearance were visually inspected. Manual TV file-picker and playback checks were not completed. The URL/playback journey is covered by device instrumentation; hands-on TV playback is not claimed.
 
-Physical TV boxes, private providers, large-library profiling, endurance playback, codec gaps and persistent resume remain unverified. A TV without a document picker can use URL import.
+Physical TV boxes, large-library interaction/peak-memory profiling, endurance playback, codec gaps and persistent resume remain unverified. A TV without a document picker can use URL import. Provider-import investigation is recorded in the current tracker without private source details.

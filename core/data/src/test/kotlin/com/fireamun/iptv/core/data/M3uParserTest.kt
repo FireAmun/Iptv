@@ -42,7 +42,7 @@ class M3uParserTest {
             }
         }
         assertEquals(ImportError.TIME_LIMIT, assertThrows(ImportFailure::class.java) {
-            M3uParser(nanoTime = { clock }).parse(source)
+            M3uParser(ParserLimits(maxMillis = 5_000), nanoTime = { clock }).parse(source)
         }.code)
     }
     @Test fun rejectsHlsManifestsAndInvalidCatalogueStructure() {

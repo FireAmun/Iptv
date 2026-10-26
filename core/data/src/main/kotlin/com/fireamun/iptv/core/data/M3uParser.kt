@@ -3,6 +3,7 @@ package com.fireamun.iptv.core.data
 import com.fireamun.iptv.core.model.Channel
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.MediaAddress
+import com.fireamun.iptv.core.model.MAX_CATALOGUE_ENTRIES
 import java.io.InputStream
 import java.io.IOException
 import java.io.BufferedReader
@@ -14,7 +15,7 @@ class PlaylistEntry(val channel: Channel, val address: MediaAddress?, val series
     override fun toString(): String = "[protected catalogue entry]"
 }
 class ImportFailure(val code: ImportError) : IOException(code.name)
-data class ParserLimits(val maxBytes: Long = 8L * 1024 * 1024, val maxLineChars: Int = 16 * 1024, val maxFieldChars: Int = 512, val maxEntries: Int = 10_000, val maxMillis: Long = 5_000)
+data class ParserLimits(val maxBytes: Long = 64L * 1024 * 1024, val maxLineChars: Int = 16 * 1024, val maxFieldChars: Int = 512, val maxEntries: Int = MAX_CATALOGUE_ENTRIES, val maxMillis: Long = 120_000)
 
 class M3uParser(private val limits: ParserLimits = ParserLimits(), private val nanoTime: () -> Long = System::nanoTime) {
     fun parse(input: InputStream, checkCancelled: () -> Unit = {}): List<PlaylistEntry> {

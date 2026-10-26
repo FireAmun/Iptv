@@ -21,6 +21,19 @@ class XtreamConnection private constructor(private val server: HttpUrl, private 
         return MediaAddress.parse(server.newBuilder().addPathSegment(path).addPathSegment(username).addPathSegment(password).addPathSegment("$id.$extension").build().toString())
     }
     companion object {
+        /** Recognize only unambiguous, unfiltered account exports. Never guess from arbitrary URLs. */
+        fun fromPlaylistUrl(address: MediaAddress): XtreamConnection? {
+            val url = address.reveal().toHttpUrlOrNull() ?: return null
+            if (url.pathSegments.lastOrNull() != "get.php" || url.fragment != null || url.username.isNotEmpty() || url.password.isNotEmpty()) return null
+            val allowed = setOf("username", "password", "type", "output")
+            if (url.queryParameterNames.any { it !in allowed || url.queryParameterValues(it).size != 1 }) return null
+            if (url.queryParameter("type") !in setOf("m3u", "m3u_plus") || url.queryParameter("output") !in setOf(null, "ts", "m3u8")) return null
+            val username = url.queryParameter("username") ?: return null
+            val password = url.queryParameter("password") ?: return null
+            val base = url.newBuilder().removePathSegment(url.pathSegments.lastIndex).query(null).build()
+            return create(base.toString(), username, password)
+        }
+
         fun create(serverUrl: String, username: String, password: String): XtreamConnection? {
             fun validCredential(value: String) = value.isNotEmpty() && value !in setOf(".", "..") && value.length <= 512 && value.codePoints().noneMatch { Character.isISOControl(it) || it in 0xD800..0xDFFF }
             if (serverUrl.length > 2048 || !validCredential(username) || !validCredential(password)) return null

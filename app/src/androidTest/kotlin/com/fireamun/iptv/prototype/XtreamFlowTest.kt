@@ -35,14 +35,17 @@ class XtreamFlowTest {
     @get:Rule(order = 3) val compose = createEmptyComposeRule()
     @Test fun mobileServerLoginLoadsCataloguesAndSeriesPlayback() = exercise(MobileActivity::class.java, false)
     @Test fun tvServerLoginLoadsCataloguesAndSeriesPlayback() = exercise(TvActivity::class.java, true)
+    @Test fun mobileAccountLinkFallbackRestoresAndPlaysSeries() = exercise(MobileActivity::class.java, false, true)
+    @Test fun tvAccountLinkFallbackRestoresAndPlaysSeries() = exercise(TvActivity::class.java, true, true)
     @Test fun mobileArabicLightLoginCanBeCancelled() = preview(MobileActivity::class.java, false)
     @Test fun tvArabicLightLoginCanBeCancelled() = preview(TvActivity::class.java, true)
 
-    private fun exercise(activity: Class<out Activity>, tv: Boolean) {
+    private fun exercise(activity: Class<out Activity>, tv: Boolean, accountLink: Boolean = false) {
         val clip = instrumentation.context.assets.open("synthetic-test.mp4").use { it.readBytes() }
         MockWebServer().use { server ->
             server.dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest): MockResponse {
+                    if (request.url.encodedPath == "/get.php") return MockResponse(code = 404)
                     if (request.url.encodedPath.startsWith("/series/")) return MockResponse.Builder().addHeader("Content-Type", "video/mp4").body(Buffer().write(clip)).build()
                     if (request.url.queryParameter("password") == "wrong") return MockResponse(body = """{"user_info":{"auth":0}}""")
                     return MockResponse(body = when (request.url.queryParameter("action")) {
@@ -56,20 +59,36 @@ class XtreamFlowTest {
                 }
             }
             server.start()
-            ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)).use {
+            val intent = Intent(instrumentation.targetContext, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            var scenario = ActivityScenario.launch<Activity>(intent)
+            try {
                 if (tv) awaitFocus("language_switch")
                 snapshot(if (tv) "tv-home-dark-en" else "phone-home-dark-en")
-                login(server.url("/").toString(), "wrong", tv)
-                approve(tv)
-                compose.waitUntil(10_000) { compose.onAllNodesWithTag("import_error").fetchSemanticsNodes().isNotEmpty() }
-                compose.onNodeWithText("Login failed. Check your username and password.").assertIsDisplayed()
-                org.junit.Assert.assertEquals(1, server.requestCount)
-                login(server.url("/").toString(), "fixture-password", tv)
+                if (accountLink) {
+                    click("add_url", tv)
+                    compose.waitUntil(5000) { compose.onAllNodesWithTag("source_url").fetchSemanticsNodes().isNotEmpty() }
+                    compose.onNodeWithTag("source_url").performTextInput(server.url("/get.php?username=fixture-user&password=fixture-password&type=m3u&output=ts").toString())
+                    compose.onNodeWithTag("source_url").performImeAction()
+                } else {
+                    login(server.url("/").toString(), "wrong", tv)
+                    approve(tv)
+                    compose.waitUntil(10_000) { compose.onAllNodesWithTag("import_error").fetchSemanticsNodes().isNotEmpty() }
+                    compose.onNodeWithText("Login failed. Check your username and password.").assertIsDisplayed()
+                    org.junit.Assert.assertEquals(1, server.requestCount)
+                    login(server.url("/").toString(), "fixture-password", tv)
+                }
                 approve(tv)
                 compose.waitUntil(20_000) { compose.onAllNodesWithText("Series fixture").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Live fixture").assertExists()
                 compose.onNodeWithText("Film fixture").assertExists()
                 compose.onNodeWithTag("server_password").assertDoesNotExist()
+                if (accountLink) {
+                    org.junit.Assert.assertEquals(8, server.requestCount)
+                    scenario.close()
+                    scenario = ActivityScenario.launch<Activity>(intent)
+                    compose.waitUntil(20_000) { compose.onAllNodesWithText("Series fixture").fetchSemanticsNodes().isNotEmpty() }
+                    org.junit.Assert.assertEquals(8, server.requestCount)
+                }
                 if (tv) awaitFocus("channel_0")
                 click("channel_2", tv)
                 approve(tv)
@@ -83,7 +102,7 @@ class XtreamFlowTest {
                 pressBack()
                 compose.waitUntil(5000) { compose.onAllNodesWithText("Film fixture").fetchSemanticsNodes().isNotEmpty() }
                 if (tv) awaitFocus("channel_2")
-            }
+            } finally { scenario.close() }
         }
     }
     private fun login(server: String, password: String, tv: Boolean) {

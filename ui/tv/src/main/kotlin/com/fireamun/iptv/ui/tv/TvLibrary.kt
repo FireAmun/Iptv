@@ -244,7 +244,9 @@ private fun importMessage(error: ImportError): Int = when (error) {
     ImportError.INVALID_ADDRESS -> R.string.tv_invalid_address
     ImportError.READ_FAILED -> R.string.tv_read_failed
     ImportError.NETWORK, ImportError.HTTP_ERROR -> R.string.tv_network_failed
-    ImportError.TOO_LARGE, ImportError.LINE_TOO_LONG, ImportError.FIELD_TOO_LONG, ImportError.TOO_MANY_ENTRIES, ImportError.TIME_LIMIT -> R.string.tv_limit
+    ImportError.TIME_LIMIT -> R.string.tv_import_timeout
+    ImportError.LINE_TOO_LONG, ImportError.FIELD_TOO_LONG -> R.string.tv_import_field
+    ImportError.TOO_LARGE, ImportError.TOO_MANY_ENTRIES -> R.string.tv_limit
     ImportError.HLS_MANIFEST -> R.string.tv_hls
     else -> R.string.tv_invalid_playlist
 }

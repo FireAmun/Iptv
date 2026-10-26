@@ -18,9 +18,9 @@ class XtreamLoader(private val limits: ParserLimits = ParserLimits(), client: Ok
     private val http = client.newBuilder().apply { interceptors().clear(); networkInterceptors().clear() }
         .eventListener(EventListener.NONE).authenticator(Authenticator.NONE).proxyAuthenticator(Authenticator.NONE)
         .cookieJar(CookieJar.NO_COOKIES).cache(null).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
-        .callTimeout(20, TimeUnit.SECONDS).connectTimeout(8, TimeUnit.SECONDS).readTimeout(8, TimeUnit.SECONDS).build()
+        .callTimeout(120, TimeUnit.SECONDS).connectTimeout(15, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).build()
 
-    suspend fun load(source: XtreamConnection): List<PlaylistEntry> = withTimeoutOrNull(60_000) {
+    suspend fun load(source: XtreamConnection): List<PlaylistEntry> = withTimeoutOrNull(300_000) {
         val auth = request(source.apiUrl(), parse = parser::auth)
         val entries = mutableListOf<PlaylistEntry>()
         for ((kind, categoryAction, streamAction) in listOf(
@@ -36,7 +36,7 @@ class XtreamLoader(private val limits: ParserLimits = ParserLimits(), client: Ok
         entries.toList()
     } ?: throw ImportFailure(ImportError.TIME_LIMIT)
 
-    suspend fun episodes(source: XtreamConnection, seriesId: Long): List<PlaylistEntry> = withTimeoutOrNull(60_000) {
+    suspend fun episodes(source: XtreamConnection, seriesId: Long): List<PlaylistEntry> = withTimeoutOrNull(300_000) {
         request(source.apiUrl("get_series_info", seriesId)) { input, check -> parser.episodes(input, check, source) }.also { if (it.isEmpty()) throw ImportFailure(ImportError.NO_CONTENT) }
     } ?: throw ImportFailure(ImportError.TIME_LIMIT)
 
