@@ -159,8 +159,12 @@ class XtreamFlowTest {
     }
     private fun approve(tv: Boolean) {
         compose.waitUntil(5000) { compose.onAllNodesWithTag("http_confirm").fetchSemanticsNodes().isNotEmpty() }
-        if (tv) awaitFocus("http_cancel")
-        click("http_confirm", tv)
+        if (tv) {
+            awaitFocus("http_cancel")
+            compose.onNodeWithTag("http_cancel").assertIsDisplayed().assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
+            awaitFocus("http_confirm")
+            compose.onNodeWithTag("http_confirm").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        } else compose.onNodeWithTag("http_confirm").performClick()
     }
     private fun click(tag: String, tv: Boolean) {
         if (tv) {
