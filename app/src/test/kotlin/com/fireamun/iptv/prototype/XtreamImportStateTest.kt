@@ -19,15 +19,12 @@ class XtreamImportStateTest {
         PlaylistEntry(Channel(0, "Synthetic live", "Group", ContentKind.LIVE), MediaAddress.parse("https://example.invalid/live")),
         PlaylistEntry(Channel(1, "Synthetic series", "Group", ContentKind.SERIES), null, 7),
     )
-    @Test fun cleartextLoginNeedsApprovalAndCredentialsNeverEnterSafeState() = runTest {
+    @Test fun cleartextLoginProceedsAndCredentialsNeverEnterSafeState() = runTest {
         var calls = 0
         val model = LibraryViewModel(loadXtream = { calls++; entries() }, ioDispatcher = StandardTestDispatcher(testScheduler))
         model.importXtream("My playlist", "http://example.invalid:8080", "private-user", "private-password")
         advanceUntilIdle()
-        assertEquals(0, calls); assertTrue(model.state.value.needsHttpApproval)
-        model.dismissHttp(); advanceUntilIdle(); assertEquals(0, calls)
-        model.importXtream("My playlist", "http://example.invalid:8080", "private-user", "private-password")
-        model.approveHttp(); advanceUntilIdle()
+        assertFalse(model.state.value.needsHttpApproval)
         assertEquals(1, calls); assertEquals("My playlist", model.state.value.sourceName)
         assertFalse(model.state.value.toString().contains("private-password"))
         assertFalse(model.state.value.toString().contains("example.invalid"))
@@ -65,5 +62,18 @@ class XtreamImportStateTest {
         assertFalse(model.state.value.canGoBack)
         model.selectChannel(0)
         assertNotNull(model.playback.value)
+    }
+    @Test fun tabChangeCancelsPendingSeriesAndItsLateResultCannotReopenOldTab() = runTest {
+        val episodes = CompletableDeferred<List<PlaylistEntry>>()
+        val model = LibraryViewModel(loadXtream = { entries() }, loadEpisodes = { _, _ -> episodes.await() })
+        model.importXtream("Working", "https://example.invalid", "u", "p"); advanceUntilIdle()
+        model.selectTab(LibraryTab.SERIES); model.selectChannel(1); runCurrent()
+        assertTrue(model.state.value.importing)
+        model.selectTab(LibraryTab.SEARCH)
+        episodes.complete(listOf(PlaylistEntry(Channel(0, "Late", null, ContentKind.EPISODE), MediaAddress.parse("https://example.invalid/late"))))
+        advanceUntilIdle()
+        assertEquals(LibraryTab.SEARCH, model.state.value.tab)
+        assertFalse(model.state.value.canGoBack); assertFalse(model.state.value.importing)
+        assertNull(model.playback.value)
     }
 }

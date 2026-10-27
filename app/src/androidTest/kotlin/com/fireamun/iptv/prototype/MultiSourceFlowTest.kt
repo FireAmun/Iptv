@@ -48,13 +48,13 @@ class MultiSourceFlowTest {
                 a to b
             }
             ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)).use { scenario ->
-                awaitText("Second cached fixture")
+                awaitText("Second cached fixture", tv)
                 openManager(tv)
                 if (tv) awaitFocus("source_pick_1")
                 compose.onNodeWithTag("source_pick_1").assertTextContains("Sports").assertIsDisplayed()
                 captureSyntheticPreview(instrumentation, if (tv) "tv-playlists-dark-en" else "phone-playlists-dark-en")
                 click("source_pick_0", tv)
-                awaitText("First cached fixture")
+                awaitText("First cached fixture", tv)
                 assertEquals(first.sourceId, runBlocking { store.directory().activeSourceId })
                 compose.onNodeWithTag("http_confirm").assertDoesNotExist()
                 openManager(tv); click("source_rename_0", tv)
@@ -74,7 +74,7 @@ class MultiSourceFlowTest {
                     scenario.onActivity { rtl = it.resources.configuration.layoutDirection == android.view.View.LAYOUT_DIRECTION_RTL }
                     rtl
                 }
-                awaitText("First cached fixture")
+                awaitText("First cached fixture", tv)
                 openManager(tv)
                 compose.onNodeWithTag("source_pick_0").assertTextContains("Family renamed").assertIsDisplayed()
                 captureSyntheticPreview(instrumentation, if (tv) "tv-playlists-light-ar" else "phone-playlists-light-ar")
@@ -84,21 +84,22 @@ class MultiSourceFlowTest {
                 if (tv) awaitFocus("source_pick_0")
                 assertEquals(2, runBlocking { store.directory().sources.size })
                 click("source_remove_0", tv); click("remove_confirm", tv)
-                awaitText("Second cached fixture")
+                awaitText("Second cached fixture", tv)
                 assertEquals(second.sourceId, runBlocking { store.directory().activeSourceId })
                 assertEquals("Sports", runBlocking { store.directory().sources.single().name })
-                scenario.recreate(); awaitText("Second cached fixture")
+                scenario.recreate(); awaitText("Second cached fixture", tv)
                 assertEquals(second.sourceId, runBlocking { store.restore()!!.sourceId })
                 assertEquals(0, server.requestCount)
             }
         }
     }
-    private fun awaitText(text: String) { compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
+    private fun awaitText(text: String, tv: Boolean) { compose.openDestination("nav_live", tv); compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
     private fun openManager(tv: Boolean) {
         click("manage_sources", tv)
         compose.waitUntil(5000) { compose.onAllNodesWithTag("source_manager").fetchSemanticsNodes().isNotEmpty() }
     }
     private fun click(tag: String, tv: Boolean) {
+        if (tag in listOf("manage_sources", "appearance_switch", "language_switch")) compose.openDestination("nav_settings", tv)
         if (tag.matches(Regex("source_(pick|rename|remove)_\\d+"))) compose.onNodeWithTag("source_manager").performScrollToNode(hasTestTag(tag))
         else if (tag in listOf("manage_sources", "appearance_switch", "language_switch")) compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag(tag))
         val node = compose.onNodeWithTag(tag)

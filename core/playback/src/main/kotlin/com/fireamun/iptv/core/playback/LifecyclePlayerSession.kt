@@ -39,7 +39,7 @@ internal class LifecyclePlayerSession(
         // Nested network exceptions may contain credentials; never enable provider logs.
         Log.setLogLevel(Log.LOG_LEVEL_OFF)
         val sources = DefaultMediaSourceFactory(PlaybackDataSourceFactory(allowCleartext = address.isCleartext))
-        val active = ExoPlayer.Builder(context).setMediaSourceFactory(sources).build()
+        val active = ExoPlayer.Builder(context).setMediaSourceFactory(sources).setSeekBackIncrementMs(30_000).setSeekForwardIncrementMs(30_000).build()
         player = active
         active.setAudioAttributes(AudioAttributes.DEFAULT, true)
         active.setHandleAudioBecomingNoisy(true)

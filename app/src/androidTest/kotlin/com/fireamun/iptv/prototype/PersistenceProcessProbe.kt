@@ -23,7 +23,8 @@ internal fun AndroidJUnitRunner.persistenceProcessProbe(mode: String) {
                     ))
                     val second = store.save(SourceSpec.file(), listOf(PlaylistEntry(Channel(0, "Process secondary", null), MediaAddress.parse("https://example.invalid/secondary"))))
                     store.rename(second.sourceId!!, "Process alternate")
-                    store.activate(first.sourceId!!)
+                    val session = store.activateSession(first.sourceId!!)
+                    store.setFavourite(session.sourceId!!, session.generation, first.entries.first().channel.id, true)
                 }
                 "verify" -> {
                     val saved = store.restore() ?: error("Missing fixture")
@@ -33,6 +34,9 @@ internal fun AndroidJUnitRunner.persistenceProcessProbe(mode: String) {
                     check(saved.entries.last().seriesId == 2L && saved.savedAtMillis > 0)
                     val directory = store.directory()
                     check(directory.sources.size == 2 && directory.activeSourceId == saved.sourceId)
+                    val header = store.openSession()!!
+                    check(header.initialEntries.isEmpty() && header.count == 2)
+                    check(store.page(BrowseRequest(header.sourceId!!, header.generation, query = "pro", favouritesOnly = true), 0, 60).items.single().id == saved.entries.first().channel.id)
                     val second = directory.sources.single { it.id != saved.sourceId }
                     check(second.name == "Process alternate")
                     check(store.activate(second.id).entries.single().channel.title == "Process secondary")

@@ -1,0 +1,33 @@
+<resources>
+    <string name="nav_live">البث المباشر</string>
+    <string name="nav_movies">الأفلام</string>
+    <string name="nav_series">المسلسلات</string>
+    <string name="nav_settings">الإعدادات</string>
+    <string name="nav_favourites">المفضلة</string>
+    <string name="nav_search">البحث</string>
+    <string name="browse_live_caption">قنواتك جاهزة للمشاهدة.</string>
+    <string name="browse_movies_caption">ليلتك مع فيلم جديد.</string>
+    <string name="browse_series_caption">اكتشف حكايتك القادمة.</string>
+    <string name="browse_favourites_caption">كل ما حفظته في مكان واحد.</string>
+    <string name="browse_search_caption">ابحث عن القنوات والأفلام والمسلسلات.</string>
+    <string name="browse_search_hint">ابحث في مكتبتك</string>
+    <string name="browse_all_categories">كل التصنيفات</string>
+    <string name="browse_empty">لا توجد نتائج هنا</string>
+    <string name="browse_empty_body">جرّب تصنيفًا أو بحثًا آخر. يمكنك إضافة قائمة أو تحديثها من الإعدادات.</string>
+    <string name="browse_no_favourites">احفظ ما تحب مشاهدته</string>
+    <string name="browse_no_favourites_body">استخدم القلب بجوار القناة أو الفيلم أو المسلسل لتجده هنا.</string>
+    <string name="browse_no_source">مشاهدتك القادمة تبدأ هنا</string>
+    <string name="browse_no_source_body">أضف قائمة التشغيل من الإعدادات لبدء المشاهدة.</string>
+    <string name="browse_add_favourite">إضافة إلى المفضلة</string>
+    <string name="browse_remove_favourite">إزالة من المفضلة</string>
+    <string name="browse_play">تشغيل</string>
+    <string name="browse_episodes">عرض الحلقات</string>
+    <string name="browse_back">رجوع</string>
+    <string name="browse_close">إغلاق</string>
+    <string name="browse_retry">إعادة المحاولة</string>
+    <string name="browse_failed">تعذرت قراءة هذا العنصر. أعد المحاولة أو حدّث قائمة التشغيل من الإعدادات.</string>
+    <string name="browse_entry">بدون عنوان %1$d</string>
+    <string name="browse_rating">التقييم %1$s من 10</string>
+    <string name="browse_episode">الموسم %1$d · الحلقة %2$d</string>
+    <string name="browse_loading">جارٍ تحميل مكتبتك…</string>
+</resources>

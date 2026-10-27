@@ -40,16 +40,13 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
     val keyboard = LocalSoftwareKeyboardController.current
     val list = rememberLazyListState()
     fun submit() { val submitted = url; url = ""; enteringUrl = false; keyboard?.hide(); onImportUrl(submitted) }
-    LaunchedEffect(state.channels, state.selectedId) {
-        if (state.channels.isNotEmpty()) list.scrollToItem(state.channels.indexOfFirst { it.id == state.selectedId }.coerceAtLeast(0) + 1)
-    }
     LaunchedEffect(state.importing, state.error) {
         if (state.importing || state.error != null) list.scrollToItem(0)
     }
     CinemaTheme {
         val p = cinemaPalette()
         Surface(Modifier.fillMaxSize()) {
-            LazyColumn(modifier = Modifier.safeDrawingPadding().imePadding().widthIn(max = 800.dp).testTag("library_list"), state = list, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(modifier = Modifier.imePadding().widthIn(max = 800.dp).testTag("library_list"), state = list, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item(key = "header") {
                     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -77,7 +74,7 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                                 }
                             }
                         }
-                        if (state.channels.isEmpty()) {
+                        if (state.entryCount == 0) {
                             CinemaIllustration(Modifier.fillMaxWidth().height(160.dp))
                             Text(stringResource(R.string.mobile_title), fontWeight = FontWeight.ExtraBold, fontSize = 38.sp, lineHeight = 44.sp, letterSpacing = (-1).sp)
                             Text(stringResource(R.string.mobile_description), style = MaterialTheme.typography.bodyMedium, color = p.muted)
@@ -85,29 +82,14 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                             if (state.canGoBack) TextButton(onClick = onLibraryBack, modifier = Modifier.testTag("library_back")) { Text(stringResource(R.string.mobile_back), color = p.text) }
                             val active = state.sources.firstOrNull { it.id == state.activeSourceId }
                             Text(state.collectionTitle ?: state.sourceName ?: active?.let { mobileSourceName(it) } ?: stringResource(R.string.mobile_library), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.headlineLarge)
-                            Text(stringResource(if (state.hasSavedSource) R.string.mobile_loaded_saved else R.string.mobile_loaded, state.channels.size), style = MaterialTheme.typography.bodySmall, color = p.muted)
+                            Text(stringResource(if (state.hasSavedSource) R.string.mobile_loaded_saved else R.string.mobile_loaded, state.entryCount), style = MaterialTheme.typography.bodySmall, color = p.muted)
                         }
                         Button(onClick = { enteringLogin = true }, enabled = !state.importing && !state.storageBlocked, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("add_login"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_server_login), fontWeight = FontWeight.Bold) }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OutlinedButton(onClick = { enteringUrl = true }, enabled = !state.importing && !state.storageBlocked, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("add_url"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_add_url), color = p.text) }
                             OutlinedButton(onClick = { url = ""; keyboard?.hide(); onImportFile() }, enabled = !state.importing && !state.storageBlocked, modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("import_file"), shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.mobile_import_file), color = p.text) }
                         }
-                        if (state.channels.isNotEmpty()) HorizontalDivider(color = p.outline.copy(alpha = .35f))
-                    }
-                }
-                items(state.channels, key = { it.id }) { channel ->
-                    val title = channel.title ?: stringResource(R.string.mobile_entry, channel.id + 1)
-                    Surface(color = p.panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().testTag("channel_${channel.id}").clickable(enabled = !state.importing && !state.storageBlocked) { onSelectChannel(channel.id) }) {
-                        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(50.dp).background(p.raised, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Text(title.take(1), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = p.text) }
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                channel.group?.let { Text(it, color = p.muted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                                contentLabel(channel.kind)?.let { Text(stringResource(it), color = p.focus, style = MaterialTheme.typography.labelSmall) }
-                                if (channel.kind == ContentKind.EPISODE && channel.season != null && channel.episode != null) Text(stringResource(R.string.mobile_episode_number, channel.season!!, channel.episode!!), color = p.muted, style = MaterialTheme.typography.bodySmall)
-                            }
-                            Text(if (channel.kind == ContentKind.SERIES) "↳" else "▶", color = p.focus, fontSize = 18.sp)
-                        }
+                        if (state.entryCount > 0) HorizontalDivider(color = p.outline.copy(alpha = .35f))
                     }
                 }
             }
@@ -124,10 +106,6 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                 label = { Text(stringResource(R.string.mobile_url_label)) }, colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = p.focus, cursorColor = p.focus, focusedLabelColor = p.focus), visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank()) submit() })) },
             confirmButton = { Button(onClick = { submit() }, enabled = url.isNotBlank(), modifier = Modifier.testTag("import_url")) { Text(stringResource(R.string.mobile_import_url)) } },
             dismissButton = { TextButton(onClick = { enteringUrl = false; url = "" }) { Text(stringResource(R.string.mobile_cancel), color = p.text) } })
-        if (state.needsHttpApproval) AlertDialog(onDismissRequest = onDismissHttp,
-            title = { Text(stringResource(R.string.mobile_http_title)) }, text = { Text(stringResource(R.string.mobile_http_body)) },
-            confirmButton = { Button(onClick = onApproveHttp, modifier = Modifier.testTag("http_confirm")) { Text(stringResource(R.string.mobile_continue)) } },
-            dismissButton = { TextButton(onClick = onDismissHttp) { Text(stringResource(R.string.mobile_cancel), color = p.text) } })
     }
 }
 

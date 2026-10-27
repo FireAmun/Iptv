@@ -85,7 +85,7 @@ class PlaylistFlowTest {
                     compose.onNodeWithTag("source_url").performTextInput(server.url("/playlist").toString())
                     if (tv) compose.onNodeWithTag("source_url").performImeAction()
                     else compose.onNodeWithTag("import_url").performClick()
-                    approveHttp(tv)
+                    compose.onNodeWithTag("http_confirm").assertDoesNotExist()
                     waitForChannel()
                     compose.waitUntil(timeoutMillis = 5000) {
                         var focused = false
@@ -95,7 +95,7 @@ class PlaylistFlowTest {
                     val channel = compose.onNodeWithTag("channel_0")
                     if (tv) channel.assertIsFocused().performKeyInput { keyDown(Key.DirectionCenter); keyUp(Key.DirectionCenter) }
                     else channel.performClick()
-                    approveHttp(tv)
+                    compose.onNodeWithTag("http_confirm").assertDoesNotExist()
                     compose.waitUntil(timeoutMillis = 20_000) {
                         compose.onAllNodesWithText("Playing").fetchSemanticsNodes().isNotEmpty()
                     }
@@ -129,15 +129,5 @@ class PlaylistFlowTest {
         if (view is PlayerView) return view
         if (view is ViewGroup) for (index in 0 until view.childCount) findPlayerView(view.getChildAt(index))?.let { return it }
         return null
-    }
-    @OptIn(ExperimentalTestApi::class)
-    private fun approveHttp(tv: Boolean) {
-        if (tv) {
-            compose.waitUntil(timeoutMillis = 5000) {
-                compose.onAllNodesWithTag("http_cancel").fetchSemanticsNodes().any { it.config[SemanticsProperties.Focused] }
-            }
-            compose.onNodeWithTag("http_cancel").assertIsFocused().performKeyInput { keyDown(Key.DirectionRight); keyUp(Key.DirectionRight) }
-            compose.onNodeWithTag("http_confirm").assertIsFocused().performKeyInput { keyDown(Key.DirectionCenter); keyUp(Key.DirectionCenter) }
-        } else compose.onNodeWithTag("http_confirm").performClick()
     }
 }

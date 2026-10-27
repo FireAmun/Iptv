@@ -1,6 +1,6 @@
 # Saved playlists and logins
 
-Version 0.7.0 saves multiple M3U file/URL or Xtream playlists and their root catalogues on this device. One playlist is active at a time. Opening the app or switching playlists restores the selected cache without contacting the provider or starting playback. Each HTTP network/playback operation still needs approval. The app supplies no channels or subscriptions.
+Version 0.8.0 saves multiple M3U file/URL or Xtream playlists and their root catalogues on this device. One playlist is active at a time. Opening the app or switching playlists restores the selected cache without contacting the provider or starting playback. Source management is in Settings; HTTP operations proceed without repeated approval. See [browsing, search and favourites](library-browsing.md). The app supplies no channels or subscriptions.
 
 ## Using it
 
@@ -11,11 +11,11 @@ Version 0.7.0 saves multiple M3U file/URL or Xtream playlists and their root cat
 - Failed refresh/import keeps the working library. Download/parsing can be cancelled. During the final local save the app shows Saving and completes the atomic commit before another operation.
 - If protected data is unreadable, imports into that state are blocked. Use Playlists to select another cached playlist or explicitly remove the damaged one. A failed switch preserves the working source. The app does not silently reset the database or invent a new key for existing ciphertext.
 
-Switching clears pending HTTP consent, closes playback on success, and returns to the selected root catalogue. Series/episodes use that playlist's restored login, but episodes are fetched when opened. Offline episode caching, combined catalogues, source editing/reordering, saved navigation/playback position, favourites, search/EPG and scheduled refresh remain open.
+Switching closes playback on success and selects the cached root catalogue. Series/episodes use that playlist's restored login, but episodes are fetched when opened. Root favourites and selected-source search are implemented. Offline episode caching, combined catalogues, source editing/reordering, persistent playback position, EPG and scheduled refresh remain open.
 
 ## Protection and schema
 
-`core:storage` uses Room 2.8.5, KSP 2.3.6 and exported schema version 2. A manual migration preserves schema-1 source IDs, item IDs, source envelopes, generation IDs and the existing Keystore alias; there is no destructive fallback. Schema 1 remains exported for migration fixtures.
+`core:storage` uses Room 2.8.5, KSP 2.3.6 and exported schema version 3. Manual 1-to-2 and 2-to-3 migrations preserve source/item IDs, envelopes, locator ciphertext, generation IDs and the existing Keystore alias; there is no destructive fallback. Earlier schemas remain exported for migration fixtures. The new schema adds encrypted artwork, optional metadata, FTS4 search and source/item favourites.
 
 Credentials/source URLs, friendly playlist names and every playback locator are encrypted BLOBs. A random per-source data key uses standard AES-256-GCM per row; Android Keystore wraps it and the source configuration. Source/generation/item associated data rejects ciphertext substitution. Catalogue labels/categories remain in app-private database columns. Targeted deletion retains the shared wrapping key while any saved source remains. After committed last-source deletion, orphan-key cleanup is best effort; a fresh import into an empty database retries cleanup before creating its new envelope. Existing backup/device-transfer exclusions cover the database; reinstalling requires adding sources again. This does not claim protection from a compromised running app or forensic secure deletion of all filesystem history.
 

@@ -3,6 +3,7 @@ package com.fireamun.iptv.core.storage
 import android.content.Context
 import androidx.room.Room
 import androidx.room.withTransaction
+import androidx.sqlite.db.SimpleSQLiteQuery
 import com.fireamun.iptv.core.data.*
 import com.fireamun.iptv.core.model.*
 import kotlinx.coroutines.*
@@ -20,6 +21,94 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     private val dao = database.library()
     private val mutex = Mutex()
     private class Envelope(val source: SourceSpec, val key: ByteArray)
+
+    override suspend fun openSession(): LibrarySession? = guarded {
+        mutex.withLock { database.withTransaction {
+            val row = dao.source()
+            if (row == null) { require(dao.sources().isEmpty()); null } else session(row)
+        } }
+    }
+    private suspend fun session(row: SourceRow): LibrarySession {
+        val authenticated = envelope(row)
+        return try {
+            val count = dao.count(row.sourceId)
+            require(count in 1..MAX_CATALOGUE_ENTRIES)
+            LibrarySession(authenticated.source, row.sourceId, row.generation, row.savedAt, count)
+        } finally { authenticated.key.fill(0) }
+    }
+    override suspend fun activateSession(sourceId: String): LibrarySession = guarded {
+        mutex.withLock { database.withTransaction {
+            val row = dao.source(sourceId) ?: error("Missing saved source")
+            // Locators authenticate individually when selected, never as bulk startup work.
+            session(row).also { dao.active(ActiveRow(sourceId = sourceId)) }
+        } }
+    }
+    private fun conditions(request: BrowseRequest): Pair<String, Array<Any>> {
+        val clauses = mutableListOf("e.sourceId = ?")
+        val args = mutableListOf<Any>(request.sourceId)
+        request.kind?.let {
+            if (it == ContentKind.LIVE) clauses += "e.kind IN ('LIVE','UNKNOWN')"
+            else { clauses += "e.kind = ?"; args += it.name }
+        }
+        request.category?.let { clauses += "e.groupLabel = ?"; args += it }
+        if (request.favouritesOnly) clauses += "EXISTS(SELECT 1 FROM favourites f WHERE f.sourceId = e.sourceId AND f.itemId = e.id)"
+        if (request.query.isNotBlank()) {
+            val expression = searchExpression(request.query)
+            if (expression == null) clauses += "0" else { clauses += "e.id IN (SELECT rowid FROM entry_search WHERE entry_search MATCH ?)"; args += expression }
+        }
+        return clauses.joinToString(" AND ") to args.toTypedArray()
+    }
+    override suspend fun page(request: BrowseRequest, offset: Int, limit: Int): BrowsePage = guarded {
+        require(offset >= 0 && limit in 1..120)
+        mutex.withLock { database.withTransaction {
+            if (dao.source(request.sourceId)?.generation != request.generation) return@withTransaction BrowsePage(emptyList(), 0)
+            val (where, args) = conditions(request)
+            val count = dao.browseCount(SimpleSQLiteQuery("SELECT COUNT(*) FROM library_entries e WHERE $where", args))
+            val rows = dao.browse(SimpleSQLiteQuery("SELECT e.id,e.title,e.groupLabel,e.kind,e.categoryKey,e.year,e.rating,(e.artwork IS NOT NULL) AS hasArtwork,EXISTS(SELECT 1 FROM favourites f WHERE f.sourceId=e.sourceId AND f.itemId=e.id) AS favourite FROM library_entries e WHERE $where ORDER BY e.position LIMIT ? OFFSET ?", (args.toList() + listOf(limit, offset)).toTypedArray()))
+            BrowsePage(rows.map { it.channel() }, count)
+        } }
+    }
+    override suspend fun categories(request: BrowseRequest): List<String> = guarded {
+        mutex.withLock { database.withTransaction {
+            if (dao.source(request.sourceId)?.generation != request.generation) return@withTransaction emptyList()
+            val (where, args) = conditions(request.copy(category = null, query = ""))
+            dao.categories(SimpleSQLiteQuery("SELECT DISTINCT e.groupLabel FROM library_entries e WHERE $where AND e.groupLabel IS NOT NULL AND e.groupLabel != '' ORDER BY e.groupLabel COLLATE NOCASE LIMIT 1000", args))
+        } }
+    }
+    private fun BrowseRow.channel() = Channel(id, title, groupLabel, ContentKind.valueOf(kind), categoryKey = categoryKey, year = year, rating = rating, hasArtwork = hasArtwork, favourite = favourite)
+    private fun EntryRow.channel(favourite: Boolean = false) = Channel(id, title, groupLabel, ContentKind.valueOf(kind), categoryKey = categoryKey, year = year, rating = rating, hasArtwork = artwork != null, favourite = favourite)
+    private fun decrypt(cipher: AesGcm, bytes: ByteArray?, context: String): MediaAddress? {
+        val raw = bytes?.let { cipher.open(it, context) }
+        return try { raw?.let { MediaAddress.parse(it.toString(Charsets.UTF_8)) ?: error("Invalid protected address") } } finally { raw?.fill(0) }
+    }
+    override suspend fun item(sourceId: String, generation: String, itemId: Int): PlaylistEntry? = guarded {
+        mutex.withLock { database.withTransaction {
+            val row = dao.source(sourceId)?.takeIf { it.generation == generation } ?: return@withTransaction null
+            val entry = dao.entry(sourceId, itemId) ?: return@withTransaction null
+            val authenticated = envelope(row)
+            try {
+                val address = decrypt(AesGcm { SecretKeySpec(authenticated.key, "AES") }, entry.address, addressContext(row, itemId))
+                val channel = entry.channel(dao.isFavourite(sourceId, itemId))
+                require((channel.kind == ContentKind.SERIES && entry.seriesId != null) || address != null)
+                PlaylistEntry(channel, address, entry.seriesId, entry.providerKey)
+            } finally { authenticated.key.fill(0) }
+        } }
+    }
+    override suspend fun artwork(reference: LibraryArtwork): MediaAddress? = guarded {
+        mutex.withLock { database.withTransaction {
+            val row = dao.source(reference.sourceId)?.takeIf { it.generation == reference.generation } ?: return@withTransaction null
+            val entry = dao.entry(reference.sourceId, reference.itemId) ?: return@withTransaction null
+            val authenticated = envelope(row)
+            try { decrypt(AesGcm { SecretKeySpec(authenticated.key, "AES") }, entry.artwork, artworkContext(row, reference.itemId)) }
+            finally { authenticated.key.fill(0) }
+        } }
+    }
+    override suspend fun setFavourite(sourceId: String, generation: String, itemId: Int, favourite: Boolean): Unit = guarded {
+        mutex.withLock { database.withTransaction {
+            require(dao.source(sourceId)?.generation == generation && dao.entry(sourceId, itemId) != null)
+            if (favourite) dao.favourite(FavouriteRow(sourceId, itemId)) else dao.clearFavourite(sourceId, itemId)
+        } }
+    }
 
     override suspend fun restore(): SavedLibrary? = guarded {
         mutex.withLock {
@@ -42,7 +131,8 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
                 val address = try { raw?.let { MediaAddress.parse(it.toString(Charsets.UTF_8)) ?: error("Invalid protected address") } } finally { raw?.fill(0) }
                 val kind = ContentKind.valueOf(entry.kind)
                 require((kind == ContentKind.SERIES && entry.seriesId != null) || address != null)
-                PlaylistEntry(Channel(entry.id, entry.title, entry.groupLabel, kind), address, entry.seriesId, entry.providerKey)
+                PlaylistEntry(entry.channel(dao.isFavourite(row.sourceId, entry.id)), address, entry.seriesId, entry.providerKey,
+                    decrypt(cipher, entry.artwork, artworkContext(row, entry.id)))
             }
             SavedLibrary(envelope.source, entries, row.savedAt, row.sourceId)
         } finally { envelope.key.fill(0) }
@@ -99,7 +189,7 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
         mutex.withLock {
             val empty = database.withTransaction {
                 require(dao.source(sourceId) != null)
-                dao.clearEntries(sourceId); dao.clearIdentities(sourceId); dao.clearSource(sourceId)
+                dao.clearSearch(sourceId); dao.clearFavourites(sourceId); dao.clearEntries(sourceId); dao.clearIdentities(sourceId); dao.clearSource(sourceId)
                 val remaining = dao.sources()
                 if (remaining.isEmpty()) dao.clearActive()
                 else {
@@ -158,16 +248,19 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
                         IdentityRow(nextId++.toInt(), id, identityKey).also { identities[identityKey] = it; added.add(it) }
                     }
                     val channel = entry.channel.copy(id = stable.id)
-                    remapped.add(PlaylistEntry(channel, entry.address, entry.seriesId, entry.providerKey))
+                    remapped.add(PlaylistEntry(channel, entry.address, entry.seriesId, entry.providerKey, entry.artwork))
                     val plaintext = entry.address?.reveal()?.toByteArray(Charsets.UTF_8)
                     val encrypted = try { plaintext?.let { cipher.seal(it, addressContext(row, stable.id)) } } finally { plaintext?.fill(0) }
-                    EntryRow(stable.id, index, channel.title, channel.group, channel.kind.name, entry.seriesId, entry.providerKey, encrypted, id)
+                    val picture = entry.artwork?.reveal()?.toByteArray(Charsets.UTF_8)
+                    val artwork = try { picture?.let { cipher.seal(it, artworkContext(row, stable.id)) } } finally { picture?.fill(0) }
+                    EntryRow(stable.id, index, channel.title, channel.group, channel.kind.name, entry.seriesId, entry.providerKey, encrypted, id, channel.categoryKey, channel.year, channel.rating, artwork)
                 }
                 currentCoroutineContext().ensureActive()
                 database.withTransaction {
-                    dao.clearEntries(id)
+                    dao.clearSearch(id); dao.clearEntries(id)
                     added.chunked(250).forEach { dao.insertIdentities(it) }
                     rows.chunked(250).forEach { dao.insertEntries(it) }
+                    rows.forEach { dao.insertSearch(it.id, normalizeSearch("${it.title.orEmpty()} ${it.groupLabel.orEmpty()}")) }
                     dao.source(row)
                     dao.active(ActiveRow(sourceId = id))
                     currentCoroutineContext().ensureActive()
@@ -180,7 +273,7 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     override suspend fun clear(): Unit = guarded {
         mutex.withLock {
             database.withTransaction {
-                dao.clearEntries(); dao.clearIdentities(); dao.clearSource(); dao.clearActive()
+                dao.clearSearch(); dao.clearFavourites(); dao.clearEntries(); dao.clearIdentities(); dao.clearSource(); dao.clearActive()
             }
             clearUnusedKey()
         }
@@ -214,6 +307,7 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
         } finally { bytes.fill(0) }
     }
     private fun addressContext(row: SourceRow, id: Int) = "entry:${row.sourceId}:${row.generation}:$id"
+    private fun artworkContext(row: SourceRow, id: Int) = "artwork:${row.sourceId}:${row.generation}:$id"
     private suspend fun <T> guarded(action: suspend () -> T): T = withContext(Dispatchers.IO) {
         try { action() }
         catch (cancelled: CancellationException) { throw cancelled }
@@ -228,6 +322,6 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     }
     companion object {
         fun open(context: Context, name: String = "library.db", protector: EnvelopeProtector = KeystoreEnvelope()) =
-            RoomLibraryStore(Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, name).addMigrations(MIGRATION_1_2).build(), protector)
+            RoomLibraryStore(Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build(), protector)
     }
 }

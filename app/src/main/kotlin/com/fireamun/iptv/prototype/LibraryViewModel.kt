@@ -2,6 +2,11 @@ package com.fireamun.iptv.prototype
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.cachedIn
+import com.fireamun.iptv.core.data.LibrarySession
+import com.fireamun.iptv.core.model.*
 import com.fireamun.iptv.core.data.HttpPlaylistLoader
 import com.fireamun.iptv.core.data.M3uParser
 import com.fireamun.iptv.core.data.PlaylistEntry
@@ -18,6 +23,7 @@ import com.fireamun.iptv.core.model.SavedSource
 import com.fireamun.iptv.core.model.normalizeSourceName
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,18 +54,28 @@ class LibraryViewModel(
     private var library: List<PlaylistEntry> = emptyList()
     private var importJob: Job? = null
     private var generation = 0
-    private var pending: (() -> Unit)? = null
     private var activeSource: SourceSpec? = null
     private var parent: Pair<List<PlaylistEntry>, LibraryState>? = null
+    private var session: LibrarySession? = null
+    private var categoryJob: Job? = null
+    private var loadingEpisodes = false
+    private data class BrowseInput(val request: BrowseRequest?, val local: List<Channel>?, val revision: Int)
+    private val browseInput = MutableStateFlow(BrowseInput(null, emptyList(), 0))
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val catalogue = browseInput.flatMapLatest { input ->
+        Pager(PagingConfig(pageSize = 60, initialLoadSize = 60, prefetchDistance = 12, enablePlaceholders = false, maxSize = 300)) {
+            LibraryPagingSource(persistence, input.request, input.local)
+        }.flow
+    }.cachedIn(viewModelScope)
 
     init {
         if (persistence != null) importJob = viewModelScope.launch {
             val current = generation
             try {
                 refreshDirectory()
-                val saved = persistence.restore()
+                val saved = persistence.openSession()
                 ensureActive()
-                if (current == generation && saved != null) commitRoot(saved.source, saved.entries, saved.savedAtMillis, saved.sourceId)
+                if (current == generation && saved != null) commitSession(saved)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: ImportFailure) {
                 if (current == generation) mutableState.value = mutableState.value.copy(error = ImportError.STORAGE, storageBlocked = true, hasSavedSource = true)
@@ -97,7 +113,7 @@ class LibraryViewModel(
         val address = MediaAddress.parse(text)
         if (address == null) { reportError(ImportError.INVALID_ADDRESS); return }
         cancelImport()
-        requireHttpApproval(address) { startImport(source = SourceSpec.url(address)) { loadUrl(address) } }
+        startImport(source = SourceSpec.url(address)) { loadUrl(address) }
     }
 
     fun importXtream(name: String, server: String, username: String, password: String) {
@@ -109,9 +125,14 @@ class LibraryViewModel(
             return
         }
         cancelImport()
-        requireHttpApproval(source.address) {
-            startImport(source = SourceSpec.xtream(label, source)) { loadXtream(source) }
-        }
+        startImport(source = SourceSpec.xtream(label, source)) { loadXtream(source) }
+    }
+
+    private fun commitSession(saved: LibrarySession) {
+        session = saved
+        commitRoot(saved.source, saved.initialEntries, saved.savedAtMillis, saved.sourceId)
+        mutableState.value = mutableState.value.copy(entryCount = saved.count, catalogueGeneration = saved.generation)
+        updateBrowse()
     }
 
     private fun commitRoot(source: SourceSpec, entries: List<PlaylistEntry>, savedAt: Long?, sourceId: String? = null) {
@@ -124,7 +145,9 @@ class LibraryViewModel(
         closePlayback()
         mutableState.value = LibraryState(channels = entries.map { it.channel }, sourceName = sources.firstOrNull { it.id == id }?.name ?: source.name,
             savedAtMillis = savedAt, hasSavedSource = savedAt != null, sources = sources, activeSourceId = id,
-            importing = before.importing, saving = before.saving, restoring = before.restoring, switchingSource = before.switchingSource)
+            importing = before.importing, saving = before.saving, restoring = before.restoring, switchingSource = before.switchingSource,
+            tab = if (before.entryCount == 0) LibraryTab.LIVE else before.tab)
+        updateBrowse()
     }
 
     private suspend fun refreshDirectory() {
@@ -135,10 +158,11 @@ class LibraryViewModel(
 
     private fun blocked() = mutableState.value.saving || mutableState.value.restoring || mutableState.value.storageBlocked
 
-    private fun startImport(source: SourceSpec? = null, refreshing: Boolean = false, onSuccess: ((List<PlaylistEntry>) -> Unit)? = null, load: suspend () -> List<PlaylistEntry>) {
+    private fun startImport(source: SourceSpec? = null, refreshing: Boolean = false, transient: Boolean = false, onSuccess: ((List<PlaylistEntry>) -> Unit)? = null, load: suspend () -> List<PlaylistEntry>) {
         if (blocked()) return
         val targetSourceId = if (refreshing) mutableState.value.activeSourceId else null
         cancelImport()
+        loadingEpisodes = transient
         val current = generation
         mutableState.value = mutableState.value.copy(importing = true, error = null)
         importJob = viewModelScope.launch {
@@ -154,7 +178,7 @@ class LibraryViewModel(
                         mutableState.value = mutableState.value.copy(saving = true)
                         withContext(NonCancellable) {
                             val saved = persistence.save(source, entries, refreshing, targetSourceId)
-                            commitRoot(saved.source, saved.entries, saved.savedAtMillis, saved.sourceId)
+                            commitSession(persistence.openSession() ?: LibrarySession(saved.source, saved.sourceId, saved.savedAtMillis.toString(), saved.savedAtMillis, saved.entries.size, saved.entries))
                             refreshDirectory()
                         }
                     }
@@ -168,45 +192,46 @@ class LibraryViewModel(
             } catch (_: SecurityException) {
                 if (current == generation) reportError(ImportError.READ_FAILED)
             } finally {
-                if (current == generation) mutableState.value = mutableState.value.copy(importing = false, saving = false)
+                if (current == generation) { loadingEpisodes = false; mutableState.value = mutableState.value.copy(importing = false, saving = false) }
             }
         }
     }
 
-    private fun requireHttpApproval(address: MediaAddress, action: () -> Unit) {
-        if (address.isCleartext) {
-            pending = action
-            mutableState.value = mutableState.value.copy(needsHttpApproval = true, error = null)
-        } else action()
-    }
-
-    fun approveHttp() {
-        val approved = pending
-        dismissHttp()
-        approved?.invoke()
-    }
+    // Kept as no-op callbacks for older test hosts; production UI has no consent dialog.
+    fun approveHttp() = dismissHttp()
     fun dismissHttp() {
-        pending = null
         mutableState.value = mutableState.value.copy(needsHttpApproval = false)
     }
     fun selectChannel(id: Int) {
         if (mutableState.value.importing) return
-        val entry = library.firstOrNull { it.channel.id == id } ?: return
-        mutableState.value = mutableState.value.copy(selectedId = id, error = null)
+        cancelImport()
+        val local = library.firstOrNull { it.channel.id == id }
+        if (local != null) { openEntry(local); return }
+        val selected = session ?: return
+        val sourceId = selected.sourceId ?: return
+        val current = generation
+        importJob = viewModelScope.launch {
+            try {
+                val entry = persistence?.item(sourceId, selected.generation, id) ?: return@launch
+                if (current == generation && session === selected) openEntry(entry)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: ImportFailure) { if (current == generation) reportError(failure.code) }
+        }
+    }
+    private fun openEntry(entry: PlaylistEntry) {
+        mutableState.value = mutableState.value.copy(selectedId = entry.channel.id, selectedTitle = entry.channel.title, error = null)
         val source = activeSource?.xtream
         val seriesId = entry.seriesId
         if (source != null && seriesId != null) {
             val root = library to mutableState.value
-            requireHttpApproval(source.address) {
-                startImport(onSuccess = { entries ->
+            startImport(transient = true, onSuccess = { entries ->
                     parent = root
                     library = entries
-                    mutableState.value = LibraryState(channels = entries.map { it.channel }, sourceName = root.second.sourceName,
-                        collectionTitle = entry.channel.title, canGoBack = true, savedAtMillis = root.second.savedAtMillis, hasSavedSource = root.second.hasSavedSource,
-                        sources = root.second.sources, activeSourceId = root.second.activeSourceId)
+                    mutableState.value = root.second.copy(channels = entries.map { it.channel }, collectionTitle = entry.channel.title,
+                        canGoBack = true, query = "", category = null, categories = emptyList(), importing = false)
+                    updateBrowse()
                 }) { loadEpisodes(source, seriesId) }
-            }
-        } else entry.address?.let { address -> requireHttpApproval(address) { mutablePlayback.value = address } }
+        } else entry.address?.let { address -> mutablePlayback.value = address }
     }
     fun backToCatalog() {
         if (mutableState.value.saving || mutableState.value.restoring) return
@@ -219,6 +244,7 @@ class LibraryViewModel(
             sources = latest.sources, activeSourceId = latest.activeSourceId,
             sourceName = latest.sources.firstOrNull { it.id == latest.activeSourceId }?.name ?: activeSource?.name)
         parent = null
+        updateBrowse()
     }
     fun closePlayback() { mutablePlayback.value = null }
     fun cancelImport() {
@@ -226,6 +252,7 @@ class LibraryViewModel(
         generation++
         importJob?.cancel()
         importJob = null
+        loadingEpisodes = false
         dismissHttp()
         mutableState.value = mutableState.value.copy(importing = false)
     }
@@ -236,11 +263,11 @@ class LibraryViewModel(
             SourceKind.FILE -> onFileNeeded()
             SourceKind.URL -> {
                 val address = source.url!!
-                requireHttpApproval(address) { startImport(source, refreshing = true) { loadUrl(address) } }
+                startImport(source, refreshing = true) { loadUrl(address) }
             }
             SourceKind.XTREAM -> {
                 val connection = source.xtream!!
-                requireHttpApproval(connection.address) { startImport(source, refreshing = true) { loadXtream(connection) } }
+                startImport(source, refreshing = true) { loadXtream(connection) }
             }
         }
     }
@@ -250,8 +277,8 @@ class LibraryViewModel(
     fun selectSource(sourceId: String) {
         if (sourceId == mutableState.value.activeSourceId && !mutableState.value.storageBlocked) return
         manageSource(sourceId, switching = true) {
-            val saved = persistence!!.activate(sourceId)
-            commitRoot(saved.source, saved.entries, saved.savedAtMillis, saved.sourceId)
+            val saved = persistence!!.activateSession(sourceId)
+            commitSession(saved)
             refreshDirectory()
         }
     }
@@ -265,13 +292,13 @@ class LibraryViewModel(
             val wasActive = mutableState.value.activeSourceId == sourceId
             persistence!!.remove(sourceId)
             if (wasActive) {
-                activeSource = null; parent = null; library = emptyList(); closePlayback()
+                activeSource = null; parent = null; library = emptyList(); session = null; closePlayback()
                 mutableState.value = LibraryState(importing = true, saving = true, sources = mutableState.value.sources)
             }
             refreshDirectory()
             if (wasActive) {
-                val saved = persistence.restore()
-                if (saved != null) commitRoot(saved.source, saved.entries, saved.savedAtMillis, saved.sourceId)
+                val saved = persistence.openSession()
+                if (saved != null) commitSession(saved) else updateBrowse()
             }
         }
     }
@@ -290,4 +317,59 @@ class LibraryViewModel(
         }
     }
     fun reportError(error: ImportError) { mutableState.value = mutableState.value.copy(error = error) }
+
+    fun selectTab(tab: LibraryTab) {
+        // Source commits are atomic, but a transient series request must not reopen an abandoned tab.
+        if (loadingEpisodes || !mutableState.value.importing) cancelImport()
+        if (mutableState.value.canGoBack) backToCatalog()
+        mutableState.value = mutableState.value.copy(tab = tab, query = "", category = null, error = null)
+        updateBrowse()
+    }
+    fun search(query: String) {
+        mutableState.value = mutableState.value.copy(query = query.take(160))
+        updateBrowse(loadCategories = false)
+    }
+    fun selectCategory(category: String?) {
+        mutableState.value = mutableState.value.copy(category = category)
+        updateBrowse(loadCategories = false)
+    }
+    fun toggleFavourite(channel: Channel) {
+        if (mutableState.value.canGoBack || mutableState.value.importing) return
+        val saved = session
+        if (saved != null && saved.initialEntries.isEmpty()) {
+            val sourceId = saved.sourceId ?: return
+            viewModelScope.launch {
+                try {
+                    persistence!!.setFavourite(sourceId, saved.generation, channel.id, !channel.favourite)
+                    if (session === saved) updateBrowse()
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (failure: ImportFailure) { reportError(failure.code) }
+            }
+        } else {
+            library = library.map { if (it.channel.id == channel.id) PlaylistEntry(it.channel.copy(favourite = !it.channel.favourite), it.address, it.seriesId, it.providerKey, it.artwork) else it }
+            mutableState.value = mutableState.value.copy(channels = library.map { it.channel })
+            updateBrowse()
+        }
+    }
+    private fun updateBrowse(loadCategories: Boolean = true) {
+        val state = mutableState.value
+        val kind = if (state.canGoBack) null else when (state.tab) {
+            LibraryTab.LIVE -> ContentKind.LIVE; LibraryTab.MOVIES -> ContentKind.MOVIE; LibraryTab.SERIES -> ContentKind.SERIES; else -> null
+        }
+        val request = BrowseRequest(state.activeSourceId.orEmpty(), state.catalogueGeneration ?: session?.generation.orEmpty(), kind,
+            state.category, if (state.tab == LibraryTab.SEARCH) state.query else "", state.tab == LibraryTab.FAVOURITES && !state.canGoBack)
+        val local = if (state.canGoBack || session == null || session!!.initialEntries.isNotEmpty()) state.channels else null
+        browseInput.value = BrowseInput(request, local, browseInput.value.revision + 1)
+        if (!loadCategories) return
+        categoryJob?.cancel()
+        if (state.tab == LibraryTab.SETTINGS || state.canGoBack) return
+        categoryJob = viewModelScope.launch {
+            try {
+                val categories = if (local != null) local.filter { matchesKind(it.kind, kind) }.mapNotNull { it.group }.distinct().sorted()
+                    else persistence?.categories(request).orEmpty()
+                mutableState.value = mutableState.value.copy(categories = categories)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: ImportFailure) { reportError(failure.code) }
+        }
+    }
 }

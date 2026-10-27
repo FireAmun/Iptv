@@ -11,7 +11,7 @@ import java.io.InputStreamReader
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.CharacterCodingException
 
-class PlaylistEntry(val channel: Channel, val address: MediaAddress?, val seriesId: Long? = null, val providerKey: String? = null) {
+class PlaylistEntry(val channel: Channel, val address: MediaAddress?, val seriesId: Long? = null, val providerKey: String? = null, val artwork: MediaAddress? = null) {
     override fun toString(): String = "[protected catalogue entry]"
 }
 class ImportFailure(val code: ImportError) : IOException(code.name)

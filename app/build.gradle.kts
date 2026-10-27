@@ -10,8 +10,8 @@ android {
         applicationId = "com.fireamun.iptv.prototype"
         minSdk = 28
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.7.2"
+        versionCode = 10
+        versionName = "0.8.0"
         testInstrumentationRunner = "com.fireamun.iptv.prototype.ManualFixtureRunner"
     }
     buildFeatures { compose = true }
@@ -38,6 +38,13 @@ dependencies {
     implementation(libs.lifecycle.viewmodel)
     implementation(libs.lifecycle.compose)
     implementation(libs.coroutines.core)
+    implementation(libs.paging.runtime)
+    implementation(libs.paging.compose)
+    implementation(libs.compose.material3)
+    implementation(libs.tv.material)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network)
+    implementation(libs.okhttp)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     androidTestImplementation(platform(libs.compose.bom))
