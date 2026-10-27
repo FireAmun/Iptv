@@ -46,9 +46,9 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
     CinemaTheme {
         val p = cinemaPalette()
         Surface(Modifier.fillMaxSize()) {
-            LazyColumn(modifier = Modifier.imePadding().widthIn(max = 800.dp).testTag("library_list"), state = list, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(modifier = Modifier.imePadding().widthIn(max = 800.dp).testTag("library_list"), state = list, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item(key = "header") {
-                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { Text(stringResource(R.string.mobile_settings_title), fontWeight = FontWeight.Bold, fontSize = 22.sp) }
                             TextButton(onClick = onChangeAppearance, modifier = Modifier.testTag("appearance_switch")) { Text(stringResource(if (isSystemInDarkTheme()) R.string.mobile_light else R.string.mobile_dark), color = p.text, fontSize = 12.sp) }
@@ -75,8 +75,7 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                             }
                         }
                         if (state.entryCount == 0) {
-                            CinemaIllustration(Modifier.fillMaxWidth().height(160.dp))
-                            Text(stringResource(R.string.mobile_title), fontWeight = FontWeight.ExtraBold, fontSize = 38.sp, lineHeight = 44.sp, letterSpacing = (-1).sp)
+                            Text(stringResource(R.string.mobile_title), fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, lineHeight = 32.sp)
                             Text(stringResource(R.string.mobile_description), style = MaterialTheme.typography.bodyMedium, color = p.muted)
                         } else {
                             if (state.canGoBack) TextButton(onClick = onLibraryBack, modifier = Modifier.testTag("library_back")) { Text(stringResource(R.string.mobile_back), color = p.text) }

@@ -95,6 +95,7 @@ class AppearanceTest {
             current == expected
         }
         compose.waitForIdle()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("nav_settings").fetchSemanticsNodes().isNotEmpty() }
     }
     private fun assertSaved(dark: Boolean) {
         assertEquals(dark, Appearance.isDark(instrumentation.targetContext))
