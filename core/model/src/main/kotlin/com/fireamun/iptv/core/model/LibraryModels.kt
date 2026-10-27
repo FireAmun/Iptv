@@ -33,7 +33,8 @@ data class SourceDirectory(val sources: List<SavedSource> = emptyList(), val act
     override fun toString() = "[saved playlist directory]"
 }
 fun normalizeSourceName(value: String): String? = value.trim().takeIf { it.isNotEmpty() && it.length <= 128 && value.none(Char::isISOControl) }
-data class Channel(val id: Int, val title: String?, val group: String?, val kind: ContentKind = ContentKind.UNKNOWN, val season: Int? = null, val episode: Int? = null)
+data class Channel(val id: Int, val title: String?, val group: String?, val kind: ContentKind = ContentKind.UNKNOWN, val season: Int? = null, val episode: Int? = null,
+    val categoryKey: String? = null, val year: Int? = null, val rating: Double? = null, val hasArtwork: Boolean = false, val favourite: Boolean = false)
 enum class ImportError { INVALID_PLAYLIST, HLS_MANIFEST, INVALID_ADDRESS, INVALID_ENCODING, TOO_LARGE, LINE_TOO_LONG, FIELD_TOO_LONG, TOO_MANY_ENTRIES, TIME_LIMIT, EMPTY, READ_FAILED, NETWORK, HTTP_ERROR, NO_FILE_PICKER, INVALID_LOGIN, AUTH_FAILED, ACCOUNT_DISABLED, ACCOUNT_EXPIRED, SERVER_RESPONSE, NO_CONTENT, STORAGE, INVALID_NAME }
 data class LibraryState(
     val channels: List<Channel> = emptyList(),
@@ -52,5 +53,12 @@ data class LibraryState(
     val sources: List<SavedSource> = emptyList(),
     val activeSourceId: String? = null,
     val switchingSource: Boolean = false,
+    val entryCount: Int = channels.size,
+    val catalogueGeneration: String? = null,
+    val tab: LibraryTab = LibraryTab.SETTINGS,
+    val query: String = "",
+    val category: String? = null,
+    val categories: List<String> = emptyList(),
+    val selectedTitle: String? = null,
 )
 enum class PlaybackStatus { PREPARING, BUFFERING, PLAYING, PAUSED, ENDED, FAILED }

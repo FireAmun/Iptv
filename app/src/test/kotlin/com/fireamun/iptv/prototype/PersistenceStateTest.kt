@@ -29,7 +29,7 @@ class PersistenceStateTest {
         override suspend fun rename(sourceId: String, name: String) {}
         override suspend fun remove(sourceId: String) { value = null }
     }
-    @Test fun restoresCachedLibraryWithoutProviderRequestsAndRequiresFreshHttpConsent() = runTest {
+    @Test fun restoresCachedLibraryWithoutProviderRequestsAndPlaysHttpDirectly() = runTest {
         val source = SourceSpec.xtream("Saved", XtreamConnection.create("http://example.invalid", "u", "p")!!)
         val cached = listOf(PlaylistEntry(Channel(7, "Cached", null), MediaAddress.parse("http://example.invalid/clip")))
         var requests = 0
@@ -37,7 +37,7 @@ class PersistenceStateTest {
         advanceUntilIdle()
         assertEquals(0, requests); assertEquals("Saved", model.state.value.sourceName)
         assertTrue(model.state.value.hasSavedSource); assertEquals(1234L, model.state.value.savedAtMillis)
-        model.selectChannel(7); assertNull(model.playback.value); assertTrue(model.state.value.needsHttpApproval)
+        model.selectChannel(7); assertNotNull(model.playback.value); assertFalse(model.state.value.needsHttpApproval)
     }
     @Test fun failedSaveKeepsPreviousCommittedLibraryAndRefreshUsesItsSavedSource() = runTest {
         val store = Store(SavedLibrary(SourceSpec.url(MediaAddress.parse("https://example.invalid/list")!!), entries(), 1234))

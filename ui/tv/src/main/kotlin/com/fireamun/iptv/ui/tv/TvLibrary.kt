@@ -63,20 +63,25 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
     val languageFocus = remember { FocusRequester() }
     val entryFocus = remember { FocusRequester() }
     val list = rememberLazyListState()
-    val targetId = state.channels.firstOrNull { it.id == state.selectedId }?.id ?: state.channels.firstOrNull()?.id
+    val targetId: Int? = null
     fun submit() { val submitted = url; url = ""; enteringUrl = false; keyboard?.hide(); focusManager.clearFocus(); onImportUrl(submitted) }
     CinemaTheme {
         val p = cinemaPalette()
         Surface(Modifier.fillMaxSize()) {
-            LazyColumn(modifier = Modifier.safeDrawingPadding().imePadding().testTag("library_list"), state = list, contentPadding = PaddingValues(horizontal = 48.dp, vertical = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(modifier = Modifier.imePadding().testTag("library_list"), state = list, contentPadding = PaddingValues(horizontal = 48.dp, vertical = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item(key = "header") {
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { AmarWordmark(p.text, Modifier.testTag("app_brand"), 30.sp) }
+                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { Text(stringResource(R.string.tv_settings_title), fontWeight = FontWeight.Bold, fontSize = 26.sp) }
                             CinemaButton(onClick = onChangeAppearance, modifier = Modifier.testTag("appearance_switch")) { Text(stringResource(if (isSystemInDarkTheme()) R.string.tv_light else R.string.tv_dark)) }
                             CinemaButton(onClick = onChangeLanguage, modifier = Modifier.focusRequester(languageFocus).testTag("language_switch")) { Text(stringResource(R.string.tv_language)) }
                         }
-                        if (state.channels.isEmpty()) {
+                        if (state.importing) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                            Text(stringResource(if (state.switchingSource) R.string.tv_switching_source else if (state.saving) R.string.tv_saving else if (state.restoring) R.string.tv_restoring else R.string.tv_loading))
+                            if (!state.saving && !state.restoring) CinemaButton(onClick = onCancelImport) { Text(stringResource(R.string.tv_cancel)) }
+                        }
+                        state.error?.let { Text(stringResource(importMessage(it)), color = p.error, modifier = Modifier.testTag("import_error")) }
+                        if (state.entryCount == 0) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(40.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                                     Text(stringResource(R.string.tv_title), fontWeight = FontWeight.ExtraBold, fontSize = 40.sp, lineHeight = 48.sp, letterSpacing = (-1).sp)
@@ -91,16 +96,11 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                                     if (state.canGoBack) CinemaButton(onClick = onLibraryBack, modifier = Modifier.testTag("library_back")) { Text(stringResource(R.string.tv_back)) }
                                     val active = state.sources.firstOrNull { it.id == state.activeSourceId }
                                     Text(state.collectionTitle ?: state.sourceName ?: active?.let { tvSourceName(it) } ?: stringResource(R.string.tv_library), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold)
-                                    Text(stringResource(if (state.hasSavedSource) R.string.tv_loaded_saved else R.string.tv_loaded, state.channels.size), color = p.muted, style = MaterialTheme.typography.bodySmall)
+                                    Text(stringResource(if (state.hasSavedSource) R.string.tv_loaded_saved else R.string.tv_loaded, state.entryCount), color = p.muted, style = MaterialTheme.typography.bodySmall)
                                 }
                                 SourceActions(state.importing || state.storageBlocked, { enteringLogin = true }, { enteringUrl = true }, { url = ""; keyboard?.hide(); onImportFile() })
                             }
                         }
-                        if (state.importing) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                            Text(stringResource(if (state.switchingSource) R.string.tv_switching_source else if (state.saving) R.string.tv_saving else if (state.restoring) R.string.tv_restoring else R.string.tv_loading))
-                            if (!state.saving && !state.restoring) CinemaButton(onClick = onCancelImport) { Text(stringResource(R.string.tv_cancel)) }
-                        }
-                        state.error?.let { Text(stringResource(importMessage(it)), color = p.error, modifier = Modifier.testTag("import_error")) }
                         if (state.hasSavedSource) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 if (state.sources.isNotEmpty()) CinemaButton(onClick = { managingSources = true }, enabled = !state.importing, modifier = Modifier.testTag("manage_sources")) { Text(stringResource(R.string.tv_manage_sources, state.sources.size)) }
@@ -111,21 +111,6 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                                 }
                             }
                         }
-                    }
-                }
-                items(state.channels, key = { it.id }) { channel ->
-                    val title = channel.title ?: stringResource(R.string.tv_entry, channel.id + 1)
-                    CinemaButton(onClick = { onSelectChannel(channel.id) }, enabled = !state.importing && !state.storageBlocked,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).then(if (channel.id == targetId) Modifier.focusRequester(entryFocus) else Modifier).testTag("channel_${channel.id}")) {
-                        Box(Modifier.size(42.dp).background(p.raised, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Text(title.take(1), color = p.text, fontWeight = FontWeight.Bold) }
-                        Spacer(Modifier.width(20.dp))
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
-                            channel.group?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                            contentLabel(channel.kind)?.let { Text(stringResource(it), style = MaterialTheme.typography.labelSmall) }
-                            if (channel.kind == ContentKind.EPISODE && channel.season != null && channel.episode != null) Text(stringResource(R.string.tv_episode_number, channel.season!!, channel.episode!!), style = MaterialTheme.typography.bodySmall)
-                        }
-                        Text(if (channel.kind == ContentKind.SERIES) "↳" else "▶", fontSize = 20.sp)
                     }
                 }
             }
@@ -169,23 +154,6 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                     }
                 }
                 LaunchedEffect(dialogWindow.isWindowFocused) { if (dialogWindow.isWindowFocused) { withFrameNanos { }; inputFocus.requestFocus() } }
-            }
-        }
-        if (state.needsHttpApproval) {
-            val cancelFocus = remember { FocusRequester() }
-            Dialog(onDismissRequest = onDismissHttp) {
-                val dialogWindow = LocalWindowInfo.current
-                Surface(Modifier.widthIn(max = 520.dp), shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
-                    Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                        Text(stringResource(R.string.tv_http_title), style = MaterialTheme.typography.titleLarge)
-                        Text(stringResource(R.string.tv_http_body))
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            CinemaButton(onClick = onDismissHttp, modifier = Modifier.focusRequester(cancelFocus).testTag("http_cancel")) { Text(stringResource(R.string.tv_cancel)) }
-                            CinemaButton(onClick = onApproveHttp, primary = true, modifier = Modifier.testTag("http_confirm")) { Text(stringResource(R.string.tv_continue)) }
-                        }
-                    }
-                }
-                LaunchedEffect(dialogWindow.isWindowFocused) { if (dialogWindow.isWindowFocused) { withFrameNanos { }; cancelFocus.requestFocus() } }
             }
         }
     }

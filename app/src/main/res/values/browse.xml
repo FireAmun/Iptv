@@ -1,0 +1,33 @@
+<resources>
+    <string name="nav_live">Live TV</string>
+    <string name="nav_movies">Movies</string>
+    <string name="nav_series">Series</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_favourites">Favourites</string>
+    <string name="nav_search">Search</string>
+    <string name="browse_live_caption">Your channels. Ready when you are.</string>
+    <string name="browse_movies_caption">Make tonight a movie night.</string>
+    <string name="browse_series_caption">Find your next story.</string>
+    <string name="browse_favourites_caption">Everything you saved, in one place.</string>
+    <string name="browse_search_caption">Find channels, movies and series.</string>
+    <string name="browse_search_hint">Search your library</string>
+    <string name="browse_all_categories">All categories</string>
+    <string name="browse_empty">Nothing here yet</string>
+    <string name="browse_empty_body">Try another category or search. Add or refresh a playlist in Settings.</string>
+    <string name="browse_no_favourites">Save something you love</string>
+    <string name="browse_no_favourites_body">Use the heart on a channel, movie or series to find it here.</string>
+    <string name="browse_no_source">Your next watch starts here</string>
+    <string name="browse_no_source_body">Add your playlist in Settings to start watching.</string>
+    <string name="browse_add_favourite">Add to favourites</string>
+    <string name="browse_remove_favourite">Remove from favourites</string>
+    <string name="browse_play">Play</string>
+    <string name="browse_episodes">View episodes</string>
+    <string name="browse_back">Back</string>
+    <string name="browse_close">Close</string>
+    <string name="browse_retry">Try again</string>
+    <string name="browse_failed">Unable to read this item. Try again or refresh your playlist in Settings.</string>
+    <string name="browse_entry">Untitled %1$d</string>
+    <string name="browse_rating">Rating %1$s out of 10</string>
+    <string name="browse_episode">Season %1$d · Episode %2$d</string>
+    <string name="browse_loading">Loading your library…</string>
+</resources>

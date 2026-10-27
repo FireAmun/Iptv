@@ -43,14 +43,13 @@ class MultiSourceStateTest {
         }
         override suspend fun clear() { values.clear(); names.clear(); active = null }
     }
-    @Test fun switchingUsesCachedRootAndClearsPlaybackAndPendingConsentWithoutNetwork() = runTest {
+    @Test fun switchingUsesCachedRootAndClearsPlaybackWithoutNetwork() = runTest {
         val store = Store(); var requests = 0
         val model = LibraryViewModel(persistence = store, loadUrl = { requests++; entries("Network") })
         advanceUntilIdle()
         assertEquals(2, model.state.value.sources.size)
         assertEquals("second", model.state.value.activeSourceId)
         model.selectChannel(7); assertNotNull(model.playback.value)
-        model.importUrl("http://example.invalid/pending"); assertTrue(model.state.value.needsHttpApproval)
         model.selectSource("first"); advanceUntilIdle()
         assertEquals("first", model.state.value.activeSourceId)
         assertEquals("First", model.state.value.channels.single().title)

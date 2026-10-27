@@ -3,6 +3,7 @@ package com.fireamun.iptv.core.data
 import com.fireamun.iptv.core.model.Channel
 import com.fireamun.iptv.core.model.ContentKind
 import com.fireamun.iptv.core.model.ImportError
+import com.fireamun.iptv.core.model.MediaAddress
 import com.google.gson.Strictness
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
@@ -13,7 +14,8 @@ import java.util.Locale
 
 internal class XtreamJson(private val limits: ParserLimits, private val nanoTime: () -> Long = System::nanoTime) {
     data class Auth(val liveExtension: String)
-    private data class Row(var id: Long? = null, var name: String? = null, var category: String? = null, var extension: String? = null, var season: Int? = null, var episode: Int? = null)
+    private data class Row(var id: Long? = null, var name: String? = null, var category: String? = null, var extension: String? = null, var season: Int? = null, var episode: Int? = null,
+        var artwork: MediaAddress? = null, var year: Int? = null, var rating: Double? = null, var rating5: Double? = null)
 
     fun auth(input: InputStream, check: () -> Unit): Auth = read(input, check) { reader, checkpoint ->
         var auth: String? = null; var status: String? = null; var expiry: String? = null
@@ -72,12 +74,13 @@ internal class XtreamJson(private val limits: ParserLimits, private val nanoTime
             val row = row(reader)
             val id = row.id
             if (id != null && id > 0) {
-                val channel = Channel(offset + entries.size, row.name, categories[row.category], kind)
-                if (kind == ContentKind.SERIES) entries.add(PlaylistEntry(channel, null, id, "${kind.name}:$id"))
+                val channel = Channel(offset + entries.size, row.name, categories[row.category], kind, categoryKey = row.category,
+                    year = row.year, rating = row.rating ?: row.rating5?.times(2), hasArtwork = row.artwork != null)
+                if (kind == ContentKind.SERIES) entries.add(PlaylistEntry(channel, null, id, "${kind.name}:$id", row.artwork))
                 else {
                     val ext = if (kind == ContentKind.LIVE) liveExtension else row.extension?.takeIf { it.isNotBlank() } ?: "mp4"
                     val address = source.playbackAddress(kind, id, ext) ?: throw ImportFailure(ImportError.SERVER_RESPONSE)
-                    entries.add(PlaylistEntry(channel, address, providerKey = "${kind.name}:$id"))
+                    entries.add(PlaylistEntry(channel, address, providerKey = "${kind.name}:$id", artwork = row.artwork))
                 }
             }
         }
@@ -125,10 +128,18 @@ internal class XtreamJson(private val limits: ParserLimits, private val nanoTime
             "container_extension" -> row.extension = scalar(reader)
             "season" -> row.season = scalar(reader)?.toIntOrNull()?.takeIf { it >= 0 }
             "episode_num" -> row.episode = scalar(reader)?.toIntOrNull()?.takeIf { it >= 0 }
+            "stream_icon", "cover", "movie_image" -> optionalScalar(reader, 4096)?.let { MediaAddress.parse(it) }?.let { if (row.artwork == null) row.artwork = it }
+            "year" -> row.year = optionalScalar(reader)?.toIntOrNull()?.takeIf { it in 1800..2200 }
+            "rating" -> row.rating = optionalScalar(reader)?.toDoubleOrNull()?.takeIf { it.isFinite() && it in 0.0..10.0 }
+            "rating_5based" -> row.rating5 = optionalScalar(reader)?.toDoubleOrNull()?.takeIf { it.isFinite() && it in 0.0..5.0 }
             else -> reader.skipValue()
         }
         reader.endObject()
         return row
+    }
+    private fun optionalScalar(reader: JsonReader, max: Int = 64): String? {
+        if (reader.peek() !in setOf(JsonToken.STRING, JsonToken.NUMBER)) { reader.skipValue(); return null }
+        return reader.nextString().takeIf { it.length <= max && it.none(Char::isISOControl) && it.isNotBlank() }
     }
     private fun scalar(reader: JsonReader): String? {
         val value = when (reader.peek()) {

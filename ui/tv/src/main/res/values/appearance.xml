@@ -1,4 +1,5 @@
 <resources>
+    <string name="tv_settings_title">Settings</string>
     <string name="tv_light">Light mode</string>
     <string name="tv_dark">Dark mode</string>
     <string name="tv_library">Your library</string>

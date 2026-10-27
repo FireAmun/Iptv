@@ -77,16 +77,19 @@ class XtreamFlowTest {
                     compose.onNodeWithTag("source_url").performImeAction()
                 } else {
                     login(server.url("/").toString(), "wrong", tv)
-                    approve(tv)
+                    compose.onNodeWithTag("http_confirm").assertDoesNotExist()
                     compose.waitUntil(10_000) { compose.onAllNodesWithTag("import_error").fetchSemanticsNodes().isNotEmpty() }
                     compose.onNodeWithText("Login failed. Check your username and password.").assertIsDisplayed()
                     org.junit.Assert.assertEquals(1, server.requestCount)
                     login(server.url("/").toString(), "fixture-password", tv)
                 }
-                approve(tv)
-                compose.waitUntil(20_000) { compose.onAllNodesWithText("Series fixture").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithTag("http_confirm").assertDoesNotExist()
+                compose.waitUntil(20_000) { compose.onAllNodesWithText("Live fixture").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Live fixture").assertExists()
-                compose.onNodeWithText("Film fixture").assertExists()
+                compose.onNodeWithText("Film fixture").assertDoesNotExist()
+                compose.openDestination("nav_movies", tv)
+                compose.waitUntil(10000) { compose.onAllNodesWithText("Film fixture").fetchSemanticsNodes().isNotEmpty() }
+                compose.openDestination("nav_live", tv)
                 compose.onNodeWithTag("server_password").assertDoesNotExist()
                 org.junit.Assert.assertEquals(2, categoryAttempts.size)
                 org.junit.Assert.assertTrue(categoryAttempts[0].exchangeIndex > 0)
@@ -95,21 +98,28 @@ class XtreamFlowTest {
                     org.junit.Assert.assertEquals(9, server.requestCount)
                     scenario.close()
                     scenario = ActivityScenario.launch<Activity>(intent)
-                    compose.waitUntil(20_000) { compose.onAllNodesWithText("Series fixture").fetchSemanticsNodes().isNotEmpty() }
+                    compose.waitUntil(20_000) { compose.onAllNodesWithText("Live fixture").fetchSemanticsNodes().isNotEmpty() }
                     org.junit.Assert.assertEquals(9, server.requestCount)
                 }
                 if (tv) awaitFocus("channel_0")
+                if (accountLink) {
+                    compose.openDestination("nav_search", tv)
+                    compose.onNodeWithTag("catalogue_search").performTextInput("Ser")
+                } else compose.openDestination("nav_series", tv)
+                compose.waitUntil(10000) { compose.onAllNodesWithTag("channel_2").fetchSemanticsNodes().isNotEmpty() }
+                if (tv && !accountLink) awaitFocus("channel_2")
                 click("channel_2", tv)
-                approve(tv)
+                click("detail_play", tv)
+                compose.onNodeWithTag("http_confirm").assertDoesNotExist()
                 compose.waitUntil(20_000) { compose.onAllNodesWithText("Episode fixture").fetchSemanticsNodes().isNotEmpty() }
                 if (tv) awaitFocus("channel_0")
                 click("channel_0", tv)
-                approve(tv)
+                compose.onNodeWithTag("http_confirm").assertDoesNotExist()
                 compose.waitUntil(20_000) { compose.onAllNodesWithText("Playing").fetchSemanticsNodes().isNotEmpty() }
                 pressBack()
                 compose.onNodeWithText("Episode fixture").assertIsDisplayed()
                 pressBack()
-                compose.waitUntil(5000) { compose.onAllNodesWithText("Film fixture").fetchSemanticsNodes().isNotEmpty() }
+                compose.waitUntil(5000) { compose.onAllNodesWithText("Series fixture").fetchSemanticsNodes().isNotEmpty() }
                 if (tv) awaitFocus("channel_2")
             } finally { scenario.close() }
         }
@@ -156,15 +166,6 @@ class XtreamFlowTest {
         // Synthetic test screens only. Files survive Gradle's APK uninstall for CI review.
         compose.waitForIdle()
         captureSyntheticPreview(instrumentation, name)
-    }
-    private fun approve(tv: Boolean) {
-        compose.waitUntil(5000) { compose.onAllNodesWithTag("http_confirm").fetchSemanticsNodes().isNotEmpty() }
-        if (tv) {
-            awaitFocus("http_cancel")
-            compose.onNodeWithTag("http_cancel").assertIsDisplayed().assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
-            awaitFocus("http_confirm")
-            compose.onNodeWithTag("http_confirm").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
-        } else compose.onNodeWithTag("http_confirm").performClick()
     }
     private fun click(tag: String, tv: Boolean) {
         if (tv) {

@@ -1,4 +1,5 @@
 <resources>
+    <string name="mobile_settings_title">Settings</string>
     <string name="mobile_light">Light mode</string>
     <string name="mobile_dark">Dark mode</string>
     <string name="mobile_library">Your library</string>

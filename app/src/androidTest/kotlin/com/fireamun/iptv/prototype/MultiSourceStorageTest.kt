@@ -129,7 +129,7 @@ class MultiSourceStorageTest {
         val secret = protector.seal(payload, "source:legacy-source")
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
             init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"))
-            updateAAD("entry:legacy-source:legacy-generation:42".toByteArray())
+            updateAAD("entry:legacy-source:legacy-generation:0".toByteArray())
         }
         val encrypted = byteArrayOf(1) + cipher.iv + cipher.doFinal(address.reveal().toByteArray())
         val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }
@@ -147,20 +147,22 @@ class MultiSourceStorageTest {
             val setup = schema.getJSONArray("setupQueries")
             repeat(setup.length()) { db.execSQL(setup.getString(it)) }
             db.execSQL("INSERT INTO source_state VALUES (1, ?, ?, ?, ?)", arrayOf("legacy-source", "legacy-generation", secret, 1234))
-            db.execSQL("INSERT INTO item_identities VALUES (42, ?, ?)", arrayOf("legacy-source", identity))
-            db.execSQL("INSERT INTO library_entries VALUES (42, 0, 'Legacy', NULL, 'UNKNOWN', NULL, NULL, ?)", arrayOf(encrypted))
+            db.execSQL("INSERT INTO item_identities VALUES (0, ?, ?)", arrayOf("legacy-source", identity))
+            db.execSQL("INSERT INTO library_entries VALUES (0, 0, 'Legacy', NULL, 'UNKNOWN', NULL, NULL, ?)", arrayOf(encrypted))
             db.version = 1
         }
         val store = RoomLibraryStore.open(context, name, protector)
         try {
             val restored = store.restore()!!
             assertEquals("legacy-source", restored.sourceId)
-            assertEquals(42, restored.entries.single().channel.id)
+            assertEquals(0, restored.entries.single().channel.id)
+            val session = store.openSession()!!
+            assertEquals(0, store.page(BrowseRequest(session.sourceId!!, session.generation, query = "Leg"), 0, 60).items.single().id)
             assertEquals(address.reveal(), restored.entries.single().address!!.reveal())
             assertEquals(1, store.directory().sources.size)
             assertEquals("Legacy playlist", store.directory().sources.single().name)
             val refreshed = store.save(source, listOf(entry("Legacy renamed", "legacy")), true)
-            assertEquals(42, refreshed.entries.single().channel.id)
+            assertEquals(0, refreshed.entries.single().channel.id)
             assertEquals("Legacy playlist", store.directory().sources.single().name)
             val second = store.save(SourceSpec.file(), listOf(entry("Second")))
             store.remove(second.sourceId!!)

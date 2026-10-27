@@ -68,17 +68,22 @@ class AppearanceTest {
                 } else compose.onNodeWithTag("import_file").performClick()
                 compose.waitUntil(10_000) { compose.onAllNodesWithTag("channel_0").fetchSemanticsNodes().isNotEmpty() }
             } finally { Intents.release() }
+            compose.openDestination("nav_settings", tv)
             if (tv) {
-                compose.waitUntil(5000) { compose.onNodeWithTag("channel_0").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
+                compose.waitUntil(5000) { compose.onNodeWithTag("language_switch").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
                 compose.onNodeWithTag("appearance_switch").performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.waitUntil(5000) { compose.onNodeWithTag("appearance_switch").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
                 compose.onNodeWithTag("appearance_switch").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
             } else compose.onNodeWithTag("appearance_switch").performClick()
             awaitMode(scenario, original)
             assertSaved(original)
+            compose.openDestination("nav_live", tv)
+            compose.waitUntil(10000) { compose.onAllNodesWithText("Appearance fixture").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("Appearance fixture").assertIsDisplayed()
             scenario.recreate()
             awaitMode(scenario, original)
+            compose.openDestination("nav_live", tv)
+            compose.waitUntil(10000) { compose.onAllNodesWithText("Appearance fixture").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("Appearance fixture").assertIsDisplayed()
         }
     }
@@ -90,6 +95,7 @@ class AppearanceTest {
             current == expected
         }
         compose.waitForIdle()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("nav_settings").fetchSemanticsNodes().isNotEmpty() }
     }
     private fun assertSaved(dark: Boolean) {
         assertEquals(dark, Appearance.isDark(instrumentation.targetContext))

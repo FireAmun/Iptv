@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import com.fireamun.iptv.core.designsystem.*
 
 @Composable
-internal fun CinemaTheme(content: @Composable () -> Unit) {
+fun CinemaTheme(content: @Composable () -> Unit) {
     val p = cinemaPalette()
     val font = cinemaFont()
     val base = Typography()

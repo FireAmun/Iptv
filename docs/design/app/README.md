@@ -1,5 +1,7 @@
 # Cinema app previews
 
+For the newer six-destination browser, see the [v0.8.0 library previews](../library/README.md).
+
 Actual prototype screenshots, 25 October 2026. These show the implemented M3U source-setup flow, not future film/guide mockups. Working wordmark only.
 
 | Android TV API 36 | Preview |

@@ -18,6 +18,8 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import com.fireamun.iptv.core.designsystem.AmarStartupScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.PlaybackStatus
 import com.fireamun.iptv.core.playback.PlaybackSurface
@@ -63,6 +65,8 @@ abstract class LibraryActivity : AppCompatActivity() {
         setContent {
             val state by library.state.collectAsStateWithLifecycle()
             val address by library.playback.collectAsStateWithLifecycle()
+            val catalogue = library.catalogue.collectAsLazyPagingItems()
+            val browserState = rememberSaveableStateHolder()
             // A recreated activity has already consumed this launch, even if rotated mid-intro.
             var introFinished by remember { mutableStateOf(savedInstanceState != null) }
             val showStartup = !introFinished || state.restoring
@@ -79,7 +83,7 @@ abstract class LibraryActivity : AppCompatActivity() {
                 key(active) {
                     var status by remember { mutableStateOf(PlaybackStatus.PREPARING) }
                     var retry by remember { mutableIntStateOf(0) }
-                    val title = state.channels.firstOrNull { it.id == state.selectedId }?.title ?: getString(R.string.player_title)
+                    val title = state.selectedTitle ?: getString(R.string.player_title)
                     val surface: @Composable (Modifier) -> Unit = { PlaybackSurface(active, retry, { status = it }, it) }
                     BackHandler { library.closePlayback() }
                     if (television) TvPlayback(title, status, library::closePlayback, { retry++ }, surface)
@@ -87,8 +91,14 @@ abstract class LibraryActivity : AppCompatActivity() {
                 }
             } else {
                 BackHandler(enabled = state.canGoBack) { library.backToCatalog() }
-                if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
-                else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
+                BackHandler(enabled = state.tab == com.fireamun.iptv.core.model.LibraryTab.SEARCH && !state.canGoBack) { library.closeSearch() }
+                browserState.SaveableStateProvider("browser") {
+                    LibraryBrowser(state, catalogue, television, (application as IptvApplication).artworkLoader,
+                        library::selectTab, library::search, library::selectCategory, library::selectChannel, library::toggleFavourite, library::backToCatalog, library::closeSearch) {
+                        if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
+                        else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
+                    }
+                }
             }
         }
     }

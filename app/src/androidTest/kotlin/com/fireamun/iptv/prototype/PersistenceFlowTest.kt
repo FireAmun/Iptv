@@ -58,15 +58,16 @@ class PersistenceFlowTest {
                         scenario.onActivity { light = it.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_NO }
                         light
                     }
-                    if (tv) awaitFocus("channel_0")
+                    if (tv) awaitFocus("language_switch")
                     click("language_switch", tv)
                     compose.waitUntil(10_000) {
                         var rtl = false
                         scenario.onActivity { rtl = it.resources.configuration.layoutDirection == android.view.View.LAYOUT_DIRECTION_RTL }
                         rtl
                     }
-                    if (tv) awaitFocus("channel_0")
+                    if (tv) awaitFocus("language_switch")
                 }
+                compose.openDestination("nav_settings", tv)
                 compose.onNodeWithTag("refresh_source").performScrollTo()
                 compose.waitForIdle()
                 captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-saved-${if (iteration == 0) "dark-en" else "light-ar"}")
@@ -80,12 +81,13 @@ class PersistenceFlowTest {
             compose.waitForIdle()
             captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-remove-light-ar")
             click("remove_cancel", tv)
-            if (tv) awaitFocus("channel_0")
+            if (tv) awaitFocus("language_switch")
             assertNotNull(runBlocking { store.restore() })
             click("remove_source", tv)
             if (tv) awaitFocus("remove_cancel")
             click("remove_confirm", tv)
             compose.waitUntil(10_000) { compose.onAllNodesWithText("Cached fixture").fetchSemanticsNodes().isEmpty() }
+            compose.waitUntil(10000) { runBlocking { store.directory().sources.isEmpty() } }
             assertNull(runBlocking { store.restore() })
         }
         ActivityScenario.launch<Activity>(intent).use {
@@ -93,15 +95,14 @@ class PersistenceFlowTest {
             compose.onNodeWithText("Cached fixture").assertDoesNotExist()
         }
     }
-    @Test fun urlRefreshRequiresConsentAndFailedRefreshKeepsSavedCatalogue() {
+    @Test fun urlRefreshProceedsWithoutConsentAndFailedRefreshKeepsSavedCatalogue() {
         MockWebServer().use { server ->
             server.enqueue(MockResponse(code = 503)); server.start()
             seed(SourceSpec.url(MediaAddress.parse(server.url("/playlist").toString())!!))
             ActivityScenario.launch<MobileActivity>(Intent(instrumentation.targetContext, MobileActivity::class.java)).use {
                 compose.waitUntil(10_000) { compose.onAllNodesWithText("Cached fixture").fetchSemanticsNodes().isNotEmpty() }
                 click("refresh_source", false)
-                compose.onNodeWithTag("http_confirm").assertExists(); assertEquals(0, server.requestCount)
-                compose.onNodeWithTag("http_confirm").performClick()
+                compose.onNodeWithTag("http_confirm").assertDoesNotExist()
                 compose.waitUntil(10_000) { compose.onAllNodesWithTag("import_error").fetchSemanticsNodes().isNotEmpty() }
                 assertEquals("Cached fixture", runBlocking { store.restore() }!!.entries.single().channel.title)
                 assertEquals(1, server.requestCount)
@@ -119,12 +120,15 @@ class PersistenceFlowTest {
             ActivityScenario.launch<MobileActivity>(Intent(instrumentation.targetContext, MobileActivity::class.java)).use {
                 compose.waitUntil(10_000) { compose.onAllNodesWithText("Cached fixture").fetchSemanticsNodes().isNotEmpty() }
                 click("refresh_source", false)
+                compose.waitUntil(10000) { runBlocking { store.restore()?.entries?.single()?.channel?.title == "Refreshed fixture" } }
+                compose.openDestination("nav_live", false)
                 compose.waitUntil(10_000) { compose.onAllNodesWithText("Refreshed fixture").fetchSemanticsNodes().isNotEmpty() }
                 assertEquals(originalId, runBlocking { store.restore() }!!.entries.single().channel.id)
             }
         } finally { Intents.release() }
     }
     private fun click(tag: String, tv: Boolean) {
+        if (tag in listOf("appearance_switch", "language_switch", "refresh_source", "remove_source")) compose.openDestination("nav_settings", tv)
         val node = compose.onNodeWithTag(tag)
         if (tv) {
             node.performSemanticsAction(SemanticsActions.RequestFocus); awaitFocus(tag)
