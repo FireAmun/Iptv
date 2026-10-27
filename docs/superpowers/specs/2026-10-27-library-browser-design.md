@@ -8,7 +8,7 @@ Amar Iptv remains a consumer product. The owner clarified that only the Flutter 
 
 ## Milestone delivered by this plan
 
-- Six persistent bottom destinations, in the owner's order: Live TV, Movies, Series, Settings, Favourites, Search. TV has a remote-friendly bottom ribbon and focusable content. English/Arabic and dark/light remain supported.
+- Five persistent bottom destinations: Live TV, Movies, Series, Settings and Favourites. Per the owner's later refinement, Search is an action in the top header with compact results and Back to its originating destination. TV has a remote-friendly bottom ribbon and focusable content. English/Arabic and dark/light remain supported.
 - All source setup, source count/name, last-saved time, refresh, rename, switch, removal, file/URL/server entry and appearance/language controls live in Settings. Empty installations start there; browsing pages direct an empty library to Settings. Import controls never clutter content pages.
 - Room-backed paging, categories and Arabic/English full-text search across the selected source's content. Live includes untyped M3U entries without guessing movie/series hierarchy. Switching destinations does not fetch catalogues. Source refresh is explicit in Settings and preserves the last committed cache on failure.
 - Functional persisted favourites for root live/movie/series items. They survive matching refresh and restart, and are removed only with their source.

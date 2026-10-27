@@ -50,7 +50,7 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                 item(key = "header") {
                     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { AmarWordmark(p.text, Modifier.testTag("app_brand"), 22.sp) }
+                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { Text(stringResource(R.string.mobile_settings_title), fontWeight = FontWeight.Bold, fontSize = 22.sp) }
                             TextButton(onClick = onChangeAppearance, modifier = Modifier.testTag("appearance_switch")) { Text(stringResource(if (isSystemInDarkTheme()) R.string.mobile_light else R.string.mobile_dark), color = p.text, fontSize = 12.sp) }
                             OutlinedButton(onClick = onChangeLanguage, modifier = Modifier.testTag("language_switch"), contentPadding = PaddingValues(horizontal = 12.dp)) { Text(stringResource(R.string.mobile_language), color = p.text, fontSize = 12.sp) }
                         }

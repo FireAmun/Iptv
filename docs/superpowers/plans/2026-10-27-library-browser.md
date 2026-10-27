@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans inline in the authorized project branch. Steps use checkbox syntax for tracking.
 
-**Goal:** Ship Settings-only playlist management, six destinations, fast paged cached browsing, search, favourites and Cinema poster layouts without losing the owner's library.
+**Goal:** Ship Settings-only playlist management, five bottom tabs plus top-header Search, fast paged cached browsing, favourites and Cinema poster layouts without losing the owner's library.
 
 **Architecture:** Add bounded metadata browsing and lazy private-locator resolution to the JVM persistence contract. Room schema 3 implements queries/index/favourites; the app owns PagingSource/Pager and navigation state; device UI renders paged content and existing source forms inside Settings.
 
@@ -15,7 +15,7 @@
 - Preserve `com.fireamun.iptv.prototype`, minSdk 28, compile/target 36, existing keys/ciphertext/IDs and owner My IPTV data.
 - No automatic catalogue refresh on startup or navigation; explicit Settings refresh only.
 - No private source URLs/credentials in Channel/UI, cache keys, docs, test inputs, logs or telemetry.
-- Six destinations in the requested order; no management controls on content pages; no HTTP confirmation.
+- Five bottom tabs in the requested order plus Search in the top header; no management controls on content pages; no HTTP confirmation.
 - One local emulator, no owner instrumentation/reset/uninstall, no host firewall/driver/reboot changes.
 - Follow-up features remain explicitly marked in tracker; no fake ratings, artwork or quality choices.
 
@@ -61,7 +61,7 @@ Consumes sessions/pages/resolvers. Produces `catalogue: Flow<PagingData<Channel>
 Files: new shared icons/artwork components; mobile/TV shell, browser and settings files; reuse private source dialogs/managers; LibraryActivity wiring; bilingual resources.
 
 - [ ] Add Paging/Coil dependencies with the pinned compatible versions. Implement protected on-demand artwork fetching and opaque cache keys, not URL-bearing UI models.
-- [ ] Implement six pinned bottom destinations, content pages with categories/paging, poster grid/details for movies/series, root favourites and global selected-source search.
+- [ ] Implement five pinned bottom tabs and top-header Search, content pages with categories/paging, poster grid/details for movies/series, root favourites and selected-source search with compact results.
 - [ ] Place source actions/count/time/refresh/name/removal and preferences only in Settings. Empty installs open Settings. Reuse masked-cleared forms and targeted removal confirmation.
 - [ ] Preserve scroll/focus across player/tab changes and support Arabic/light mode. Keep only real controls/features visible.
 - [ ] Configure Media3 native seek increments to 30 seconds; leave advanced track/PiP/resume items in the explicit follow-up matrix.

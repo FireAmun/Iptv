@@ -1,6 +1,8 @@
-# Library browser previews
+# Library browser palette/layout snapshots
 
-Actual v0.8.0 Compose screens captured on disposable cloud devices, 27 October 2026, at head `e4a739d`. All content is synthetic: generated poster shapes, catalogue labels and ratings are test inputs. The production app supplies no demo channels or ratings. No owner/provider screenshots are included.
+Actual v0.8.0 Compose screens captured on disposable cloud devices, 27 October 2026, at head `e4a739d`, before the owner's later navigation refinement. The current app has five bottom tabs and a top-header Search action with compact results; these archived images show the earlier six-button bar and illustrate only the palette, posters and RTL. Current previews are retained in the latest device artifacts linked from [PR #12](https://github.com/FireAmun/Iptv/pull/12).
+
+All content is synthetic: generated poster shapes, catalogue labels and ratings are test inputs. The production app supplies no demo channels or ratings. No owner/provider screenshots are included.
 
 | Screen | English / dark | Arabic / light |
 | --- | --- | --- |

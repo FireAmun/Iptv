@@ -59,6 +59,7 @@ class LibraryViewModel(
     private var session: LibrarySession? = null
     private var categoryJob: Job? = null
     private var loadingEpisodes = false
+    private var searchOrigin = LibraryTab.LIVE
     private data class BrowseInput(val request: BrowseRequest?, val local: List<Channel>?, val revision: Int)
     private val browseInput = MutableStateFlow(BrowseInput(null, emptyList(), 0))
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -319,12 +320,14 @@ class LibraryViewModel(
     fun reportError(error: ImportError) { mutableState.value = mutableState.value.copy(error = error) }
 
     fun selectTab(tab: LibraryTab) {
+        if (tab == LibraryTab.SEARCH && mutableState.value.tab != LibraryTab.SEARCH) searchOrigin = mutableState.value.tab
         // Source commits are atomic, but a transient series request must not reopen an abandoned tab.
         if (loadingEpisodes || !mutableState.value.importing) cancelImport()
         if (mutableState.value.canGoBack) backToCatalog()
         mutableState.value = mutableState.value.copy(tab = tab, query = "", category = null, error = null)
         updateBrowse()
     }
+    fun closeSearch() { selectTab(searchOrigin) }
     fun search(query: String) {
         mutableState.value = mutableState.value.copy(query = query.take(160))
         updateBrowse(loadCategories = false)

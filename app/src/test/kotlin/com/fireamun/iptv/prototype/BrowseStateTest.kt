@@ -46,6 +46,8 @@ class BrowseStateTest {
         assertEquals(160, model.state.value.query.length)
         model.selectTab(LibraryTab.MOVIES); advanceUntilIdle()
         assertEquals("", model.state.value.query); assertEquals(LibraryTab.MOVIES, model.state.value.tab)
+        model.selectTab(LibraryTab.SEARCH); model.search("Film"); model.closeSearch(); advanceUntilIdle()
+        assertEquals(LibraryTab.MOVIES, model.state.value.tab); assertEquals("", model.state.value.query)
         model.toggleFavourite(Channel(812, "Fixture", null)); advanceUntilIdle()
         assertEquals(true, store.favourite); assertEquals(0, store.resolved)
     }

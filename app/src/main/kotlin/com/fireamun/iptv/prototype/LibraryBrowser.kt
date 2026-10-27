@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.Dialog
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -72,30 +74,47 @@ private fun LibraryTab.label() = when (this) {
 @Composable
 internal fun LibraryBrowser(state: LibraryState, items: LazyPagingItems<Channel>, television: Boolean, imageLoader: ImageLoader,
     onTab: (LibraryTab) -> Unit, onQuery: (String) -> Unit, onCategory: (String?) -> Unit, onPlay: (Int) -> Unit,
-    onFavourite: (Channel) -> Unit, onBack: () -> Unit, settings: @Composable () -> Unit) {
+    onFavourite: (Channel) -> Unit, onBack: () -> Unit, onCloseSearch: () -> Unit, settings: @Composable () -> Unit) {
     CompositionLocalProvider(LocalBrowserTv provides television) {
       CinemaTheme {
         val p = cinemaPalette()
         val pages = rememberSaveableStateHolder()
         val navigationFocus = remember { LibraryTab.entries.associateWith { FocusRequester() } }
         var navigationFocused by remember { mutableStateOf(false) }
-        BackHandler(enabled = television && !state.canGoBack && state.tab != LibraryTab.SETTINGS && !navigationFocused) { navigationFocus.getValue(state.tab).requestFocus() }
+        var topBarFocused by remember { mutableStateOf(false) }
+        BackHandler(enabled = television && !state.canGoBack && state.tab != LibraryTab.SETTINGS && !navigationFocused && !topBarFocused) { navigationFocus.getValue(state.tab).requestFocus() }
         Surface(Modifier.fillMaxSize(), color = p.background, contentColor = p.text) {
          Column(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.safeDrawingPadding().consumeWindowInsets(WindowInsets.safeDrawing)) {
+            Row(Modifier.fillMaxWidth().onFocusChanged { topBarFocused = it.hasFocus }.padding(horizontal = if (television) 36.dp else 20.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (state.tab == LibraryTab.SEARCH && !state.canGoBack) {
+                    val back = stringResource(R.string.browse_back)
+                    val backGlyph = if (LocalLayoutDirection.current == LayoutDirection.Rtl) "›" else "‹"
+                    BrowserTarget(onCloseSearch, Modifier.size(48.dp).testTag("search_back").semantics { contentDescription = back }) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(backGlyph, fontSize = 28.sp, color = p.text) }
+                    }
+                }
+                Box(Modifier.weight(1f)) { AmarWordmark(p.text, Modifier.testTag("app_brand"), 20.sp) }
+                val searchLabel = stringResource(R.string.nav_search)
+                BrowserTarget({ onTab(LibraryTab.SEARCH) }, Modifier.size(48.dp).focusRequester(navigationFocus.getValue(LibraryTab.SEARCH)).testTag("nav_search")
+                    .semantics { selected = state.tab == LibraryTab.SEARCH; contentDescription = searchLabel }, selected = state.tab == LibraryTab.SEARCH) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { NavIcon(LibraryTab.SEARCH, Modifier.size(24.dp), state.tab == LibraryTab.SEARCH) }
+                }
+            }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (state.tab == LibraryTab.SETTINGS) settings()
                 else pages.SaveableStateProvider("${state.activeSourceId}:${state.catalogueGeneration}:${state.tab}:${state.canGoBack}") {
                     ContentBrowser(state, items, television, imageLoader, onTab, onQuery, onCategory, onPlay, onFavourite, onBack)
                 }
             }
-            Row(Modifier.fillMaxWidth().onFocusChanged { navigationFocused = it.hasFocus }.background(p.panel).padding(horizontal = if (television) 32.dp else 2.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(if (television) 12.dp else 0.dp)) {
-                LibraryTab.entries.forEach { tab ->
+            Row(Modifier.fillMaxWidth().onFocusChanged { navigationFocused = it.hasFocus }.background(p.panel).padding(horizontal = if (television) 32.dp else 8.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(if (television) 12.dp else 4.dp)) {
+                LibraryTab.entries.filter { it != LibraryTab.SEARCH }.forEach { tab ->
                     val selected = state.tab == tab
                     val label = stringResource(tab.label())
                     BrowserTarget(onClick = { onTab(tab) }, modifier = Modifier.weight(1f).focusRequester(navigationFocus.getValue(tab)).testTag(tab.tag()).semantics { this.selected = selected }, selected = selected) {
                         Column(Modifier.fillMaxWidth().heightIn(min = if (television) 58.dp else 64.dp).padding(vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)) {
                             NavIcon(tab, Modifier.size(22.dp), selected)
-                            Text(label, color = if (selected) p.focus else p.muted, fontSize = if (television) 13.sp else 11.sp, lineHeight = 14.sp, maxLines = 2,
+                            Text(label, color = if (selected) p.focus else p.muted, fontSize = if (television) 14.sp else 12.sp, lineHeight = 16.sp, maxLines = 2,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
                         }
                     }
@@ -121,7 +140,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     val searchFocus = remember { FocusRequester() }
     val window = LocalWindowInfo.current
     val keyboard = LocalSoftwareKeyboardController.current
-    val posters = !state.canGoBack && state.tab in setOf(LibraryTab.MOVIES, LibraryTab.SERIES, LibraryTab.FAVOURITES, LibraryTab.SEARCH)
+    val posters = !state.canGoBack && state.tab in setOf(LibraryTab.MOVIES, LibraryTab.SERIES, LibraryTab.FAVOURITES)
     val visibleStart = if (posters) grid.firstVisibleItemIndex else list.firstVisibleItemIndex
     val selectedIndex = items.itemSnapshotList.items.indexOfFirst { it.id == (lastFocusedId ?: state.selectedId) }
     val targetIndex = if (selectedIndex >= 0) selectedIndex else visibleStart.coerceAtMost((items.itemCount - 1).coerceAtLeast(0))
@@ -141,8 +160,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
         }
     }
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().padding(start = padding, end = padding, top = if (television) 18.dp else 20.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            AmarWordmark(p.muted, Modifier.testTag("app_brand"), if (television) 17.sp else 15.sp)
+        Column(Modifier.fillMaxWidth().padding(start = padding, end = padding, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (state.canGoBack) TextButton(onClick = onBack, modifier = Modifier.tvFocus().testTag("library_back")) { Text(stringResource(R.string.browse_back), color = p.focus) }
             Text(state.collectionTitle ?: stringResource(state.tab.label()), fontSize = if (television) 34.sp else 32.sp, lineHeight = 42.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!state.canGoBack) Text(stringResource(when (state.tab) {
@@ -183,12 +201,16 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
         } else {
             LazyColumn(state = list, modifier = Modifier.weight(1f).testTag("catalogue_list"), contentPadding = PaddingValues(start = padding, end = padding, bottom = 20.dp, top = 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(items.itemCount, key = items.itemKey { it.id }) { index -> items[index]?.let { channel ->
-                    BrowserTarget({ keyboard?.hide(); lastFocusedId = channel.id; onPlay(channel.id) }, Modifier.fillMaxWidth().then(if (index == targetIndex) Modifier.focusRequester(entryFocus) else Modifier).testTag("channel_${channel.id}"), onFocused = { lastFocusedId = channel.id }) {
+                    BrowserTarget({ keyboard?.hide(); lastFocusedId = channel.id; if (!state.canGoBack && channel.kind in setOf(ContentKind.MOVIE, ContentKind.SERIES)) detail = channel else onPlay(channel.id) }, Modifier.fillMaxWidth().then(if (index == targetIndex) Modifier.focusRequester(entryFocus) else Modifier).testTag("channel_${channel.id}"), onFocused = { lastFocusedId = channel.id }) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             Artwork(channel, state, imageLoader, Modifier.size(52.dp).clip(RoundedCornerShape(10.dp)))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Text(channel.title ?: stringResource(R.string.browse_entry, channel.id + 1), maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
                                 channel.group?.let { Text(it, color = p.muted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                if (state.tab == LibraryTab.SEARCH && !state.canGoBack) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(stringResource(when (channel.kind) { ContentKind.MOVIE -> R.string.nav_movies; ContentKind.SERIES -> R.string.nav_series; else -> R.string.nav_live }), color = p.focus, style = MaterialTheme.typography.labelSmall)
+                                    Metadata(channel)
+                                }
                                 if (channel.kind == ContentKind.EPISODE && channel.season != null && channel.episode != null) Text(stringResource(R.string.browse_episode, channel.season!!, channel.episode!!), color = p.muted, style = MaterialTheme.typography.bodySmall)
                             }
                             if (!state.canGoBack) FavouriteButton(channel) { onFavourite(channel) }

@@ -53,6 +53,7 @@ class LibraryBrowseFlowTest {
         val saved = runBlocking { store.save(SourceSpec.file(), entries) }
         ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, activity)).use { scenario ->
             awaitTag("channel_0")
+            assertTrue("Search belongs above the bottom navigation", compose.onNodeWithTag("nav_search").fetchSemanticsNode().boundsInRoot.bottom < compose.onNodeWithTag("nav_live").fetchSemanticsNode().boundsInRoot.top)
             for (tag in listOf("add_url", "add_login", "import_file", "manage_sources", "refresh_source", "remove_source")) compose.onNodeWithTag(tag).assertDoesNotExist()
             if (tv) awaitFocus("channel_0")
             captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-live-dark-en")

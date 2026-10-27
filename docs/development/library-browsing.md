@@ -1,6 +1,6 @@
 # Library browsing (v0.8.0)
 
-The bottom bar contains Live TV, Movies, Series, Settings, Favourites and Search on both phone and TV. Setup, saved playlist selection/rename/removal, timestamps, entry counts, refresh, language and appearance live in Settings. An empty installation opens Settings; an existing cache opens Live TV.
+The bottom bar contains Live TV, Movies, Series, Settings and Favourites on both phone and TV. Search is a separate action in the top header, with a Back action to return to the previous destination. Results use compact rows so titles and hearts fit below the search field. Setup, saved playlist selection/rename/removal, timestamps, entry counts, refresh, language and appearance live in Settings. An empty installation opens Settings; an existing cache opens Live TV.
 
 Live TV includes untyped M3U entries. Movies and Series show provider artwork, year and rating when available, with deliberate Cinema placeholders otherwise. Selecting a movie/series opens basic details and a Play/View episodes action. Series episodes load on demand. No title-based hierarchy or invented ratings are supplied.
 
