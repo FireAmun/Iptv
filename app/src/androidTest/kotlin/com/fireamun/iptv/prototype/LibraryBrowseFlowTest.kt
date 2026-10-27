@@ -91,7 +91,9 @@ class LibraryBrowseFlowTest {
             val session = runBlocking { store.openSession()!! }
             assertEquals(saved.sourceId, session.sourceId)
             assertTrue(runBlocking { store.page(BrowseRequest(session.sourceId!!, session.generation, favouritesOnly = true), 0, 60).items.single().favourite })
+            compose.onNodeWithTag("favourite_0").assertContentDescriptionEquals("Remove from favourites")
             activate("favourite_0", tv)
+            compose.waitUntil(10000) { runBlocking { store.page(BrowseRequest(session.sourceId!!, session.generation, favouritesOnly = true), 0, 60).items.isEmpty() } }
             compose.waitUntil(10000) { compose.onAllNodesWithText("Save something you love").fetchSemanticsNodes().isNotEmpty() }
             compose.openDestination("nav_settings", tv)
             compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("appearance_switch"))
@@ -129,6 +131,6 @@ class LibraryBrowseFlowTest {
         if (tv) {
             compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus); awaitFocus(tag)
             compose.onNodeWithTag(tag).performKeyInput { pressKey(Key.DirectionCenter) }
-        } else compose.onNodeWithTag(tag).performClick()
+        } else compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().performClick()
     }
 }

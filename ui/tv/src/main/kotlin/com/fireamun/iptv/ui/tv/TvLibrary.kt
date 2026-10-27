@@ -76,6 +76,11 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                             CinemaButton(onClick = onChangeAppearance, modifier = Modifier.testTag("appearance_switch")) { Text(stringResource(if (isSystemInDarkTheme()) R.string.tv_light else R.string.tv_dark)) }
                             CinemaButton(onClick = onChangeLanguage, modifier = Modifier.focusRequester(languageFocus).testTag("language_switch")) { Text(stringResource(R.string.tv_language)) }
                         }
+                        if (state.importing) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                            Text(stringResource(if (state.switchingSource) R.string.tv_switching_source else if (state.saving) R.string.tv_saving else if (state.restoring) R.string.tv_restoring else R.string.tv_loading))
+                            if (!state.saving && !state.restoring) CinemaButton(onClick = onCancelImport) { Text(stringResource(R.string.tv_cancel)) }
+                        }
+                        state.error?.let { Text(stringResource(importMessage(it)), color = p.error, modifier = Modifier.testTag("import_error")) }
                         if (state.entryCount == 0) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(40.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -96,11 +101,6 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                                 SourceActions(state.importing || state.storageBlocked, { enteringLogin = true }, { enteringUrl = true }, { url = ""; keyboard?.hide(); onImportFile() })
                             }
                         }
-                        if (state.importing) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                            Text(stringResource(if (state.switchingSource) R.string.tv_switching_source else if (state.saving) R.string.tv_saving else if (state.restoring) R.string.tv_restoring else R.string.tv_loading))
-                            if (!state.saving && !state.restoring) CinemaButton(onClick = onCancelImport) { Text(stringResource(R.string.tv_cancel)) }
-                        }
-                        state.error?.let { Text(stringResource(importMessage(it)), color = p.error, modifier = Modifier.testTag("import_error")) }
                         if (state.hasSavedSource) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 if (state.sources.isNotEmpty()) CinemaButton(onClick = { managingSources = true }, enabled = !state.importing, modifier = Modifier.testTag("manage_sources")) { Text(stringResource(R.string.tv_manage_sources, state.sources.size)) }
