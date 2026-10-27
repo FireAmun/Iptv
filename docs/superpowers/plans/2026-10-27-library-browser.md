@@ -28,7 +28,7 @@ Produces `LibraryTab`, `BrowseRequest`, `BrowsePage`, `LibrarySession`, `Library
 - [ ] Write failing normalization/query/privacy/metadata tests. Core example:
 ```kotlin
 assertEquals("اهلا", normalizeSearch("أَهْلًاـ"))
-assertEquals("\"bein*\" AND \"1\"", searchExpression("beIN 1"))
+assertEquals("\"bein*\" \"1\"", searchExpression("beIN 1"))
 ```
 - [ ] Run `:core:model:test :core:data:test` and confirm the missing behavior fails.
 - [ ] Implement bounded input normalization, safe literal FTS terms and optional provider artwork/year/rating parsing. Preserve original labels and fixed error behavior.

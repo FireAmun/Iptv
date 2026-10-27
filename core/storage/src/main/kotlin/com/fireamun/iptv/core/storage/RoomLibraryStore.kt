@@ -125,13 +125,14 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
             val rows = dao.entries(row.sourceId)
             require(rows.isNotEmpty() && rows.size <= MAX_CATALOGUE_ENTRIES)
             val cipher = AesGcm { SecretKeySpec(envelope.key, "AES") }
+            val favourites = dao.favouriteIds(row.sourceId).toHashSet()
             val entries = rows.map { entry ->
                 currentCoroutineContext().ensureActive()
                 val raw = entry.address?.let { cipher.open(it, addressContext(row, entry.id)) }
                 val address = try { raw?.let { MediaAddress.parse(it.toString(Charsets.UTF_8)) ?: error("Invalid protected address") } } finally { raw?.fill(0) }
                 val kind = ContentKind.valueOf(entry.kind)
                 require((kind == ContentKind.SERIES && entry.seriesId != null) || address != null)
-                PlaylistEntry(entry.channel(dao.isFavourite(row.sourceId, entry.id)), address, entry.seriesId, entry.providerKey,
+                PlaylistEntry(entry.channel(entry.id in favourites), address, entry.seriesId, entry.providerKey,
                     decrypt(cipher, entry.artwork, artworkContext(row, entry.id)))
             }
             SavedLibrary(envelope.source, entries, row.savedAt, row.sourceId)
@@ -260,7 +261,15 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
                     dao.clearSearch(id); dao.clearEntries(id)
                     added.chunked(250).forEach { dao.insertIdentities(it) }
                     rows.chunked(250).forEach { dao.insertEntries(it) }
-                    rows.forEach { dao.insertSearch(it.id, normalizeSearch("${it.title.orEmpty()} ${it.groupLabel.orEmpty()}")) }
+                    // One prepared statement inside the same transaction, without 100k coroutine queries.
+                    database.openHelper.writableDatabase.compileStatement("INSERT INTO entry_search(rowid, searchText) VALUES (?, ?)").use { statement ->
+                        rows.forEach { entry ->
+                            currentCoroutineContext().ensureActive()
+                            statement.bindLong(1, entry.id.toLong())
+                            statement.bindString(2, normalizeSearch("${entry.title.orEmpty()} ${entry.groupLabel.orEmpty()}"))
+                            statement.executeInsert()
+                        }
+                    }
                     dao.source(row)
                     dao.active(ActiveRow(sourceId = id))
                     currentCoroutineContext().ensureActive()

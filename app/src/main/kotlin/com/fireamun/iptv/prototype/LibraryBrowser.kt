@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.CornerRadius
@@ -59,6 +60,10 @@ internal fun LibraryTab.tag() = "nav_" + when (this) {
     LibraryTab.SETTINGS -> "settings"; LibraryTab.FAVOURITES -> "favourites"; LibraryTab.SEARCH -> "search"
 }
 internal val LoadedCatalogueItems = SemanticsPropertyKey<Int>("LoadedCatalogueItems")
+internal val ArtworkLoaded = SemanticsPropertyKey<Boolean>("ArtworkLoaded")
+private val LocalBrowserTv = staticCompositionLocalOf { false }
+// Foundation clickable uses touch-mode-dependent focus. TV targets must always accept remote focus.
+@Composable private fun Modifier.tvFocus(): Modifier = if (LocalBrowserTv.current) focusProperties { canFocus = true } else this
 private fun LibraryTab.label() = when (this) {
     LibraryTab.LIVE -> R.string.nav_live; LibraryTab.MOVIES -> R.string.nav_movies; LibraryTab.SERIES -> R.string.nav_series
     LibraryTab.SETTINGS -> R.string.nav_settings; LibraryTab.FAVOURITES -> R.string.nav_favourites; LibraryTab.SEARCH -> R.string.nav_search
@@ -68,13 +73,15 @@ private fun LibraryTab.label() = when (this) {
 internal fun LibraryBrowser(state: LibraryState, items: LazyPagingItems<Channel>, television: Boolean, imageLoader: ImageLoader,
     onTab: (LibraryTab) -> Unit, onQuery: (String) -> Unit, onCategory: (String?) -> Unit, onPlay: (Int) -> Unit,
     onFavourite: (Channel) -> Unit, onBack: () -> Unit, settings: @Composable () -> Unit) {
-    CinemaTheme {
+    CompositionLocalProvider(LocalBrowserTv provides television) {
+      CinemaTheme {
         val p = cinemaPalette()
         val pages = rememberSaveableStateHolder()
         val navigationFocus = remember { LibraryTab.entries.associateWith { FocusRequester() } }
         var navigationFocused by remember { mutableStateOf(false) }
         BackHandler(enabled = television && !state.canGoBack && state.tab != LibraryTab.SETTINGS && !navigationFocused) { navigationFocus.getValue(state.tab).requestFocus() }
-        Column(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.background(p.background).safeDrawingPadding().consumeWindowInsets(WindowInsets.safeDrawing)) {
+        Surface(Modifier.fillMaxSize(), color = p.background, contentColor = p.text) {
+         Column(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.safeDrawingPadding().consumeWindowInsets(WindowInsets.safeDrawing)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (state.tab == LibraryTab.SETTINGS) settings()
                 else pages.SaveableStateProvider("${state.activeSourceId}:${state.catalogueGeneration}:${state.tab}:${state.canGoBack}") {
@@ -94,7 +101,9 @@ internal fun LibraryBrowser(state: LibraryState, items: LazyPagingItems<Channel>
                     }
                 }
             }
+         }
         }
+      }
     }
 }
 
@@ -134,7 +143,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(start = padding, end = padding, top = if (television) 18.dp else 20.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AmarWordmark(p.muted, Modifier.testTag("app_brand"), if (television) 17.sp else 15.sp)
-            if (state.canGoBack) TextButton(onClick = onBack, modifier = Modifier.testTag("library_back")) { Text(stringResource(R.string.browse_back), color = p.focus) }
+            if (state.canGoBack) TextButton(onClick = onBack, modifier = Modifier.tvFocus().testTag("library_back")) { Text(stringResource(R.string.browse_back), color = p.focus) }
             Text(state.collectionTitle ?: stringResource(state.tab.label()), fontSize = if (television) 34.sp else 32.sp, lineHeight = 42.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!state.canGoBack) Text(stringResource(when (state.tab) {
                 LibraryTab.LIVE -> R.string.browse_live_caption; LibraryTab.MOVIES -> R.string.browse_movies_caption
@@ -146,8 +155,8 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
             if (state.error != null) Text(stringResource(R.string.browse_failed), color = p.error, modifier = Modifier.testTag("import_error"))
         }
         if (state.categories.isNotEmpty() && !state.canGoBack) LazyRow(Modifier.fillMaxWidth().padding(bottom = 12.dp).testTag("category_list"), contentPadding = PaddingValues(horizontal = padding), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { FilterChip(selected = state.category == null, onClick = { onCategory(null) }, label = { Text(stringResource(R.string.browse_all_categories)) }, modifier = Modifier.testTag("category_all")) }
-            items(state.categories, key = { it }) { category -> FilterChip(selected = state.category == category, onClick = { onCategory(category) }, label = { Text(category, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 240.dp)) }) }
+            item { FilterChip(selected = state.category == null, onClick = { onCategory(null) }, label = { Text(stringResource(R.string.browse_all_categories)) }, modifier = Modifier.tvFocus().testTag("category_all")) }
+            items(state.categories, key = { it }) { category -> FilterChip(selected = state.category == category, onClick = { onCategory(category) }, modifier = Modifier.tvFocus(), label = { Text(category, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 240.dp)) }) }
         }
         if (items.itemCount == 0) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -157,19 +166,19 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
                         NavIcon(if (state.tab == LibraryTab.FAVOURITES) LibraryTab.FAVOURITES else state.tab, Modifier.size(52.dp), true)
                         Text(stringResource(if (state.entryCount == 0) R.string.browse_no_source else if (state.tab == LibraryTab.FAVOURITES) R.string.browse_no_favourites else R.string.browse_empty), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                         Text(stringResource(if (state.entryCount == 0) R.string.browse_no_source_body else if (state.tab == LibraryTab.FAVOURITES) R.string.browse_no_favourites_body else R.string.browse_empty_body), color = p.muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        if (items.loadState.refresh is LoadState.Error) Button(onClick = { items.retry() }) { Text(stringResource(R.string.browse_retry)) }
-                        if (state.entryCount == 0) Button(onClick = { onTab(LibraryTab.SETTINGS) }) { Text(stringResource(R.string.nav_settings)) }
+                        if (items.loadState.refresh is LoadState.Error) Button(onClick = { items.retry() }, modifier = Modifier.tvFocus()) { Text(stringResource(R.string.browse_retry)) }
+                        if (state.entryCount == 0) Button(onClick = { onTab(LibraryTab.SETTINGS) }, modifier = Modifier.tvFocus()) { Text(stringResource(R.string.nav_settings)) }
                     }
                 }
             }
         } else if (posters) {
-            LazyVerticalGrid(columns = GridCells.Adaptive(145.dp), state = grid, modifier = Modifier.weight(1f).testTag("catalogue_grid").semantics { this[LoadedCatalogueItems] = items.itemCount },
+            LazyVerticalGrid(columns = GridCells.Adaptive(if (television) 128.dp else 145.dp), state = grid, modifier = Modifier.weight(1f).testTag("catalogue_grid").semantics { this[LoadedCatalogueItems] = items.itemCount },
                 contentPadding = PaddingValues(start = padding, end = padding, bottom = 20.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 items(items.itemCount, key = items.itemKey { it.id }) { index -> items[index]?.let { channel ->
                     PosterCard(channel, state, imageLoader, Modifier.then(if (index == targetIndex) Modifier.focusRequester(entryFocus) else Modifier),
                         onClick = { keyboard?.hide(); lastFocusedId = channel.id; if (channel.kind in setOf(ContentKind.MOVIE, ContentKind.SERIES)) detail = channel else onPlay(channel.id) }, onFavourite = { onFavourite(channel) }, onFocused = { lastFocusedId = channel.id })
                 } }
-                if (items.loadState.append is LoadState.Error) item(span = { GridItemSpan(maxLineSpan) }) { TextButton(onClick = { items.retry() }) { Text(stringResource(R.string.browse_retry)) } }
+                if (items.loadState.append is LoadState.Error) item(span = { GridItemSpan(maxLineSpan) }) { TextButton(onClick = { items.retry() }, modifier = Modifier.tvFocus()) { Text(stringResource(R.string.browse_retry)) } }
             }
         } else {
             LazyColumn(state = list, modifier = Modifier.weight(1f).testTag("catalogue_list"), contentPadding = PaddingValues(start = padding, end = padding, bottom = 20.dp, top = 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -186,7 +195,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
                         }
                     }
                 } }
-                if (items.loadState.append is LoadState.Error) item { TextButton(onClick = { items.retry() }) { Text(stringResource(R.string.browse_retry)) } }
+                if (items.loadState.append is LoadState.Error) item { TextButton(onClick = { items.retry() }, modifier = Modifier.tvFocus()) { Text(stringResource(R.string.browse_retry)) } }
             }
         }
     }
@@ -199,9 +208,9 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
                     Text(channel.title ?: stringResource(R.string.browse_entry, channel.id + 1), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 3)
                     Metadata(channel)
                     channel.group?.let { Text(it, color = p.muted) }
-                    Button(onClick = { detail = null; onPlay(channel.id) }, modifier = Modifier.fillMaxWidth().focusRequester(playFocus).testTag("detail_play")) { Text(stringResource(if (channel.kind == ContentKind.SERIES) R.string.browse_episodes else R.string.browse_play)) }
-                    OutlinedButton(onClick = { detail = null; onFavourite(channel) }, modifier = Modifier.fillMaxWidth().testTag("detail_favourite")) { Text(stringResource(if (channel.favourite) R.string.browse_remove_favourite else R.string.browse_add_favourite)) }
-                    TextButton(onClick = { detail = null }) { Text(stringResource(R.string.browse_close), color = p.text) }
+                    Button(onClick = { detail = null; onPlay(channel.id) }, modifier = Modifier.fillMaxWidth().tvFocus().focusRequester(playFocus).testTag("detail_play")) { Text(stringResource(if (channel.kind == ContentKind.SERIES) R.string.browse_episodes else R.string.browse_play)) }
+                    OutlinedButton(onClick = { detail = null; onFavourite(channel) }, modifier = Modifier.fillMaxWidth().tvFocus().testTag("detail_favourite")) { Text(stringResource(if (channel.favourite) R.string.browse_remove_favourite else R.string.browse_add_favourite)) }
+                    TextButton(onClick = { detail = null }, modifier = Modifier.tvFocus()) { Text(stringResource(R.string.browse_close), color = p.text) }
                 }
             }
             LaunchedEffect(dialogWindow.isWindowFocused) { if (television && dialogWindow.isWindowFocused) { withFrameNanos { }; playFocus.requestFocus() } }
@@ -213,7 +222,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
 private fun BrowserTarget(onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false, onFocused: () -> Unit = {}, content: @Composable () -> Unit) {
     val p = cinemaPalette()
     var focused by remember { mutableStateOf(false) }
-    Box(modifier.onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }.clip(RoundedCornerShape(14.dp))
+    Box(modifier.tvFocus().onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }.clip(RoundedCornerShape(14.dp))
         .background(if (selected || focused) p.raised else p.panel)
         .border(if (focused) 2.dp else 1.dp, if (focused || selected) p.focus else p.outline.copy(alpha = .2f), RoundedCornerShape(14.dp))
         .clickable(role = Role.Button, onClick = onClick)) { content() }
@@ -242,17 +251,18 @@ private fun PosterCard(channel: Channel, state: LibraryState, imageLoader: Image
 @Composable private fun FavouriteButton(channel: Channel, onClick: () -> Unit) {
     val p = cinemaPalette()
     val label = stringResource(if (channel.favourite) R.string.browse_remove_favourite else R.string.browse_add_favourite)
-    TextButton(onClick = onClick, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).testTag("favourite_${channel.id}").semantics { contentDescription = label }, contentPadding = PaddingValues(8.dp)) {
+    TextButton(onClick = onClick, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).tvFocus().testTag("favourite_${channel.id}").semantics { contentDescription = label }, contentPadding = PaddingValues(8.dp)) {
         Text(if (channel.favourite) "♥" else "♡", fontSize = 24.sp, color = if (channel.favourite) p.focus else p.muted)
     }
 }
 @Composable private fun Artwork(channel: Channel, state: LibraryState, imageLoader: ImageLoader, modifier: Modifier) {
     val p = cinemaPalette()
-    Box(modifier.background(Brush.linearGradient(listOf(p.raised, p.panel, p.raised))), contentAlignment = Alignment.Center) {
+    var loaded by remember(channel.id, state.activeSourceId, state.catalogueGeneration) { mutableStateOf(false) }
+    Box(modifier.testTag("artwork_${channel.id}").semantics { this[ArtworkLoaded] = loaded }.background(Brush.linearGradient(listOf(p.raised, p.panel, p.raised))), contentAlignment = Alignment.Center) {
         NavIcon(when (channel.kind) { ContentKind.MOVIE -> LibraryTab.MOVIES; ContentKind.SERIES -> LibraryTab.SERIES; else -> LibraryTab.LIVE }, Modifier.size(32.dp), true)
         if (channel.hasArtwork && state.activeSourceId != null && state.catalogueGeneration != null) AsyncImage(
             model = LibraryArtwork(state.activeSourceId!!, channel.id, state.catalogueGeneration!!), imageLoader = imageLoader, contentDescription = null,
-            modifier = Modifier.fillMaxSize(), contentScale = if (channel.kind in setOf(ContentKind.LIVE, ContentKind.UNKNOWN)) ContentScale.Fit else ContentScale.Crop)
+            modifier = Modifier.fillMaxSize(), onSuccess = { loaded = true }, contentScale = if (channel.kind in setOf(ContentKind.LIVE, ContentKind.UNKNOWN)) ContentScale.Fit else ContentScale.Crop)
     }
 }
 @Composable private fun NavIcon(tab: LibraryTab, modifier: Modifier, selected: Boolean) {

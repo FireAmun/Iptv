@@ -63,7 +63,7 @@ class LibraryBrowseFlowTest {
             captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-favourites-dark-en")
             compose.openDestination("nav_movies", tv)
             awaitTag("channel_1")
-            compose.waitUntil(10000) { server.requestCount > 0 }
+            compose.waitUntil(10000) { compose.onNodeWithTag("artwork_1", useUnmergedTree = true).fetchSemanticsNode().config[ArtworkLoaded] }
             captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-movies-dark-en")
             compose.onNodeWithTag("catalogue_grid").performScrollToIndex(50)
             compose.waitUntil(10000) { compose.onNodeWithTag("catalogue_grid").fetchSemanticsNode().config[LoadedCatalogueItems] >= 120 }

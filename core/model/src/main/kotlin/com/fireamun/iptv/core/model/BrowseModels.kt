@@ -21,6 +21,7 @@ fun normalizeSearch(value: String): String = buildString {
     }
 }
 fun searchTerms(value: String): List<String> = Regex("[\\p{L}\\p{N}]+").findAll(normalizeSearch(value.take(160))).take(12).map { it.value.take(32) }.toList()
-fun searchExpression(value: String): String? = searchTerms(value).joinToString(" AND ") { term ->
+// Whitespace is implicit AND in both standard and enhanced FTS4 builds.
+fun searchExpression(value: String): String? = searchTerms(value).joinToString(" ") { term ->
     "\"$term${if (term.all(Char::isDigit)) "" else "*"}\""
 }.takeIf { it.isNotEmpty() }

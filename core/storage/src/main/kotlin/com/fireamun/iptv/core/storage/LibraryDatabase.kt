@@ -35,11 +35,10 @@ internal interface LibraryDao {
     @RawQuery suspend fun browse(query: SupportSQLiteQuery): List<BrowseRow>
     @RawQuery suspend fun browseCount(query: SupportSQLiteQuery): Int
     @RawQuery suspend fun categories(query: SupportSQLiteQuery): List<String>
-    // Room's FTS @Insert rewrites primitive zero rowids to NULL. Zero is a valid stable item ID.
-    @Query("INSERT INTO entry_search(rowid, searchText) VALUES (:id, :text)") suspend fun insertSearch(id: Int, text: String)
     @Upsert suspend fun favourite(row: FavouriteRow)
     @Query("DELETE FROM favourites WHERE sourceId = :sourceId AND itemId = :id") suspend fun clearFavourite(sourceId: String, id: Int)
     @Query("SELECT EXISTS(SELECT 1 FROM favourites WHERE sourceId = :sourceId AND itemId = :id)") suspend fun isFavourite(sourceId: String, id: Int): Boolean
+    @Query("SELECT itemId FROM favourites WHERE sourceId = :sourceId") suspend fun favouriteIds(sourceId: String): List<Int>
     @Query("DELETE FROM favourites WHERE sourceId = :sourceId") suspend fun clearFavourites(sourceId: String)
     @Query("DELETE FROM favourites") suspend fun clearFavourites()
     @Query("DELETE FROM entry_search WHERE rowid IN (SELECT id FROM library_entries WHERE sourceId = :sourceId)") suspend fun clearSearch(sourceId: String)

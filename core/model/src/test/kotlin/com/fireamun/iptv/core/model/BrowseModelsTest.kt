@@ -11,8 +11,8 @@ class BrowseModelsTest {
         assertNotEquals(normalizeSearch("على"), normalizeSearch("علي"))
     }
     @Test fun queryWordsAreLiteralBoundedTermsAndNumbersMatchExactly() {
-        assertEquals("\"bein*\" AND \"1\" AND \"hd*\"", searchExpression("beIN 1 HD"))
-        assertEquals("\"a*\" AND \"or*\" AND \"b*\"", searchExpression("a\" OR b*"))
+        assertEquals("\"bein*\" \"1\" \"hd*\"", searchExpression("beIN 1 HD"))
+        assertEquals("\"a*\" \"or*\" \"b*\"", searchExpression("a\" OR b*"))
         assertEquals("\"اهلا*\"", searchExpression("أَهْلًا"))
         assertNull(searchExpression("* \" () :"))
         assertTrue(searchExpression("word ".repeat(100))!!.length < 200)
