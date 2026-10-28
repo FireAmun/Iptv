@@ -65,6 +65,11 @@ class LibraryBrowseFlowTest {
             compose.openDestination("nav_movies", tv)
             awaitTag("channel_1")
             compose.waitUntil(10000) { compose.onNodeWithTag("artwork_1", useUnmergedTree = true).fetchSemanticsNode().config[ArtworkLoaded] }
+            activate("favourite_1", tv)
+            compose.waitUntil(5000) { compose.onNodeWithTag("favourite_1").fetchSemanticsNode().config.getOrElse(SemanticsProperties.ContentDescription) { emptyList() }.contains("Remove from favourites") }
+            compose.onNodeWithTag("detail_play").assertDoesNotExist()
+            compose.onNodeWithTag("player_surface").assertDoesNotExist()
+            activate("favourite_1", tv)
             captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-movies-dark-en")
             compose.onNodeWithTag("catalogue_grid").performScrollToIndex(50)
             compose.waitUntil(10000) { compose.onNodeWithTag("catalogue_grid").fetchSemanticsNode().config[LoadedCatalogueItems] >= 120 }
@@ -85,6 +90,7 @@ class LibraryBrowseFlowTest {
             compose.openDestination("nav_settings", tv)
             compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("refresh_source"))
             compose.onNodeWithTag("refresh_source").assertIsDisplayed()
+            compose.onNodeWithTag("library_list").performScrollToIndex(0)
             captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-settings-dark-en")
             compose.onNodeWithTag("channel_0").assertDoesNotExist()
             scenario.recreate()
@@ -104,6 +110,7 @@ class LibraryBrowseFlowTest {
             activate("language_switch", tv)
             compose.waitUntil(10000) { var rtl = false; scenario.onActivity { rtl = it.resources.configuration.layoutDirection == android.view.View.LAYOUT_DIRECTION_RTL }; rtl }
             if (tv) awaitFocus("language_switch")
+            if (!tv) compose.onNodeWithTag("library_list").performScrollToIndex(0)
             captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-settings-light-ar")
             for ((tab, item) in listOf("live" to "0", "movies" to "1", "series" to "201")) {
                 compose.openDestination("nav_$tab", tv)
@@ -129,6 +136,7 @@ class LibraryBrowseFlowTest {
     private fun awaitTag(tag: String) = compose.waitUntil(10000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
     private fun awaitFocus(tag: String) = compose.waitUntil(5000) { compose.onNodeWithTag(tag).fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
     private fun activate(tag: String, tv: Boolean) {
+        if (!tv && tag in listOf("appearance_switch", "language_switch")) compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag(tag))
         if (tv) {
             compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus); awaitFocus(tag)
             compose.onNodeWithTag(tag).performKeyInput { pressKey(Key.DirectionCenter) }

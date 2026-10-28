@@ -14,6 +14,9 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.pressBack
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -49,6 +52,7 @@ class PlaylistFlowTest {
                 Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)),
             )
             launch(MobileActivity::class.java).use { scenario ->
+                compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("import_file"))
                 compose.onNodeWithTag("import_file").performClick()
                 Intents.intended(hasAction(Intent.ACTION_OPEN_DOCUMENT))
                 waitForChannel()
@@ -80,7 +84,10 @@ class PlaylistFlowTest {
                         compose.onNodeWithTag("add_url").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
                         compose.waitUntil(5000) { compose.onNodeWithTag("add_url").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
                         compose.onNodeWithTag("add_url").assertIsFocused().performKeyInput { keyDown(Key.DirectionCenter); keyUp(Key.DirectionCenter) }
-                    } else compose.onNodeWithTag("add_url").performClick()
+                    } else {
+                        compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("add_url"))
+                        compose.onNodeWithTag("add_url").assertIsDisplayed().performClick()
+                    }
                     compose.waitUntil(5000) { compose.onAllNodesWithTag("source_url").fetchSemanticsNodes().isNotEmpty() }
                     compose.onNodeWithTag("source_url").performTextInput(server.url("/playlist").toString())
                     if (tv) compose.onNodeWithTag("source_url").performImeAction()
@@ -100,6 +107,12 @@ class PlaylistFlowTest {
                         compose.onAllNodesWithText("Playing").fetchSemanticsNodes().isNotEmpty()
                     }
                     compose.onNodeWithTag("playback_status").assertTextEquals("Playing")
+                    scenario.onActivity { findPlayerView(it.window.decorView)!!.showController() }
+                    onView(withId(androidx.media3.ui.R.id.exo_play_pause)).perform(click())
+                    compose.waitUntil(5000) { compose.onAllNodesWithText("Paused").fetchSemanticsNodes().isNotEmpty() }
+                    captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-player-paused")
+                    onView(withId(androidx.media3.ui.R.id.exo_play_pause)).perform(click())
+                    compose.waitUntil(5000) { compose.onAllNodesWithText("Playing").fetchSemanticsNodes().isNotEmpty() }
                     scenario.moveToState(Lifecycle.State.CREATED)
                     scenario.onActivity {
                         val playerView = findPlayerView(it.window.decorView)

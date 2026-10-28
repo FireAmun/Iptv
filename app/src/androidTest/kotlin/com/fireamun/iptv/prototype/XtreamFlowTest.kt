@@ -128,11 +128,22 @@ class XtreamFlowTest {
         click("add_login", tv)
         compose.waitUntil(5000) { compose.onAllNodesWithTag("playlist_name").fetchSemanticsNodes().isNotEmpty() }
         if (password == "wrong") snapshot(if (tv) "tv-login-dark-en" else "phone-login-dark-en")
-        compose.onNodeWithTag("playlist_name").performTextInput("Fixture playlist")
-        compose.onNodeWithTag("server_url").performScrollTo().performTextInput(server)
-        compose.onNodeWithTag("server_username").performScrollTo().performTextInput("fixture-user")
-        compose.onNodeWithTag("server_password").performScrollTo().performTextInput(password)
-        compose.onNodeWithTag("server_password").performImeAction()
+        // Auto-pumping the clock stalls this Material field-focus transition on the TV
+        // image. Step the input frames explicitly; keep focus/visibility and flow assertions.
+        val autoAdvance = compose.mainClock.autoAdvance
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("playlist_name").performSemanticsAction(SemanticsActions.RequestFocus)
+            compose.mainClock.advanceTimeBy(100)
+            for ((tag, value) in listOf("playlist_name" to "Fixture playlist", "server_url" to server,
+                "server_username" to "fixture-user", "server_password" to password)) {
+                val field = compose.onNodeWithTag(tag)
+                field.assertIsFocused().assertIsDisplayed().performTextInput(value)
+                compose.mainClock.advanceTimeBy(100)
+                field.performImeAction()
+                compose.mainClock.advanceTimeBy(100)
+            }
+        } finally { compose.mainClock.autoAdvance = autoAdvance }
     }
     private fun preview(activity: Class<out Activity>, tv: Boolean) {
         ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)).use { scenario ->
@@ -168,6 +179,9 @@ class XtreamFlowTest {
         captureSyntheticPreview(instrumentation, name)
     }
     private fun click(tag: String, tv: Boolean) {
+        if (!tv && tag in listOf("appearance_switch", "language_switch", "add_login", "add_url", "import_file")) {
+            compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag(tag))
+        }
         if (tv) {
             compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus)
             awaitFocus(tag)

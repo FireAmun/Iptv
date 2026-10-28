@@ -35,6 +35,7 @@ class WelcomeTest {
         val intent = Intent(instrumentation.targetContext, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         ActivityScenario.launch<Activity>(intent).use { scenario ->
             try {
+                if (!tv) reveal(hasTestTag("language_switch"))
                 compose.waitUntil(timeoutMillis = 10_000) {
                     compose.onAllNodesWithText("العربية").fetchSemanticsNodes().isNotEmpty()
                 }
@@ -52,6 +53,7 @@ class WelcomeTest {
                 } else {
                     switch.performClick()
                 }
+                if (!tv) reveal(hasText(arabicTitle))
                 compose.waitUntil(timeoutMillis = 10_000) {
                     compose.onAllNodesWithText(arabicTitle).fetchSemanticsNodes().isNotEmpty()
                 }
@@ -60,8 +62,10 @@ class WelcomeTest {
                     assertEquals(View.LAYOUT_DIRECTION_RTL, it.resources.configuration.layoutDirection)
                 }
                 scenario.recreate()
+                if (!tv) reveal(hasText(arabicTitle))
                 compose.onNodeWithTag("app_brand").assertTextEquals("Amar Iptv")
                 compose.onNodeWithText(arabicTitle).assertIsDisplayed()
+                if (!tv) reveal(hasTestTag("language_switch"))
                 compose.onNodeWithTag("language_switch").assertTextEquals("English")
                 if (tv) compose.onNodeWithTag("language_switch").assertIsFocused()
                 if (tv) {
@@ -72,6 +76,7 @@ class WelcomeTest {
                 } else {
                     compose.onNodeWithTag("language_switch").performClick()
                 }
+                if (!tv) reveal(hasTestTag("language_switch"))
                 compose.waitUntil(timeoutMillis = 10_000) {
                     compose.onAllNodesWithText("العربية").fetchSemanticsNodes().isNotEmpty()
                 }
@@ -79,12 +84,18 @@ class WelcomeTest {
                     assertEquals(View.LAYOUT_DIRECTION_LTR, it.resources.configuration.layoutDirection)
                 }
                 scenario.recreate()
+                if (!tv) reveal(hasTestTag("language_switch"))
                 compose.onNodeWithTag("language_switch").assertTextEquals("العربية")
             } finally {
                 diagnostics.phase(TestDiagnostics.Phase.BEFORE_SCENARIO_CLOSE)
             }
         }
         diagnostics.phase(TestDiagnostics.Phase.AFTER_SCENARIO_CLOSE)
+    }
+
+    private fun reveal(matcher: SemanticsMatcher) {
+        compose.waitUntil(10000) { compose.onAllNodesWithTag("library_list").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("library_list").performScrollToNode(matcher)
     }
 
 }

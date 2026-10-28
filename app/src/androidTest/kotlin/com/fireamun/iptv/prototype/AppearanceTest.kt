@@ -49,7 +49,10 @@ class AppearanceTest {
                 scenario.onActivity { rtl = it.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL }
                 compose.onNodeWithTag("language_switch").performKeyInput { pressKey(if (rtl) Key.DirectionRight else Key.DirectionLeft) }
                 compose.onNodeWithTag("appearance_switch").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
-            } else compose.onNodeWithTag("appearance_switch").performClick()
+            } else {
+                compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("appearance_switch"))
+                compose.onNodeWithTag("appearance_switch").assertIsDisplayed().performClick()
+            }
             awaitMode(scenario, !original)
             assertSaved(!original)
             scenario.recreate()
@@ -74,7 +77,10 @@ class AppearanceTest {
                 compose.onNodeWithTag("appearance_switch").performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.waitUntil(5000) { compose.onNodeWithTag("appearance_switch").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
                 compose.onNodeWithTag("appearance_switch").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
-            } else compose.onNodeWithTag("appearance_switch").performClick()
+            } else {
+                compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("appearance_switch"))
+                compose.onNodeWithTag("appearance_switch").assertIsDisplayed().performClick()
+            }
             awaitMode(scenario, original)
             assertSaved(original)
             compose.openDestination("nav_live", tv)

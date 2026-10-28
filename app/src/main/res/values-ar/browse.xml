@@ -30,4 +30,7 @@
     <string name="browse_rating">التقييم %1$s من 10</string>
     <string name="browse_episode">الموسم %1$d · الحلقة %2$d</string>
     <string name="browse_loading">جارٍ تحميل مكتبتك…</string>
+    <string name="browse_categories">تصفح كل التصنيفات</string>
+    <string name="browse_find_category">ابحث عن تصنيف</string>
+    <string name="browse_no_categories">لا توجد تصنيفات مطابقة</string>
 </resources>

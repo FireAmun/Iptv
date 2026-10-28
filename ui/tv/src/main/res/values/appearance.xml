@@ -4,4 +4,7 @@
     <string name="tv_dark">Dark mode</string>
     <string name="tv_library">Your library</string>
     <string name="tv_add_url">Add M3U URL</string>
+    <string name="tv_appearance_section">Appearance</string>
+    <string name="tv_language_section">Language</string>
+    <string name="tv_add_source_section">Add a source</string>
 </resources>
