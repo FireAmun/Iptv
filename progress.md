@@ -3,7 +3,7 @@
 Last updated: 28 October 2026 (Asia/Riyadh)  
 Overall status: Owner accepted the Cinema UI preview and authorized push on 28 October. Delivery is in progress on `design/ui-audit-review`; merge requires reviewed local checks and actual latest-head CI/device results.  
 Current phase: Approved UI slice in GitHub delivery; P3/P4 functional work remains incomplete.  
-Next task: Complete review, commit/push, PR, latest-head CI/device report inspection, SHA-bound merge and branch cleanup. For the next part, revisit hidden M3U URL entry (owner feedback: it behaves like a password); a visibility control/readable editing is proposed, not implemented in this push. Continue Watching/persistent positions and 300k remain separate work; cap stays 100k. Preserve My IPTV and unrelated local backend research.
+Next task: Complete latest-head CI/device report inspection and SHA-bound merge/cleanup for [PR #13](https://github.com/FireAmun/Iptv/pull/13). For the next part, revisit hidden M3U URL entry (owner feedback: it behaves like a password); readable editing or Show/Hide is proposed, not implemented in this push. Continue Watching/persistent positions and 300k remain separate work; cap stays 100k. Preserve My IPTV and unrelated local backend research.
 
 ## 1. Start here in a new chat
 
@@ -375,3 +375,6 @@ Next-part open item: owner asked why an M3U URL is hidden like a password. Mobil
 
 
 Pre-push verification: fresh Java 21 app/test-APK/build/lint and 64 JVM cases passed; 13 repository/script tests and staged whitespace passed. Exported the exact staged tree and checked all 48 staged Markdown documents with zero broken local links, independently of the excluded local research file. Final independent staged-diff review found no critical/important findings and confirmed unchanged protected non-UI paths. The headless CLI review route was unavailable because its configured account model was unsupported; the independent read-only reviewer provided the final review. Actual latest-head CI/device XML and cold-process results are still required before merge.
+
+
+Delivery opened as [PR #13](https://github.com/FireAmun/Iptv/pull/13), base `main`, branch `design/ui-audit-review`. The PR's live checks/description are authoritative for latest tested SHA, complete device XML/process probes, and merge state. Require all five jobs (repository, Android, phone, TV, aggregate CI); do not merge from a queued/running/partial or older result. This documentation-only follow-up updates the handoff before final CI; source files remain the locally reviewed/tested UI tree.
