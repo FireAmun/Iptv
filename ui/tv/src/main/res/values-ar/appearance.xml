@@ -4,4 +4,7 @@
     <string name="tv_dark">الوضع الداكن</string>
     <string name="tv_library">مكتبتك</string>
     <string name="tv_add_url">إضافة رابط M3U</string>
+    <string name="tv_appearance_section">المظهر</string>
+    <string name="tv_language_section">اللغة</string>
+    <string name="tv_add_source_section">إضافة مصدر</string>
 </resources>

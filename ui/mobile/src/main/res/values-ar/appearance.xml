@@ -4,4 +4,8 @@
     <string name="mobile_dark">داكن</string>
     <string name="mobile_library">مكتبتك</string>
     <string name="mobile_add_url">إضافة رابط M3U</string>
+    <string name="mobile_settings_description">اجعل التجربة مناسبة لك</string>
+    <string name="mobile_add_source_title">إضافة قائمة تشغيل</string>
+    <string name="mobile_appearance_title">المظهر</string>
+    <string name="mobile_language_title">اللغة</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.fireamun.iptv.ui.tv
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +21,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -50,7 +52,7 @@ internal fun TvServerLogin(onSubmit: (String, String, String, String) -> Unit, o
     fun dismiss() { clear(); onDismiss() }
     Dialog(onDismissRequest = ::dismiss) {
         val window = LocalWindowInfo.current
-        Surface(Modifier.widthIn(max = 600.dp).heightIn(max = 440.dp), shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
+        Surface(Modifier.widthIn(max = 600.dp).heightIn(max = 460.dp).imePadding(), shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(stringResource(R.string.tv_server_login), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -78,10 +80,10 @@ private fun LoginField(value: String, onChange: (String) -> Unit, label: Int, ta
         Text(stringResource(label), color = p.muted, style = MaterialTheme.typography.labelMedium)
         BasicTextField(value = value, onValueChange = onChange, singleLine = true,
             modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.testTag(tag),
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.text), cursorBrush = SolidColor(p.focus),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.text, textDirection = if (type == KeyboardType.Text) TextDirection.Content else TextDirection.Ltr), cursorBrush = SolidColor(p.focus),
             visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(keyboardType = type, autoCorrectEnabled = false, imeAction = if (secret) ImeAction.Go else ImeAction.Next),
             keyboardActions = KeyboardActions(onGo = { onGo() }),
-            decorationBox = { inner -> Box(Modifier.fillMaxWidth().border(if (focused) 2.dp else 1.dp, if (focused) p.focus else p.outline, RoundedCornerShape(8.dp)).padding(14.dp)) { inner() } })
+            decorationBox = { inner -> Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).background(p.background, RoundedCornerShape(10.dp)).border(if (focused) 2.dp else 1.dp, if (focused) p.focus else p.outline, RoundedCornerShape(10.dp)).padding(14.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) { inner() } })
     }
 }

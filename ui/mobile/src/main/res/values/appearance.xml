@@ -4,4 +4,8 @@
     <string name="mobile_dark">Dark mode</string>
     <string name="mobile_library">Your library</string>
     <string name="mobile_add_url">Add M3U URL</string>
+    <string name="mobile_settings_description">Make it yours</string>
+    <string name="mobile_add_source_title">Add a playlist</string>
+    <string name="mobile_appearance_title">Appearance</string>
+    <string name="mobile_language_title">Language</string>
 </resources>

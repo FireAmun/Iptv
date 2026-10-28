@@ -1,5 +1,6 @@
 package com.fireamun.iptv.ui.tv
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -27,7 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.*
-import com.fireamun.iptv.core.designsystem.cinemaPalette
+import com.fireamun.iptv.core.designsystem.*
 import com.fireamun.iptv.core.model.*
 
 @Composable
@@ -54,7 +55,7 @@ internal fun TvSources(state: LibraryState, onDismiss: () -> Unit, onSelect: (St
     fun dismiss() { keyboard?.hide(); onDismiss() }
     Dialog(onDismissRequest = ::dismiss) {
         val window = LocalWindowInfo.current
-        Surface(Modifier.widthIn(max = 640.dp).heightIn(max = 440.dp), shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
+        Surface(Modifier.widthIn(max = 640.dp).heightIn(max = 460.dp).imePadding(), shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 when {
                     selected != null -> {
@@ -67,7 +68,7 @@ internal fun TvSources(state: LibraryState, onDismiss: () -> Unit, onSelect: (St
                             modifier = Modifier.fillMaxWidth().focusRequester(first).onFocusChanged { focused = it.isFocused }.testTag("source_name"),
                             textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.text), cursorBrush = SolidColor(p.focus),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { save() }),
-                                decorationBox = { inner -> Box(Modifier.fillMaxWidth().border(if (focused) 2.dp else 1.dp, if (focused) p.focus else p.outline, RoundedCornerShape(8.dp)).padding(14.dp)) { inner() } })
+                                decorationBox = { inner -> Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).background(p.background, RoundedCornerShape(10.dp)).border(if (focused) 2.dp else 1.dp, if (focused) p.focus else p.outline, RoundedCornerShape(10.dp)).padding(14.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) { inner() } })
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             CinemaButton(onClick = { keyboard?.hide(); editing = null }) { Text(stringResource(R.string.tv_cancel)) }
@@ -81,7 +82,7 @@ internal fun TvSources(state: LibraryState, onDismiss: () -> Unit, onSelect: (St
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             CinemaButton(onClick = { removing = null }, modifier = Modifier.focusRequester(first).testTag("remove_cancel")) { Text(stringResource(R.string.tv_cancel)) }
-                            CinemaButton(onClick = { onRemove(deleting.id); dismiss() }, enabled = !state.importing, modifier = Modifier.testTag("remove_confirm")) { Text(stringResource(R.string.tv_remove_source)) }
+                            CinemaButton(onClick = { onRemove(deleting.id); dismiss() }, enabled = !state.importing, modifier = Modifier.testTag("remove_confirm")) { Text(stringResource(R.string.tv_remove_source), color = p.error) }
                         }
                     }
                     else -> {
@@ -89,15 +90,16 @@ internal fun TvSources(state: LibraryState, onDismiss: () -> Unit, onSelect: (St
                         LazyColumn(Modifier.weight(1f, fill = false).fillMaxWidth().testTag("source_manager"), state = list, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             itemsIndexed(state.sources, key = { _, source -> source.id }) { index, source ->
                                 val name = tvSourceName(source)
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Column(Modifier.fillMaxWidth().background(p.background, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     CinemaButton(onClick = { onSelect(source.id); dismiss() }, enabled = !state.importing,
                                         modifier = Modifier.fillMaxWidth().then(if (index == activeIndex) Modifier.focusRequester(first) else Modifier).testTag("source_pick_$index")) {
+                                        if (index == activeIndex) { CinemaIcon(CinemaSymbol.CHECK, tint = LocalContentColor.current); Spacer(Modifier.width(12.dp)) }
                                         Text(name, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
                                         if (index == activeIndex) { Spacer(Modifier.width(16.dp)); Text(stringResource(R.string.tv_source_active), style = MaterialTheme.typography.labelSmall) }
                                     }
                                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                         CinemaButton(onClick = { draft = name; editing = source }, enabled = !state.importing, modifier = Modifier.testTag("source_rename_$index")) { Text(stringResource(R.string.tv_rename_source)) }
-                                        CinemaButton(onClick = { removing = source }, enabled = !state.importing, modifier = Modifier.testTag("source_remove_$index")) { Text(stringResource(R.string.tv_remove_source)) }
+                                        CinemaButton(onClick = { removing = source }, enabled = !state.importing, modifier = Modifier.testTag("source_remove_$index")) { Text(stringResource(R.string.tv_remove_source), color = p.error) }
                                     }
                                 }
                             }

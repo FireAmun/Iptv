@@ -129,6 +129,7 @@ class PersistenceFlowTest {
     }
     private fun click(tag: String, tv: Boolean) {
         if (tag in listOf("appearance_switch", "language_switch", "refresh_source", "remove_source")) compose.openDestination("nav_settings", tv)
+        if (!tv && tag in listOf("appearance_switch", "language_switch", "refresh_source", "remove_source")) compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag(tag))
         val node = compose.onNodeWithTag(tag)
         if (tv) {
             node.performSemanticsAction(SemanticsActions.RequestFocus); awaitFocus(tag)

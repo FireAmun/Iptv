@@ -12,6 +12,9 @@
     <string name="browse_search_caption">Find channels, movies and series.</string>
     <string name="browse_search_hint">Search your library</string>
     <string name="browse_all_categories">All categories</string>
+    <string name="browse_categories">Browse all categories</string>
+    <string name="browse_find_category">Find a category</string>
+    <string name="browse_no_categories">No matching categories</string>
     <string name="browse_empty">Nothing here yet</string>
     <string name="browse_empty_body">Try another category or search. Add or refresh a playlist in Settings.</string>
     <string name="browse_no_favourites">Save something you love</string>
