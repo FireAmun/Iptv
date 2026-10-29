@@ -21,6 +21,7 @@ import com.fireamun.iptv.core.model.MediaAddress
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.SavedSource
 import com.fireamun.iptv.core.model.normalizeSourceName
+import com.posthog.PostHog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -68,6 +69,30 @@ class LibraryViewModel(
             LibraryPagingSource(persistence, input.request, input.local)
         }.flow
     }.cachedIn(viewModelScope)
+
+    private fun capture(event: String, properties: Map<String, Any>) {
+        runCatching { PostHog.capture(event = event, properties = properties) }
+    }
+
+    private fun logImportCompleted(source: SourceSpec, entryCount: Int, refreshing: Boolean) {
+        runCatching {
+            PostHog.logger.info("library import completed", mapOf(
+                "operation" to if (refreshing) "refresh" else "import",
+                "source_kind" to source.kind.name.lowercase(),
+                "entry_count" to entryCount,
+            ))
+        }
+    }
+
+    private fun logImportFailed(source: SourceSpec?, error: ImportError, refreshing: Boolean) {
+        runCatching {
+            PostHog.logger.warn("library import failed", mapOf(
+                "operation" to if (source == null) "load_series" else if (refreshing) "refresh" else "import",
+                "source_kind" to (source?.kind?.name?.lowercase() ?: "unknown"),
+                "error_code" to error.name.lowercase(),
+            ))
+        }
+    }
 
     init {
         if (persistence != null) importJob = viewModelScope.launch {
@@ -173,25 +198,41 @@ class LibraryViewModel(
                 if (entries.isEmpty()) throw ImportFailure(ImportError.EMPTY)
                 if (current == generation) {
                     if (source == null) onSuccess?.invoke(entries)
-                    else if (persistence == null) commitRoot(source, entries, null)
                     else {
-                        // This is the local commit point. A user cancellation cannot split saved and visible state.
-                        mutableState.value = mutableState.value.copy(saving = true)
-                        withContext(NonCancellable) {
-                            val saved = persistence.save(source, entries, refreshing, targetSourceId)
-                            commitSession(persistence.openSession() ?: LibrarySession(saved.source, saved.sourceId, saved.savedAtMillis.toString(), saved.savedAtMillis, saved.entries.size, saved.entries))
-                            refreshDirectory()
+                        if (persistence == null) commitRoot(source, entries, null)
+                        else {
+                            // This is the local commit point. A user cancellation cannot split saved and visible state.
+                            mutableState.value = mutableState.value.copy(saving = true)
+                            withContext(NonCancellable) {
+                                val saved = persistence.save(source, entries, refreshing, targetSourceId)
+                                commitSession(persistence.openSession() ?: LibrarySession(saved.source, saved.sourceId, saved.savedAtMillis.toString(), saved.savedAtMillis, saved.entries.size, saved.entries))
+                                refreshDirectory()
+                            }
                         }
+                        capture(if (refreshing) "library_refreshed" else "library_imported", mapOf(
+                            "source_kind" to source.kind.name.lowercase(),
+                            "entry_count" to entries.size,
+                        ))
+                        logImportCompleted(source, entries.size, refreshing)
                     }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: ImportFailure) {
-                if (current == generation) reportError(failure.code)
+                if (current == generation) {
+                    reportError(failure.code)
+                    logImportFailed(source, failure.code, refreshing)
+                }
             } catch (_: IOException) {
-                if (current == generation) reportError(ImportError.READ_FAILED)
+                if (current == generation) {
+                    reportError(ImportError.READ_FAILED)
+                    logImportFailed(source, ImportError.READ_FAILED, refreshing)
+                }
             } catch (_: SecurityException) {
-                if (current == generation) reportError(ImportError.READ_FAILED)
+                if (current == generation) {
+                    reportError(ImportError.READ_FAILED)
+                    logImportFailed(source, ImportError.READ_FAILED, refreshing)
+                }
             } finally {
                 if (current == generation) { loadingEpisodes = false; mutableState.value = mutableState.value.copy(importing = false, saving = false) }
             }
@@ -232,7 +273,10 @@ class LibraryViewModel(
                         canGoBack = true, query = "", category = null, categories = emptyList(), importing = false)
                     updateBrowse()
                 }) { loadEpisodes(source, seriesId) }
-        } else entry.address?.let { address -> mutablePlayback.value = address }
+        } else entry.address?.let { address ->
+            mutablePlayback.value = address
+            capture("content_playback_started", mapOf("content_kind" to entry.channel.kind.name.lowercase()))
+        }
     }
     fun backToCatalog() {
         if (mutableState.value.saving || mutableState.value.restoring) return
@@ -344,6 +388,10 @@ class LibraryViewModel(
             viewModelScope.launch {
                 try {
                     persistence!!.setFavourite(sourceId, saved.generation, channel.id, !channel.favourite)
+                    capture("favourite_changed", mapOf(
+                        "content_kind" to channel.kind.name.lowercase(),
+                        "is_favourite" to !channel.favourite,
+                    ))
                     if (session === saved) updateBrowse()
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: ImportFailure) { reportError(failure.code) }
@@ -351,6 +399,10 @@ class LibraryViewModel(
         } else {
             library = library.map { if (it.channel.id == channel.id) PlaylistEntry(it.channel.copy(favourite = !it.channel.favourite), it.address, it.seriesId, it.providerKey, it.artwork) else it }
             mutableState.value = mutableState.value.copy(channels = library.map { it.channel })
+            capture("favourite_changed", mapOf(
+                "content_kind" to channel.kind.name.lowercase(),
+                "is_favourite" to !channel.favourite,
+            ))
             updateBrowse()
         }
     }

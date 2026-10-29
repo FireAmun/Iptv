@@ -9,6 +9,7 @@ Arabic and English IPTV player for Android phones, tablets, and Android TV/Googl
 - [Architecture specification](docs/superpowers/specs/2026-10-24-iptv-architecture-design.md)
 - [Project instructions](AGENTS.md)
 - [GitHub delivery and CI](docs/development/github-workflow.md)
+- [PostHog setup and captured data](docs/development/posthog.md)
 - [Cinema design and app previews](docs/design/README.md)
 
 ## Directory layout

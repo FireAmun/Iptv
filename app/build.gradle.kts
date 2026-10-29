@@ -1,7 +1,22 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
 }
+
+val posthogProperties = Properties().apply {
+    val envFile = rootProject.file(".env")
+    if (envFile.exists()) envFile.inputStream().use(::load)
+}
+val posthogProjectToken = providers.gradleProperty("POSTHOG_API_KEY").orNull
+    ?: providers.environmentVariable("POSTHOG_API_KEY").orNull
+    ?: posthogProperties.getProperty("POSTHOG_API_KEY")
+val safePosthogProjectToken = posthogProjectToken?.trim()?.takeIf { it.matches(Regex("phc_[A-Za-z0-9_-]+")) }
+val posthogHost = providers.gradleProperty("POSTHOG_HOST").orNull
+    ?: providers.environmentVariable("POSTHOG_HOST").orNull
+    ?: posthogProperties.getProperty("POSTHOG_HOST")
+val safePosthogHost = posthogHost?.trim()?.takeIf { it in setOf("https://us.i.posthog.com", "https://eu.i.posthog.com") }
 
 android {
     namespace = "com.fireamun.iptv.prototype"
@@ -13,8 +28,13 @@ android {
         versionCode = 10
         versionName = "0.8.0"
         testInstrumentationRunner = "com.fireamun.iptv.prototype.ManualFixtureRunner"
+        buildConfigField("String", "POSTHOG_API_KEY", safePosthogProjectToken?.let { "\"$it\"" } ?: "null")
+        buildConfigField("String", "POSTHOG_HOST", safePosthogHost?.let { "\"$it\"" } ?: "null")
     }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     sourceSets.getByName("androidTest").assets.directories.add("../core/storage/schemas")
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -24,6 +44,7 @@ android {
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
 dependencies {
+    implementation(libs.posthog.android)
     implementation(project(":core:model"))
     implementation(project(":core:data"))
     implementation(project(":core:storage"))
