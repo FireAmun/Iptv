@@ -199,7 +199,7 @@ class XtreamFlowTest {
     private fun loginDiagnostics(expected: String) {
         // Only geometry/known tags from synthetic fixtures; never dump text/semantics trees.
         println("IPTV_LOGIN_STATE expected=$expected virtual=${compose.mainClock.currentTime}")
-        for (tag in listOf("playlist_name", "server_url", "server_username", "server_password", "server_login_fields")) {
+        for (tag in listOf("playlist_name", "server_url", "server_username", "server_password", "server_login_fields", "mobile_form_scroll")) {
             val node = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().singleOrNull() ?: continue
             val focused = node.config.getOrElse(SemanticsProperties.Focused) { false }
             val range = if (node.config.contains(SemanticsProperties.VerticalScrollAxisRange)) node.config[SemanticsProperties.VerticalScrollAxisRange] else null
