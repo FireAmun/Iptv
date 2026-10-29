@@ -128,8 +128,8 @@ class XtreamFlowTest {
         click("add_login", tv)
         compose.waitUntil(5000) { compose.onAllNodesWithTag("playlist_name").fetchSemanticsNodes().isNotEmpty() }
         if (password == "wrong") snapshot(if (tv) "tv-login-dark-en" else "phone-login-dark-en")
-        // Auto-pumping the clock stalls this Material field-focus transition on the TV
-        // image. Step the input frames explicitly; keep focus/visibility and flow assertions.
+        // Auto-pumping stalls Material field focus on the TV image. Step frames, but
+        // wait for focus-driven scrolling and Android IME/layout before entering text.
         val autoAdvance = compose.mainClock.autoAdvance
         compose.mainClock.autoAdvance = false
         try {
@@ -138,6 +138,11 @@ class XtreamFlowTest {
             for ((tag, value) in listOf("playlist_name" to "Fixture playlist", "server_url" to server,
                 "server_username" to "fixture-user", "server_password" to password)) {
                 val field = compose.onNodeWithTag(tag)
+                compose.waitUntil(5000) {
+                    compose.mainClock.advanceTimeByFrame()
+                    field.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } &&
+                        field.isDisplayed()
+                }
                 field.assertIsFocused().assertIsDisplayed().performTextInput(value)
                 compose.mainClock.advanceTimeBy(100)
                 field.performImeAction()
