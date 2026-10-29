@@ -1,9 +1,9 @@
 # IPTV development progress
 
-Last updated: 28 October 2026 (Asia/Riyadh)  
-Overall status: Owner accepted the Cinema UI preview and authorized push on 28 October. Delivery is in progress on `design/ui-audit-review`; merge requires reviewed local checks and actual latest-head CI/device results.  
-Current phase: Approved UI slice in GitHub delivery; P3/P4 functional work remains incomplete.  
-Next task: Complete latest-head CI/device report inspection and SHA-bound merge/cleanup for [PR #13](https://github.com/FireAmun/Iptv/pull/13). For the next part, revisit hidden M3U URL entry (owner feedback: it behaves like a password); readable editing or Show/Hide is proposed, not implemented in this push. Continue Watching/persistent positions and 300k remain separate work; cap stays 100k. Preserve My IPTV and unrelated local backend research.
+Last updated: 29 October 2026 (Asia/Riyadh)  
+Overall status: Cinema UI is merged through PR #13 (`99162bc`). Its PR checks passed; the separate main run failed. A test-only login synchronization correction is under local verification on `fix/login-test-synchronization`.  
+Current phase: Post-merge CI regression investigation. P3/P4 remain incomplete; source-entry usability, persistent resume/Continue Watching and capacity validation follow CI recovery.  
+Next task: Verify/deliver the test-only login synchronization correction through reviewed PR and complete latest-head phone/TV CI, then inspect the post-merge main run. After CI recovery, address M3U URL visibility, Continue Watching/persistent positions and 300k validation; cap remains 100k. Preserve My IPTV and unrelated local backend research.
 
 ## 1. Start here in a new chat
 
@@ -378,3 +378,27 @@ Pre-push verification: fresh Java 21 app/test-APK/build/lint and 64 JVM cases pa
 
 
 Delivery opened as [PR #13](https://github.com/FireAmun/Iptv/pull/13), base `main`, branch `design/ui-audit-review`. The PR's live checks/description are authoritative for latest tested SHA, complete device XML/process probes, and merge state. Require all five jobs (repository, Android, phone, TV, aggregate CI); do not merge from a queued/running/partial or older result. This documentation-only follow-up updates the handoff before final CI; source files remain the locally reviewed/tested UI tree.
+
+
+### Cinema UI delivery completed - 28 October 2026
+
+[PR #13](https://github.com/FireAmun/Iptv/pull/13) merged as `99162bca04a922f37478c8e3f4346c8330cad99d`, bound to tested head `4b232bc7506639e6cd937e539b201f2599468ec8`. [CI run 53](https://github.com/FireAmun/Iptv/actions/runs/40751985173) passed all five jobs. Downloaded latest-head XML confirms 46 phone API 28 and 46 TV API 36 cases, zero failures/errors/skips. Cold-process Room/Keystore probes passed with distinct PIDs (phone 4924 -> 4965; TV 5443 -> 5486) plus clear probes. Artifacts are inspected under ignored `.tools/ci/pr13/`. Final independent review found no critical/important issues; fresh local build/lint, 64 JVM and 13 repository checks passed before push.
+
+Confirmed GitHub merged state, exact equality of tested/merged trees, fast-forwarded local main, and deleted the merged remote/local `design/ui-audit-review` branch. The owner's unrelated backend-options file remains untracked and byte-identical; its progress section is restored locally and was excluded from this UI delivery. This final local handoff bookkeeping is not a new app change. No owner AVD/account reset, private screenshots/provider data, host firewall/driver change or reboot; earlier unexpected-shutdown cause remains unresolved. The Windows-signed UI preview APK remains available at the previously recorded path/hash.
+
+User's next-part feedback is preserved: URL inputs currently use password-style masking because account URLs may contain credentials. Revisit usability (readable editing/visibility control); do not silently unmask actual passwords or emit URLs in logs. Continue Watching/resume and 300k remain separate functional tasks, not features of this UI merge. Physical S25 Ultra and selected real-TV evidence are still owner testing; cloud results are not physical codec compatibility proof. The automatic main-push workflow may run again after merge; the merge gate used the complete successful PR-head results and an identical source tree.
+
+
+### Post-merge main CI investigation - 29 October 2026
+
+Owner reported the failed automatic main run. [Run 40754879686](https://github.com/FireAmun/Iptv/actions/runs/40754879686), commit `99162bca04a922f37478c8e3f4346c8330cad99d`, attempt 1: repository and Android build/lint/unit checks passed; both cloud device jobs failed with emulator/ADB loss. TV failed on the post-boot unlock command before instrumentation started; no TV report was produced. Phone XML contains all 46 cases with zero failures/errors/skips, but its emulator disappeared before mandatory cold-process persistence checks, so the job correctly failed. Ignored evidence: `.tools/ci/main-99162bc/attempt1-phone.zip`. No app test assertion failure is recorded in these logs; the exact underlying emulator connection failure is not established. Emulator 37.2.12 was also used by the passing PR run, so a version change is not established as the cause.
+
+Restarted only failed jobs using GitHub Actions on the same main SHA (attempt 2). Results are pending; do not claim main CI green or weaken its gates. No source/workflow changes, PR, owner emulator operation, firewall/driver change or host reboot. The historical laptop shutdown remains unresolved. Feature work waits for verified complete device results.
+
+
+Attempt 2 update: phone passed all 46 XML cases without failures/errors/skips and all three cold-process probes (seed PID 5042 -> verify 5082, clear 5119). TV reached all 46 tests; 45 passed and `tvServerLoginLoadsCataloguesAndSeriesPlayback` failed because the focused `server_password` field was not yet displayed. This is different from attempt 1's emulator disconnections; no repeated-retry green claim. Evidence: `.tools/ci/main-99162bc/attempt2-phone.zip` and `attempt2-tv.zip`.
+
+The login helper manually advances Compose time but used a fixed 100 ms before each next-field assertion. Focus scrolling and Android IME/layout can outlast that interval. The test-only correction steps frames inside a bounded five-second wait for the same focused-and-displayed condition, retaining the original assertions, actual IME Next/Go, all auth/request/catalogue/playback checks, and finally-protected clock restoration. It adds no forced focus/scroll to the field loop and changes no production code or CI gates. See [Compose synchronization guidance](https://developer.android.com/develop/ui/compose/testing/synchronization). Independent read-only review found no blockers; Java 21 app/test-APK build passed. Focused disposable-TV regression is in progress.
+
+
+Local correction verification: disposable `Iptv_UiReview_TV_API_36` ran all six XtreamFlowTest journeys successfully (6 passed, zero failures/skips), including TV server login, mobile server login, account-link restore/playback and Arabic/light cancellation. Logs: `.tools/ci/main-99162bc/local-tv-xtream.log`; app/test-APK build: `local-test-build.log`. All 13 repository/script unit tests and local Markdown/whitespace checks passed. Independent read-only reviewer found no blocking issues. Full latest-head PR CI and post-merge main evidence remain required.
