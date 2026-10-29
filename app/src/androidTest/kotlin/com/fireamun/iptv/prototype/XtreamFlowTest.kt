@@ -173,6 +173,7 @@ class XtreamFlowTest {
         try {
             compose.onNodeWithTag("playlist_name").performSemanticsAction(SemanticsActions.RequestFocus)
             compose.mainClock.advanceTimeBy(100)
+            instrumentation.uiAutomation.waitForIdle(100, 5000)
             for ((tag, value) in listOf("playlist_name" to "Fixture playlist", "server_url" to server,
                 "server_username" to "fixture-user", "server_password" to password)) {
                 val field = compose.onNodeWithTag(tag)
@@ -193,6 +194,8 @@ class XtreamFlowTest {
                 compose.mainClock.advanceTimeBy(100)
                 field.performImeAction()
                 compose.mainClock.advanceTimeBy(100)
+                // The virtual clock does not drive native IME/window layout.
+                instrumentation.uiAutomation.waitForIdle(100, 5000)
             }
         } finally { compose.mainClock.autoAdvance = autoAdvance }
     }
