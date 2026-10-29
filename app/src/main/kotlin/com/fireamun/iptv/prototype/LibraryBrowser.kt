@@ -136,6 +136,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     var searchHasFocus by remember { mutableStateOf(false) }
     var choosingCategory by remember { mutableStateOf(false) }
     var restoreCategoryFocus by remember { mutableStateOf(false) }
+    var categoryRowHasFocus by remember { mutableStateOf(false) }
     val padding = if (television) 36.dp else 20.dp
     val grid = rememberLazyGridState()
     val list = rememberLazyListState()
@@ -149,18 +150,25 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     val selectedIndex = items.itemSnapshotList.items.indexOfFirst { it.id == (lastFocusedId ?: state.selectedId) }
     val targetIndex = if (selectedIndex >= 0) selectedIndex else visibleStart.coerceAtMost((items.itemCount - 1).coerceAtLeast(0))
     LaunchedEffect(state.tab, state.activeSourceId, state.canGoBack, window.isWindowFocused, items.loadState.refresh, items.itemSnapshotList.items.firstOrNull()?.id, choosingCategory) {
-        if (television && window.isWindowFocused && !choosingCategory) {
-            if (restoreCategoryFocus && state.categories.isNotEmpty() && !state.canGoBack) { withFrameNanos { }; categoryFocus.requestFocus() }
-            else if (state.tab == LibraryTab.SEARCH && !state.canGoBack && (lastFocusedId == null || searchHasFocus)) { withFrameNanos { }; searchFocus.requestFocus() }
+        if (television && window.isWindowFocused && !choosingCategory && !categoryRowHasFocus) {
+            if (restoreCategoryFocus && state.categories.isNotEmpty() && !state.canGoBack) {
+                withFrameNanos { }
+                if (!categoryRowHasFocus) categoryFocus.requestFocus()
+            }
+            else if (state.tab == LibraryTab.SEARCH && !state.canGoBack && (lastFocusedId == null || searchHasFocus)) {
+                withFrameNanos { }
+                if (!categoryRowHasFocus) searchFocus.requestFocus()
+            }
             else if (state.entryCount > 0) {
                 snapshotFlow { items.itemCount > 0 || items.loadState.refresh is LoadState.Error }.first { it }
+                if (categoryRowHasFocus) return@LaunchedEffect
                 if (items.itemCount > 0) {
                     val index = items.itemSnapshotList.items.indexOfFirst { it.id == (lastFocusedId ?: state.selectedId) }.takeIf { it >= 0 }
                         ?: (if (posters) grid.firstVisibleItemIndex else list.firstVisibleItemIndex).coerceAtMost(items.itemCount - 1)
                     if (posters) grid.scrollToItem(index) else list.scrollToItem(index)
                 }
                 withFrameNanos { }
-                if (items.itemCount > 0) entryFocus.requestFocus()
+                if (items.itemCount > 0 && !categoryRowHasFocus) entryFocus.requestFocus()
             }
         }
     }
@@ -180,7 +188,9 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
             if (state.importing) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (state.error != null) Text(stringResource(R.string.browse_failed), color = p.error, modifier = Modifier.testTag("import_error"))
         }
-        if (state.categories.isNotEmpty() && !state.canGoBack) Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Paging/window updates may finish after the user has moved to a chip.
+        // Preserve that deliberate focus instead of replaying an earlier restoration.
+        if (state.categories.isNotEmpty() && !state.canGoBack) Row(Modifier.fillMaxWidth().onFocusChanged { categoryRowHasFocus = it.hasFocus }.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             LazyRow(Modifier.weight(1f).testTag("category_list"), contentPadding = PaddingValues(start = padding, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { FilterChip(selected = state.category == null, onClick = { restoreCategoryFocus = false; onCategory(null) }, label = { Text(stringResource(R.string.browse_all_categories)) }, modifier = Modifier.tvFocus().testTag("category_all")) }
                 items(state.categories, key = { it }) { category -> FilterChip(selected = state.category == category, onClick = { restoreCategoryFocus = false; onCategory(category) }, modifier = Modifier.tvFocus(), label = { Text(category, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp)) }) }

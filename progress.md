@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 29 October 2026 (Asia/Riyadh)  
-Overall status: UI PR #13 and test synchronization PR #14 are merged. The new main run is still red: TV login visibility and cloud emulator loss require the follow-up below. PostHog installation is being verified in a separate worktree.  
+Overall status: PR #15 remains open: latest-head phone 47/47 and cold-process checks pass; TV login journeys pass, but a separate category focus regression requires the correction below. Main CI is not yet recovered. PostHog local and live ingestion verification passed in its separate worktree.  
 Current phase: CI recovery plus the owner-requested PostHog setup. P3/P4 remain incomplete; no release-readiness claim.  
-Next task: Deliver the verified TV focus-restoration correction and validate headless cloud rendering through complete latest-head phone/TV CI, then inspect main. Complete safe PostHog runtime/delivery verification separately. M3U URL visibility, Continue Watching and 300k validation follow; cap remains 100k. Preserve My IPTV and unrelated local backend research.
+Next task: Verify and deliver the category-row focus guard in PR #15, require complete latest-head phone/TV XML and process probes, merge and inspect main. Then deliver the reviewed PostHog integration separately. M3U URL visibility, Continue Watching and 300k validation follow; cap remains 100k. Preserve My IPTV and unrelated local backend research.
 
 ## 1. Start here in a new chat
 
@@ -439,3 +439,13 @@ Mobile viewport verification completed: actual touch entry, backdrop dismissal w
 Run 40922686496 at `fc2681f`: TV completed all 47 cases and mandatory cold probes (5405 -> 5447, clear 5482). Phone completed 47 cases with one mobile-login visibility assertion failure: the preceding focused-and-displayed wait returned, then native keyboard layout moved the field before the next assertion. This differs from the earlier permanently clipped field; no failure was retried away.
 
 The test-only follow-up adds bounded UiAutomation accessibility-idle waits after initial focus and each actual IME action while retaining manual Compose frames and every focus/visibility/input/auth/playback assertion. Accessibility quiescence is not a guarantee that every future IME update has finished; treat this as a synchronization mitigation, verified by results rather than a formal barrier. Fresh app/test-APK build and the complete seven-case suite on disposable API 34 phone passed (zero failures/skips, `native-idle-phone-suite.log`). Independent review found no blocking coverage/cleanup issue. Full latest-head cloud checks still gate merge.
+
+
+### Category focus race identified - 29 October 2026
+
+[Run 40926414253](https://github.com/FireAmun/Iptv/actions/runs/40926414253) at `4dc2c7b`: phone completed 47/47 XML cases with no failures/errors/skips and all three cold-process probes (4774 -> 4815, clear 4851). TV completed 46/47; all login journeys passed. Its separate failure was `tvPickerRestoresRemoteFocusAndKeepsSelectionOnCancel`, where All categories remained unselected/unfocused after remote activation. No failing assertion was retried away; main is still not claimed recovered. Artifact: `.tools/ci/main-99162bc/pr15-native-idle-tv.zip`.
+
+Source investigation and independent review identified a sticky picker-return restoration flag: a later Paging/window update could request browse-button or entry focus after the user moved to a category chip. A new controlled late-page regression reproduces focus theft on the previous implementation (1 test, expected focus assertion failed at line 51; `category-focus-red.log`). The UI correction tracks category-row focus and avoids both restoration branches while that row owns focus, including rechecks after suspended frame/page waits. Existing remote picker helpers additionally assert focus before key dispatch. ViewModels, repositories, model, storage and playback remain unchanged. Green regression/suite, lint, review and cloud verification are pending before updating PR #15.
+
+
+Category guard final local verification: the strengthened controlled-page regression and both original picker journeys passed (3/3, zero failures/skips), `category-focus-final.log`. Fresh Java 21 app/test-APK build and app lint passed (`category-focus-build.log`, `category-final-test-build.log`); 13 repository/script tests, actionlint, Markdown links and whitespace passed. Independent reviewer found no blockers; its minor request to wait for the replacement page as well as removal of the previous page was applied and tested. All 48 latest-head cloud cases per device and cold-process probes still gate PR #15. Disposable TV stopped after testing; owner AVD/source remains untouched.
