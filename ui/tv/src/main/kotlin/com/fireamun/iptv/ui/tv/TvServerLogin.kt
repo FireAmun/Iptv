@@ -38,6 +38,7 @@ internal fun TvServerLogin(onSubmit: (String, String, String, String) -> Unit, o
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val first = remember { FocusRequester() }
+    var initialFocusAssigned by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = LocalFocusManager.current
     val p = cinemaPalette()
@@ -55,7 +56,7 @@ internal fun TvServerLogin(onSubmit: (String, String, String, String) -> Unit, o
         Surface(Modifier.widthIn(max = 600.dp).heightIn(max = 460.dp).imePadding(), shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(stringResource(R.string.tv_server_login), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).testTag("server_login_fields"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(stringResource(R.string.tv_login_description), color = p.muted, style = MaterialTheme.typography.bodySmall)
                     LoginField(name, { if (it.length <= 128) name = it }, R.string.tv_playlist_name, "playlist_name", modifier = Modifier.focusRequester(first))
                     LoginField(server, { if (it.length <= 2048) server = it }, R.string.tv_server_url, "server_url", KeyboardType.Uri)
@@ -68,7 +69,13 @@ internal fun TvServerLogin(onSubmit: (String, String, String, String) -> Unit, o
                 }
             }
         }
-        LaunchedEffect(window.isWindowFocused) { if (window.isWindowFocused) { withFrameNanos { }; first.requestFocus() } }
+        LaunchedEffect(window.isWindowFocused) {
+            if (window.isWindowFocused && !initialFocusAssigned) {
+                withFrameNanos { }
+                first.requestFocus()
+                initialFocusAssigned = true
+            }
+        }
     }
 }
 

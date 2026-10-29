@@ -39,6 +39,44 @@ class XtreamFlowTest {
     @Test fun tvAccountLinkFallbackRestoresAndPlaysSeries() = exercise(TvActivity::class.java, true, true)
     @Test fun mobileArabicLightLoginCanBeCancelled() = preview(MobileActivity::class.java, false)
     @Test fun tvArabicLightLoginCanBeCancelled() = preview(TvActivity::class.java, true)
+    @Test fun tvLoginKeepsCurrentFieldAfterAnotherWindowCloses() {
+        ActivityScenario.launch<TvActivity>(Intent(instrumentation.targetContext, TvActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)).use { scenario ->
+            awaitFocus("language_switch")
+            click("add_login", true)
+            awaitFocus("playlist_name")
+            val autoAdvance = compose.mainClock.autoAdvance
+            compose.mainClock.autoAdvance = false
+            try {
+                compose.onNodeWithTag("server_url").performSemanticsAction(SemanticsActions.RequestFocus)
+                compose.mainClock.advanceTimeBy(500)
+                compose.onNodeWithTag("server_url").assertIsFocused()
+                var overlay: Activity? = null
+                try {
+                    scenario.onActivity { it.startActivity(Intent(it, androidx.activity.ComponentActivity::class.java)) }
+                    compose.waitUntil(5000) {
+                        instrumentation.runOnMainSync {
+                            overlay = androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                                .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)
+                                .firstOrNull { it.javaClass == androidx.activity.ComponentActivity::class.java }
+                        }
+                        overlay != null
+                    }
+                    compose.mainClock.advanceTimeBy(100)
+                } finally {
+                    instrumentation.runOnMainSync {
+                        val remaining = overlay ?: androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                            .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)
+                            .firstOrNull { it.javaClass == androidx.activity.ComponentActivity::class.java }
+                        remaining?.finish()
+                    }
+                }
+                compose.waitUntil(5000) { scenario.state == androidx.lifecycle.Lifecycle.State.RESUMED }
+                instrumentation.uiAutomation.waitForIdle(100, 5000)
+                compose.mainClock.advanceTimeBy(500)
+                compose.onNodeWithTag("server_url").assertIsFocused()
+            } finally { compose.mainClock.autoAdvance = autoAdvance }
+        }
+    }
 
     private fun exercise(activity: Class<out Activity>, tv: Boolean, accountLink: Boolean = false) {
         val clip = instrumentation.context.assets.open("synthetic-test.mp4").use { it.readBytes() }
@@ -138,10 +176,18 @@ class XtreamFlowTest {
             for ((tag, value) in listOf("playlist_name" to "Fixture playlist", "server_url" to server,
                 "server_username" to "fixture-user", "server_password" to password)) {
                 val field = compose.onNodeWithTag(tag)
-                compose.waitUntil(5000) {
-                    compose.mainClock.advanceTimeByFrame()
-                    field.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } &&
-                        field.isDisplayed()
+                try {
+                    compose.waitUntil(5000) {
+                        compose.mainClock.advanceTimeByFrame()
+                        field.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } &&
+                            field.isDisplayed()
+                    }
+                } catch (failure: ComposeTimeoutException) {
+                    runCatching {
+                        loginDiagnostics(tag)
+                        captureSyntheticPreview(instrumentation, if (tv) "tv-login-timeout" else "phone-login-timeout")
+                    }
+                    throw failure
                 }
                 field.assertIsFocused().assertIsDisplayed().performTextInput(value)
                 compose.mainClock.advanceTimeBy(100)
@@ -149,6 +195,21 @@ class XtreamFlowTest {
                 compose.mainClock.advanceTimeBy(100)
             }
         } finally { compose.mainClock.autoAdvance = autoAdvance }
+    }
+    private fun loginDiagnostics(expected: String) {
+        // Only geometry/known tags from synthetic fixtures; never dump text/semantics trees.
+        println("IPTV_LOGIN_STATE expected=$expected virtual=${compose.mainClock.currentTime}")
+        for (tag in listOf("playlist_name", "server_url", "server_username", "server_password", "server_login_fields")) {
+            val node = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().singleOrNull() ?: continue
+            val focused = node.config.getOrElse(SemanticsProperties.Focused) { false }
+            val range = if (node.config.contains(SemanticsProperties.VerticalScrollAxisRange)) node.config[SemanticsProperties.VerticalScrollAxisRange] else null
+            println("IPTV_LOGIN_FIELD tag=$tag focused=$focused visible=${compose.onNodeWithTag(tag).isDisplayed()} bounds=${node.boundsInRoot} position=${node.positionInRoot} size=${node.size} scroll=${range?.value?.invoke()}/${range?.maxValue?.invoke()}")
+        }
+        for (window in instrumentation.uiAutomation.windows) {
+            val bounds = android.graphics.Rect()
+            window.getBoundsInScreen(bounds)
+            println("IPTV_LOGIN_WINDOW type=${window.type} focused=${window.isFocused} bounds=$bounds")
+        }
     }
     private fun preview(activity: Class<out Activity>, tv: Boolean) {
         ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)).use { scenario ->
