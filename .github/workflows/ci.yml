@@ -154,7 +154,9 @@ jobs:
           ram-size: 2048M
           disk-size: 2048M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader -noaudio -no-boot-anim -no-snapshot
+          # Keep headless software rendering on GLES; cloud emulator context failures
+          # have interrupted mandatory post-suite persistence checks.
+          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -noaudio -no-boot-anim -no-snapshot
           script: bash ./scripts/device-tests.sh
       - name: Save device test reports
         if: always()

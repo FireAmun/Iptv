@@ -96,12 +96,17 @@ class CategoryPickerFlowTest {
     private fun awaitPickerFocus() = compose.waitUntil(5000) { compose.onNodeWithTag("browse_categories").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
     private fun activateCategory(label: String, tv: Boolean) {
         val node = compose.onNode(hasText(label) and hasAnyAncestor(hasTestTag("category_picker")))
-        if (tv) { node.performSemanticsAction(SemanticsActions.RequestFocus); node.performKeyInput { pressKey(Key.DirectionCenter) } }
+        if (tv) activateRemote(node)
         else node.performScrollTo().assertIsDisplayed().performClick()
     }
     private fun activate(tag: String, tv: Boolean) {
         val node = compose.onNodeWithTag(tag)
-        if (tv) { node.performSemanticsAction(SemanticsActions.RequestFocus); node.performKeyInput { pressKey(Key.DirectionCenter) } }
+        if (tv) activateRemote(node)
         else { if (tag == "category_all") node.performScrollTo(); node.assertIsDisplayed().performClick() }
+    }
+    private fun activateRemote(node: SemanticsNodeInteraction) {
+        node.performSemanticsAction(SemanticsActions.RequestFocus)
+        compose.waitUntil(5000) { node.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
+        node.assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
     }
 }
