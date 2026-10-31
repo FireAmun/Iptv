@@ -239,7 +239,9 @@ class XtreamFlowTest {
             snapshot(if (tv) "tv-login-light-ar" else "phone-login-light-ar")
             click("login_cancel", tv)
             compose.onNodeWithTag("server_password").assertDoesNotExist()
-            compose.onNodeWithTag("add_login").assertExists()
+            if (tv) awaitFocus("language_switch")
+            compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("add_login"))
+            compose.onNodeWithTag("add_login").assertIsDisplayed()
         }
     }
     private fun snapshot(name: String) {
@@ -248,7 +250,7 @@ class XtreamFlowTest {
         captureSyntheticPreview(instrumentation, name)
     }
     private fun click(tag: String, tv: Boolean) {
-        if (!tv && tag in listOf("appearance_switch", "language_switch", "add_login", "add_url", "import_file")) {
+        if (tag in listOf("appearance_switch", "language_switch", "add_login", "add_url", "import_file")) {
             compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag(tag))
         }
         if (tv) {
@@ -257,5 +259,10 @@ class XtreamFlowTest {
             compose.onNodeWithTag(tag).performKeyInput { pressKey(Key.DirectionCenter) }
         } else compose.onNodeWithTag(tag).performClick()
     }
-    private fun awaitFocus(tag: String) { compose.waitUntil(5000) { compose.onNodeWithTag(tag).fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } } }
+    private fun awaitFocus(tag: String) {
+        compose.waitUntil(5000) {
+            compose.onAllNodesWithTag(tag).fetchSemanticsNodes().singleOrNull()
+                ?.config?.getOrElse(SemanticsProperties.Focused) { false } == true
+        }
+    }
 }

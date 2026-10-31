@@ -1,9 +1,9 @@
 # IPTV development progress
 
-Last updated: 29 October 2026 (Asia/Riyadh)  
-Overall status: PR #15 remains open: latest-head phone 47/47 and cold-process checks pass; TV login journeys pass, but a separate category focus regression requires the correction below. Main CI is not yet recovered. PostHog local and live ingestion verification passed in its separate worktree.  
+Last updated: 31 October 2026 (Asia/Riyadh)  
+Overall status: PR #15 remains open. At its last pushed head phone 48/48 and cold-process checks pass; TV category journeys now pass, but TV login clipping still needs the viewport follow-up below. Main CI is not yet recovered. PostHog is verified and prepared separately, still unpublished.  
 Current phase: CI recovery plus the owner-requested PostHog setup. P3/P4 remain incomplete; no release-readiness claim.  
-Next task: Verify and deliver the category-row focus guard in PR #15, require complete latest-head phone/TV XML and process probes, merge and inspect main. Then deliver the reviewed PostHog integration separately. M3U URL visibility, Continue Watching and 300k validation follow; cap remains 100k. Preserve My IPTV and unrelated local backend research.
+Next task: Finish and verify the TV login viewport follow-up in PR #15; require complete latest-head 48-case phone/TV XML and process probes, merge and inspect main. Then rebase/deliver the unpublished PostHog integration separately with its 49-case device suites. M3U URL visibility, Continue Watching and 300k validation follow; cap remains 100k. Preserve My IPTV and unrelated local backend research.
 
 ## 1. Start here in a new chat
 
@@ -449,3 +449,30 @@ Source investigation and independent review identified a sticky picker-return re
 
 
 Category guard final local verification: the strengthened controlled-page regression and both original picker journeys passed (3/3, zero failures/skips), `category-focus-final.log`. Fresh Java 21 app/test-APK build and app lint passed (`category-focus-build.log`, `category-final-test-build.log`); 13 repository/script tests, actionlint, Markdown links and whitespace passed. Independent reviewer found no blockers; its minor request to wait for the replacement page as well as removal of the previous page was applied and tested. All 48 latest-head cloud cases per device and cold-process probes still gate PR #15. Disposable TV stopped after testing; owner AVD/source remains untouched.
+
+
+### TV login viewport follow-up - 29 October 2026
+
+[Run 40930902002](https://github.com/FireAmun/Iptv/actions/runs/40930902002) at `e6db1a0`: phone 48/48 XML cases and cold probes (4966 -> 5006, clear 5043) passed. TV reached all 48 cases; category regression and original picker journeys passed, but TV server login timed out again. Its diagnostics now establish the password focused=true with zero clipped bounds (position y656, scroll 137/457, field viewport y140..440); the screenshot shows a natively panned TV dialog above the keyboard. The earlier accessibility-idle mitigation did not fix that production TV layout defect. Evidence: `pr15-e6-tv.zip`, `e6-tv-login-timeout.png`. No failed assertion was retried away.
+
+The TV login now owns a full-window edge-to-edge viewport with safe/IME insets outside its constrained panel, and focused-field relocation after focus/inset/height/font changes. Normal height keeps pinned actions; short/large-text windows scroll the whole form. Transparent-margin dismissal, current callbacks, credential clearing/masking, once-only initial focus and existing IME actions remain. No data/ViewModel/playback changes. Independent final viewport review found no blockers. Fresh app/test APK and TV lint passed; all seven login journeys passed locally (`tv-viewport-seven.log`).
+
+An additional 720p/density240/font1.3 stress run passed the server-login/auth/catalogue/series/playback journey. Its Arabic cancellation case stopped before opening the dialog because the test requested a setup button that had not been composed in the scrollable settings list. The existing scroll-to-setup helper was phone-only; it now scrolls the list for TV before the same focus/remote-key action. This corrects the test harness assumption, not an app action. Final normal/stress suites and full latest-head CI remain pending before committing this follow-up.
+
+Owner concern about excessive failures/commits is acknowledged: timing-focused attempts were insufficient, and passing local runs were not stability proof. Continue from captured geometry and explicit regressions, retain all gates, and do not call main recovered until inspected successful post-merge CI. PostHog is prepared but unpublished on its separate branch; no monitoring code is mixed into PR #15.
+
+
+The first corrected-helper 720p run opened and cancelled the Arabic form, then exposed the same lazy-composition assumption in the final add-login assertion after settings restored focus/scroll to its header. The final test now waits for the existing TV header focus restoration, scrolls to the setup action, and asserts it is displayed (stronger than only existing). Password removal/cancellation checks remain. This does not establish D-pad traversal to offscreen controls. Final normal/720p re-verification is in progress with both harness assumptions corrected; retain the initial failed stress logs as evidence.
+
+
+### Resume verification - 31 October 2026
+
+Actual state checked: PR #15 remains open at `e6db1a0`, base main `493de37`; its TV viewport and final Xtream helper changes remain uncommitted. The last 29 October local verification passed seven normal login journeys and both 720p/font1.3 stress cases after addressing the lazy-list assumptions. The final review then made the focus wait tolerate an initially uncomposed lazy header; the resulting test APK built successfully. On resume, repository 13 tests, Markdown links, actionlint and whitespace passed. Independent final read-only signoff found no blockers. Final seven normal/two stress tests are running again on the disposable TV with the same software-renderer/Vulkan setting as CI. No owner emulator, firewall, driver or reboot operation. Historical host shutdown cause remains unresolved.
+
+PostHog is prepared in the separate worktree as unpublished commit `97e7027`, based on the previous CI head `e6db1a0`. After the repair merges, rebase that unpublished integration onto main, resolve its progress-only overlap while preserving the new CI evidence, verify the combined tree, then use a separate PR. Never force-push shared history. Ignored ingestion settings have been preserved in the main checkout; no real configuration belongs in the commit.
+
+
+31 October final viewport verification: all seven normal login journeys passed with the final absence-safe helper (91.672 s), and both 720p/density240/font1.3 login/cancellation stress cases passed (zero failures/skips). Logs: `.tools/ci/main-99162bc/tv-viewport-31oct-seven.log` and `tv-viewport-31oct-720-large-text.log`. This includes incorrect-login recovery, server/catalogue/series playback, account-link fallback/restore, Arabic/light cancellation and the window-interruption focus regression. Software renderer/Vulkan setting matches CI. Existing build/lint/test-APK evidence is above; 13 repository tests, links/actionlint/whitespace passed on resume. Independent final source/helper review found no blockers. All device overrides were restored; disposable TV stopped afterward. Latest-head full 48-case phone/TV CI and all cold-process checks still gate merge.
+
+
+31 October host RAM investigation: the approximately 4 GB host Java process was VS Code fwcd Kotlin language server (`org.javacs.kt.MainKt`), not an Android app memory measurement. It had no explicit heap limit. Restarting only that process increased measured free host RAM from 3.9 GB to roughly 7 GB. Added supported `kotlin.java.opts=-Xms128m -Xmx1536m` in ignored workspace `.vscode/settings.json`; the extension automatic restart reused cached launch settings, so Developer: Reload Window is still required to apply that cap. The editor Gradle/Java processes were not terminated, and no host firewall/driver/reboot operation occurred. Do not claim Android app memory profiling from this host process.
