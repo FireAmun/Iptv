@@ -142,7 +142,7 @@ Network/query failure yields unknown state with the last-known record retained; 
 
 ## 8. Monitoring, privacy, and configuration
 
-Use Play Console plus managed Crashlytics and a minimal Analytics event set. Candidate events: import outcome/duration/count bucket, playback startup/buffering duration and safe failure class, pairing outcome, and purchase-flow outcome. Use only allowlisted enums/numeric buckets; never send provider credentials/hosts, raw URLs, pairing secrets, titles, search text, or response bodies. Review fatal exception paths as well as custom logging.
+Implementation update (29 October): the owner selected PostHog for managed analytics, filtered error classes and structured import logs. The current adapter lives in the app module; no custom backend or Firebase SDK is added. See [configuration, privacy filters and verification](../../development/posthog.md). Play Console vitals and the remaining release monitoring work are still future tasks. Candidate events: import outcome/duration/count bucket, playback startup/buffering duration and safe failure class, pairing outcome, and purchase-flow outcome. Use only allowlisted enums/numeric buckets; never send provider credentials/hosts, raw URLs, pairing secrets, titles, search text, or response bodies. Review fatal exception paths as well as custom logging.
 
 Performance Monitoring is optional. Provider URLs can embed credentials in paths, so do not enable automatic provider-network instrumentation unless safe collection/exclusion is demonstrated. Omit the SDK if necessary and use safe app-level measurements. Collection controls, retention, SDK disclosures, and privacy/Data safety statements must match actual release behavior.
 

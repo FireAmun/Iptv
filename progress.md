@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 31 October 2026 (Asia/Riyadh)  
-Overall status: PR #15 remains open. At its last pushed head phone 48/48 and cold-process checks pass; TV category journeys now pass, but TV login clipping still needs the viewport follow-up below. Main CI is not yet recovered. PostHog is verified and prepared separately, still unpublished.  
+Overall status: CI repair PR #15 is merged after all 48 phone and 48 TV tests plus process probes passed. Post-merge main verification is pending. PostHog remains prepared separately with local/live verification, awaiting its own PR CI.
 Current phase: CI recovery plus the owner-requested PostHog setup. P3/P4 remain incomplete; no release-readiness claim.  
-Next task: Finish and verify the TV login viewport follow-up in PR #15; require complete latest-head 48-case phone/TV XML and process probes, merge and inspect main. Then rebase/deliver the unpublished PostHog integration separately with its 49-case device suites. M3U URL visibility, Continue Watching and 300k validation follow; cap remains 100k. Preserve My IPTV and unrelated local backend research.
+Next task: Inspect the post-merge main run and deliver the reviewed PostHog branch through its separate PR, requiring all 49 phone/TV cases and cold-process probes. M3U URL visibility, Continue Watching and 300k validation follow; cap remains 100k. Preserve owner sources and unrelated research.
 
 ## 1. Start here in a new chat
 
@@ -28,7 +28,7 @@ This tracker records project state; it is not a substitute for source code, test
 | App stack | Kotlin, Compose/Material 3, Compose for TV, Media3; shared core and separate device UI. | Working recommendation |
 | Data/network tools | Room/Paging 3, DataStore, Coroutines/Flow, Hilt, OkHttp/Retrofit, kotlinx.serialization, Coil, WorkManager. | Architecture baseline |
 | App packaging | Prefer one application ID/Play listing across mobile and TV; separate UI modules. | Architecture recommendation |
-| Hosted services | Managed owner monitoring; no custom hosted application backend or mandatory app account for the baseline. | Working launch direction |
+| Hosted services | PostHog for managed owner monitoring; no custom hosted application backend or mandatory app account for the baseline. | Owner selected PostHog 29 October; optional integration implemented |
 | Monetization | One-time purchase or yearly renewal under consideration. Annual auto-renewal and manual prepaid renewal differ. | Open; do not silently choose one |
 | Purchase verification | Separate from monitoring. Client-only tradeoffs versus managed secure verification must be decided before billing work. | Open |
 | Advanced scope | Cloud sync, recording/downloads, multiview, casting, extra playback engines, and web dashboard deferred. | Proposed first-release boundary |
@@ -64,6 +64,8 @@ The architecture is a delivered draft, not evidence of implemented or tested fun
 | A18 | Amar Iptv branding and animated startup, v0.6.0 | [PR #8](https://github.com/FireAmun/Iptv/pull/8), [design notes](docs/design/amar-branding.md) | Merged as `3cc3452` after all five final checks and 27 phone + 27 TV tests passed at `06a639b`; owner emulator updated without clearing data. |
 | A19 | Multiple saved playlists, v0.7.0/code 7 | [Design](docs/superpowers/specs/2026-10-26-multiple-playlists-design.md), [plan](docs/superpowers/plans/2026-10-26-multiple-playlists.md), [usage](docs/development/saved-library.md) | Implemented separate caches, explicit refresh IDs, encrypted rename, selected-source persistence, targeted removal and schema migration. Local 48 JVM + 13 repository tests, app/test APK build and lint pass; independent review findings fixed. Require the delivery PR's actual latest-head migration/UI/process checks before merge. |
 
+| A20 | Optional PostHog monitoring | [Setup/data contract](docs/development/posthog.md), app SDK adapter/privacy and delivery tests | Pinned SDK 3.73.1; four product events, restricted lifecycle, sanitized uncaught errors and fixed structured import logs. Local 70 JVM tests and intercepted SDK transport passed; owner confirmed live lifecycle ingestion. Separate PR CI/integration pending. |
+
 ## 4. Status vocabulary
 
 - **Not started:** no deliverable exists for the work item.
@@ -88,7 +90,7 @@ This sequence is the working roadmap, not a promise that every proposed feature 
 | P4 — Full device experience and playback | In progress: Cinema appearance, basic playback, series/back and focus delivered | Approved dark/light source/library/player UI, then full phone/tablet/TV flows, stable focus restoration, series/episodes, resume, audio/subtitles, parental PIN/restrictions, settings. | Core journeys work with touch and D-pad in Arabic/English; restrictions apply through shared rules; representative device checks recorded. |
 | P5 — Phone-to-TV setup and remote | Not started | Discovery, QR/manual fallback, protected transport, TV approval, revocable phone trust, remote catalogue browsing, approved source transfer. | Unpaired/revoked phones denied; expiry/reconnect/network changes tested; credentials stay protected; remote browsing opens no additional stream. |
 | P6 — Commercial access and billing | Not started | Selected offer, entitlement component, Play purchase/acknowledgement, chosen verification, restoration, expiry/refund/offline behavior. | D01–D05 resolved; Play licence tests cover selected products and lifecycle paths; no debug unlock in release builds. |
-| P7 — Managed monitoring and operations | Not started | Play Console reporting setup, redacted Crashlytics/Analytics events, selected feature flags, safe defaults, privacy/data inventory. | Telemetry inspected for secrets; startup/playback does not depend on Remote Config; disclosures match SDK behavior. Add a minimal safe diagnostic baseline earlier where necessary. |
+| P7 — Managed monitoring and operations | Partial - minimal PostHog integration verified locally | Optional pinned SDK, restricted lifecycle/product events, sanitized uncaught errors/import logs, starter dashboard and setup guide. Play Console, release controls/disclosures, retention and physical-device budgets remain open. | Privacy JVM/serialized transport checks passed; owner confirmed live lifecycle events. Latest-head cloud CI/delivery still required; no app feature waits for monitoring. |
 | P8 — Compatibility and release hardening | Not started | Physical-device matrix results, playback endurance, large-catalogue profiling, import limits/performance budgets, regression fixes, native-library checks if applicable. | Named-device reports and required checks pass; unsupported cases documented; release build/install and secret scans complete. |
 | P9 — Google Play launch | Not started | Developer/account readiness, applicable test track, signing/versioning, store assets, authorized demos, support/privacy pages, required declarations. | Current official requirements checked; applicable testing/access approvals complete; release candidate reviewed; publication explicitly authorized. |
 
@@ -476,3 +478,24 @@ PostHog is prepared in the separate worktree as unpublished commit `97e7027`, ba
 
 
 31 October host RAM investigation: the approximately 4 GB host Java process was VS Code fwcd Kotlin language server (`org.javacs.kt.MainKt`), not an Android app memory measurement. It had no explicit heap limit. Restarting only that process increased measured free host RAM from 3.9 GB to roughly 7 GB. Added supported `kotlin.java.opts=-Xms128m -Xmx1536m` in ignored workspace `.vscode/settings.json`; the extension automatic restart reused cached launch settings, so Developer: Reload Window is still required to apply that cap. The editor Gradle/Java processes were not terminated, and no host firewall/driver/reboot operation occurred. Do not claim Android app memory profiling from this host process.
+
+
+### PostHog implementation and verification - 29 October 2026
+
+The requested `npx -y @posthog/wizard@latest` completed (wizard 2.88.0) after a fresh OAuth callback. Its initial generated integration was corrected and reviewed: SDK pinned to 3.73.1, valid SDK APIs, optional configuration in both build types, no debug startup crash on missing settings. Official US/EU ingestion endpoints and project-token format are accepted; personal keys/other hosts are rejected before BuildConfig generation. Real configuration is ignored in `.env` and preserved in the main checkout; `.env.example` contains no key. No wizard cache/report, provider data or private configuration belongs in the deliverable.
+
+[The setup guide](docs/development/posthog.md) defines the event/log contract and links the owner dashboard/notebook. Unknown fields/events/logs are dropped before SDK queue persistence; source counts are bucketed, exception messages/frames withheld, screen/deep-link/replay/Logcat/person-profile capture disabled. There is no provider identification. Playback selection measures a request, not first decoded frame. Refresh failures retain refresh attribution. Monitoring initialization/capture is guarded and does not control playback or catalogue access. The guide supersedes the initial wizard report; its remote configuration can subsequently disable uncaught capture, rather than being a startup prerequisite.
+
+Verification: six privacy JVM tests first failed against pass-through behavior, then passed. All 70 JVM cases (17 XML reports) passed, zero failures/errors/skips. Fresh combined Java 21 build/lint/app/test APK passed against the earlier `e6db1a0` PR #15 UI baseline (`.tools/posthog/combined-final-checks.log`). Android SDK transport test passed 1/1 with every request intercepted, exercising all four product events, the actual installed uncaught handler with a controlled prior handler, and structured logs; no live key or synthetic secret was sent. It restores the original handler/client. Owner separately confirmed Application Installed and Application Opened in PostHog after an empty configured app was launched on the disposable TV AVD. This proves live lifecycle ingestion, not cloud ingestion of every custom event/error/log.
+
+Final independent SDK review against baseline `e6db1a0` found no blockers or credential/config/cache/report files in the change set. The reviewed integration is prepared on the unpublished `feat/posthog` branch for a separate PR after the CI repair is integrated. Full SDK PR phone/TV suites (49 cases each, including the new category and SDK tests) and mandatory process probes still gate its merge. P7 remains partial: collection controls, privacy/Data safety disclosures, retention, physical hardware and startup/network budgets remain open. The wizard optional Codex MCP connector warning does not block the app and was not addressed by reinstalling unrelated tools. No owner device reset, host firewall/driver change or reboot; the earlier shutdown cause remains unresolved.
+
+
+RAM follow-up after owner reloaded VS Code: the new Kotlin server correctly launched with `-Xms128m -Xmx1536m` (about 209 MB working set at inspection), but the old uncapped server survived separately at 4.15 GB. Stopped that identified leftover only and preserved the capped instance; measured free RAM rose to 5.3 GB. The heap cap is now observed in the live process, so the earlier reload-pending note is superseded. No Android app heap claim or host restart.
+
+
+### CI repair delivered - 31 October 2026
+
+[PR #15](https://github.com/FireAmun/Iptv/pull/15) merged as `6ceaedfe5000837ce3e01b75b531ba3f18044a93`, bound to tested head `08e4237487a0bef640cc90d526c6a35ff7c9a67f`. [Run 61](https://github.com/FireAmun/Iptv/actions/runs/41221818417) passed all five jobs. Downloaded latest-head XML confirms 48 phone API 28 and 48 TV API 36 cases, zero failures/errors/skips. Cold-process probes all passed: phone 5056 -> 5096, clear 5132; TV 5397 -> 5441, clear 5478. Evidence: ignored `pr15-08-phone.zip/json` and `pr15-08-tv.zip/json`. Independent final review and the local seven normal/two 720p stress cases passed before push.
+
+Confirmed GitHub merged state and exact equality of tested/merged trees. Main was fast-forward synced; the merged local/remote branch was removed. Owner research remains local and byte-identical. The post-merge main run is still required before claiming main recovered. No owner AVD/source reset, host firewall/driver change or reboot.

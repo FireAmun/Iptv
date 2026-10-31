@@ -30,3 +30,6 @@ keystore.properties
 # Python verification tooling
 __pycache__/
 *.py[cod]
+
+# Local PostHog wizard run state
+.posthog-wizard-cache/

@@ -5,14 +5,26 @@ import android.app.UiModeManager
 import android.content.Context
 import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
+import com.posthog.android.PostHogAndroid
 
 class IptvApplication : Application() {
     val libraryStore by lazy { com.fireamun.iptv.core.storage.RoomLibraryStore.open(this) }
     val artworkLoader by lazy { protectedImageLoader(this, libraryStore) }
     override fun onCreate() {
         super.onCreate()
+        initializePostHog()
         Appearance.apply(this)
     }
+
+    private fun initializePostHog() {
+        // Monitoring is optional; configuration or SDK failure must not block playback.
+        runCatching {
+            postHogConfiguration(BuildConfig.POSTHOG_API_KEY, BuildConfig.POSTHOG_HOST)?.let {
+                PostHogAndroid.setup(this, it)
+            }
+        }
+    }
+
 }
 
 /** Appearance is a nonsecret setting; sources never enter these preferences. */

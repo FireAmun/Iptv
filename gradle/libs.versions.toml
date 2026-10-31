@@ -18,8 +18,10 @@ ksp = "2.3.6"
 splashscreen = "1.2.0"
 paging = "3.5.3"
 coil = "3.3.0"
+posthog = "3.73.1"
 
 [libraries]
+posthog-android = { module = "com.posthog:posthog-android", version.ref = "posthog" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose-ui = { module = "androidx.compose.ui:ui" }
 compose-foundation = { module = "androidx.compose.foundation:foundation" }
