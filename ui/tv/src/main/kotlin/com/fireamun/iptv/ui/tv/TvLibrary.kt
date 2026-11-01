@@ -2,6 +2,9 @@ package com.fireamun.iptv.ui.tv
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
@@ -16,26 +19,42 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.*
 import com.fireamun.iptv.core.designsystem.*
 import com.fireamun.iptv.core.model.ImportError
@@ -70,6 +89,7 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
     val list = rememberLazyListState()
     val targetId: Int? = null
     fun submit() { val submitted = url; url = ""; enteringUrl = false; keyboard?.hide(); focusManager.clearFocus(); onImportUrl(submitted) }
+    fun dismissUrl() { enteringUrl = false; url = ""; keyboard?.hide() }
     CinemaTheme {
         val p = cinemaPalette()
         Surface(Modifier.fillMaxSize(), colors = SurfaceDefaults.colors(containerColor = p.background, contentColor = p.text)) {
@@ -157,27 +177,63 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
             }
         }
         if (enteringUrl) {
+            var urlVisible by remember { mutableStateOf(false) }
+            val visibilityDescription = stringResource(if (urlVisible) R.string.tv_hide_url else R.string.tv_show_url)
             val inputFocus = remember { FocusRequester() }
             var inputFocused by remember { mutableStateOf(false) }
-            Dialog(onDismissRequest = { enteringUrl = false; url = ""; keyboard?.hide() }) {
+            var initialFocusAssigned by remember { mutableStateOf(false) }
+            Dialog(onDismissRequest = ::dismissUrl, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
                 val dialogWindow = LocalWindowInfo.current
-                Surface(Modifier.widthIn(max = 600.dp).heightIn(max = 460.dp).imePadding(), shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
-                    Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                        Text(stringResource(R.string.tv_add_url), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(stringResource(R.string.tv_url_label), color = p.muted, style = MaterialTheme.typography.labelMedium)
-                            BasicTextField(value = url, onValueChange = { if (it.length <= 4096) url = it }, singleLine = true,
-                                modifier = Modifier.fillMaxWidth().focusRequester(inputFocus).onFocusChanged { inputFocused = it.isFocused }.testTag("source_url"), textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.text, textDirection = TextDirection.Ltr), cursorBrush = SolidColor(p.focus),
-                                visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank() && !state.importing) submit() }),
-                                decorationBox = { inner -> Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).background(p.background, RoundedCornerShape(10.dp)).border(if (inputFocused) 2.dp else 1.dp, if (inputFocused) p.focus else p.outline, RoundedCornerShape(10.dp)).padding(16.dp), contentAlignment = Alignment.CenterStart) { inner() } })
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            CinemaButton(onClick = { enteringUrl = false; url = ""; keyboard?.hide() }) { Text(stringResource(R.string.tv_cancel)) }
-                            CinemaButton(onClick = { submit() }, primary = true, enabled = url.isNotBlank() && !state.importing, modifier = Modifier.testTag("import_url")) { Text(stringResource(R.string.tv_import_url)) }
+                val dialogFocusManager = LocalFocusManager.current
+                val relocation = remember { BringIntoViewRequester() }
+                val configuration = LocalConfiguration.current
+                val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+                var panelBounds by remember { mutableStateOf(Rect.Zero) }
+                val dismissPanel by rememberUpdatedState(::dismissUrl)
+                LaunchedEffect(inputFocused, imeBottom, configuration.screenHeightDp, configuration.fontScale) {
+                    if (inputFocused) { withFrameNanos { }; relocation.bringIntoView() }
+                }
+                BoxWithConstraints(Modifier.fillMaxSize().pointerInput(Unit) {
+                    detectTapGestures { point -> if (!panelBounds.contains(point)) dismissPanel() }
+                }.safeDrawingPadding().imePadding().padding(16.dp), contentAlignment = Alignment.Center) {
+                    val shortWindow = maxHeight < 360.dp * configuration.fontScale
+                    val scroll = rememberScrollState()
+                    Surface(Modifier.widthIn(max = 600.dp).fillMaxWidth().heightIn(max = minOf(maxHeight, 460.dp))
+                        .onGloballyPositioned { panelBounds = it.boundsInRoot() }, shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
+                        Column((if (shortWindow) Modifier.verticalScroll(scroll) else Modifier).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text(stringResource(R.string.tv_add_url), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Column((if (shortWindow) Modifier else Modifier.weight(1f, fill = false).verticalScroll(scroll)).bringIntoViewRequester(relocation), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(stringResource(R.string.tv_url_label), Modifier.weight(1f), color = p.muted, style = MaterialTheme.typography.labelMedium)
+                                    CinemaButton(onClick = { urlVisible = !urlVisible }, modifier = Modifier.heightIn(min = 48.dp).testTag("url_visibility")
+                                        .semantics { contentDescription = visibilityDescription }) {
+                                        Text(stringResource(if (urlVisible) R.string.tv_hide else R.string.tv_show))
+                                    }
+                                }
+                                BasicTextField(value = url, onValueChange = { if (it.length <= 4096) url = it }, singleLine = true,
+                                    modifier = Modifier.fillMaxWidth().focusRequester(inputFocus).onFocusChanged { inputFocused = it.isFocused }.testTag("source_url")
+                                        .onPreviewKeyEvent { event ->
+                                            // Single-line editors consume vertical arrows; a remote uses them to leave the field.
+                                            if (event.type == KeyEventType.KeyDown && (event.key == Key.DirectionUp || event.key == Key.DirectionDown)) {
+                                                keyboard?.hide()
+                                                dialogFocusManager.moveFocus(if (event.key == Key.DirectionUp) FocusDirection.Up else FocusDirection.Down)
+                                            } else false
+                                        }, textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.text, textDirection = TextDirection.Ltr), cursorBrush = SolidColor(p.focus),
+                                    visualTransformation = if (urlVisible) VisualTransformation.None else PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank() && !state.importing) submit() }),
+                                    decorationBox = { inner -> Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).background(p.background, RoundedCornerShape(10.dp)).border(if (inputFocused) 2.dp else 1.dp, if (inputFocused) p.focus else p.outline, RoundedCornerShape(10.dp)).padding(16.dp), contentAlignment = Alignment.CenterStart) { inner() } })
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                CinemaButton(onClick = ::dismissUrl, modifier = Modifier.testTag("url_cancel")) { Text(stringResource(R.string.tv_cancel)) }
+                                CinemaButton(onClick = { submit() }, primary = true, enabled = url.isNotBlank() && !state.importing, modifier = Modifier.testTag("import_url")) { Text(stringResource(R.string.tv_import_url)) }
+                            }
                         }
                     }
                 }
-                LaunchedEffect(dialogWindow.isWindowFocused) { if (dialogWindow.isWindowFocused) { withFrameNanos { }; inputFocus.requestFocus() } }
+                LaunchedEffect(dialogWindow.isWindowFocused) {
+                    if (dialogWindow.isWindowFocused && !initialFocusAssigned) {
+                        withFrameNanos { }; inputFocus.requestFocus(); initialFocusAssigned = true
+                    }
+                }
             }
         }
     }

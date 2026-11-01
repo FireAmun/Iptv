@@ -102,6 +102,7 @@ internal fun MobileFormField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     uri: Boolean = false,
     isError: Boolean = false,
+    labelAction: @Composable (() -> Unit)? = null,
 ) {
     val p = cinemaPalette()
     val relocation = remember { BringIntoViewRequester() }
@@ -115,7 +116,10 @@ internal fun MobileFormField(
         }
     }
     Column(Modifier.bringIntoViewRequester(relocation), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            labelAction?.invoke()
+        }
         TextField(
             value = value, onValueChange = onValueChange, singleLine = true,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).onFocusChanged { focused = it.isFocused }
