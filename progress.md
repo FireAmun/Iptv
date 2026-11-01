@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 1 November 2026 (Asia/Riyadh)  
-Overall status: URL Show/Hide PR #17 remains open. The TV keyboard overlap is repaired locally: native geometry checks pass even when Android reports a visible keyboard with zero inset. Build/lint, seven normal journeys and two compact/large-text journeys passed; fresh CI still gates merge.
+Overall status: Continue Watching and saved movie/episode positions are in implementation planning on feat/continue-watching, based on fully green main 4068567. Storage, playback and UI audits are complete; the implementation plan is prepared. No progress feature code or schema change delivered yet.
 Current phase: P3/P4 source-input usability, then persistent playback progress. P7 minimal monitoring is delivered; release controls remain open.
-Next task: Fix and verify the TV URL dialog keyboard overlap, obtain review, then require fresh latest-head full CI/XML/cold-process probes before merging PR #17. Continue Watching follows. Keep 100k until 300k profiling; preserve owner sources and unrelated research.
+Next task: Execute the Continue Watching plan: protected stable history storage/migration, Media3 checkpoints, serialized application coordinator, then Cinema row/resume choices and full device evidence. Keep 100k until separate 300k profiling and preserve owner sources/research.
 
 ## 1. Start here in a new chat
 
@@ -580,3 +580,35 @@ Stronger local RED: native overlap is now checked after every TV Show/Hide/refoc
 The URL dialog is now top-aligned rather than centered, retaining safe/IME padding, responsive scrolling and focused-field relocation. Vertical remote navigation no longer sends a redundant keyboard-hide request. Submission/dismissal still clear the draft and hide the keyboard. The stronger test checks full native field visibility after every TV Show/Hide/refocus cycle; geometry-only diagnostics preserve evidence without logging input values. This passed while native logs still showed visible=true/bottom=0, directly exercising the identified failure mode.
 
 Fresh verification: Java 21 app/test APK build plus TV lint passed (`run66-top-build.log`); four URL cases and three existing playlist journeys passed 7/7 in 68.282 s (`run66-top-targeted-tv.log`); 1280x720/density240/font1.3 URL journeys passed 2/2 in 34.848 s (`run66-top-stress-tv.log`). Root visually inspected both synthetic stress previews: URL field fully clear; compact footer scrolls and both cancel/submit journeys completed. Display/font/animation settings restored and disposable TV stopped. Independent read-only review found no static blockers; no ViewModel/data/playback/telemetry/CI configuration change. Repository 13 tests, local Markdown links, actionlint and whitespace passed. Earlier failed local/cloud runs remain recorded. Require fresh latest-head 53-case phone/TV XML and all cold-process probes before exact-head merge. Owner source data and unrelated research remain untouched; no host firewall/driver/reboot action.
+
+
+PR #17 updated to 465b8bb9d4b0e8eae8fb204d9ee040a069a132a8 with the TV zero-inset keyboard repair and stronger native assertions. [Run 67](https://github.com/FireAmun/Iptv/actions/runs/41334911533) is in progress. Local checks and independent review passed; full new-head device XML/probes remain mandatory. No further source changes while CI runs.
+
+
+### URL Show/Hide delivery merged - 1 November 2026
+
+[PR #17](https://github.com/FireAmun/Iptv/pull/17) merged as 406856725d892c6401c10261d86f1791bc01db9a, bound to tested head 465b8bb9d4b0e8eae8fb204d9ee040a069a132a8. [Run 67](https://github.com/FireAmun/Iptv/actions/runs/41334911533) passed all five jobs. Downloaded digest/head-verified XML confirms 53 phone and 53 TV cases, zero failures/errors/skips, including all four URL cases with the strengthened native geometry checks. Cold probes passed: phone 5132 -> 5173, clear 5209; TV 5642 -> 5685, clear 5722. Evidence `.tools/url-visibility/pr17-final-phone.zip/json`, `pr17-final-tv.zip/json` and `pr17-final-evidence.json`.
+
+Confirmed equality of tested/merged Git trees and fast-forward synced main. GitHub already removed the remote work branch automatically; local branch deleted and remote absence verified. Local tracker bookkeeping, owner research and untracked Continue Watching design are preserved. Latest local APK: `.tools/releases/Amar-Iptv-URL-ShowHide-2026-11-01-465b8bb.apk`, SHA-256 cde2cb01aab3b07f8e5cb04d76e42d4e9568cc49fb0d8d5075e375bc1d2e61e4. No owner install/reset was performed.
+
+[Post-merge main run 68](https://github.com/FireAmun/Iptv/actions/runs/41336762851) is in progress at 4068567. Require its complete device XML/probes before calling latest main green. Continue Watching/schema/cap changes are not delivered by this slice. Earlier unexpected host shutdown remains unresolved; no firewall/driver/reboot action.
+
+
+Main run 68 phone verification: job 124939510317 passed; head/digest-verified `main17-phone.zip` has 53 tests with zero failures/errors/skips. Cold-process PIDs 5022 -> 5062, clear 5098 passed. Repository and Android build/lint/JVM jobs are green; TV and final aggregate remain pending. No source changes after merge.
+
+
+### Final main verification and next-session handoff - 1 November 2026
+
+[Post-merge main run 68](https://github.com/FireAmun/Iptv/actions/runs/41336762851), merge 406856725d892c6401c10261d86f1791bc01db9a, passed all five jobs. Root independently verified downloaded head/digest-matched XML: phone 53/53 and TV 53/53, zero failures/errors/skips. Raw job logs confirm cold probes phone 5022 -> 5062, clear 5098; TV 5679 -> 5723, clear 5758. Evidence `.tools/url-visibility/main17-phone.zip`, `main17-tv.zip`, associated JSON and `main17-evidence.json`. This confirms latest main separately from PR run 67.
+
+URL visibility and the native zero-inset TV keyboard repair are complete. Main equals the tested/merged source tree; local/remote feature branches are gone. No uncommitted app code remains. Final tracker bookkeeping and owner backend research remain local as before; the owner section/file are verified unchanged. The untracked Continue Watching design draft is preserved and has no implementation/schema changes yet. Keep earlier failed runs as diagnostic evidence; do not restart resolved PostHog/CI setup.
+
+Next slice: persistent positions for classified movies/episodes, Continue/Start over, and a Continue Watching row. Read the design draft and relevant playback/storage architecture, then write the implementation plan against current code. The 300k validation and physical phone/TV checks remain later. Local emulators are stopped; no owner emulator/source reset, firewall/driver change or reboot occurred. Historical unexpected laptop shutdown remains unresolved.
+
+
+### Continue Watching work started - 1 November 2026
+
+Owner authorized the next feature. Read-only Sol audits confirmed schema-3 source-scoped stable root IDs, missing retained provider episode IDs, current Media3 lifecycle/retry boundaries, and browser grid/focus insertion points. [Design](docs/superpowers/specs/2026-11-01-continue-watching-design.md) and [implementation plan](docs/superpowers/plans/2026-11-01-continue-watching.md) define local positions, Continue/Start over, latest-20 source-scoped rows, protected episode snapshots, schema 4 and lifecycle/ordering tests. Work branch feat/continue-watching uses the current checkout to avoid extra editor-imported worktrees/RAM. Task ledger is ignored under .superpowers/sdd/2026-11-01-continue-watching/progress.md. Pre-flight plan review is pending; implementation has not started. No owner source/reset or environment changes.
+
+
+Continue Watching pre-flight review resolved two contract details before coding: Series loads EPISODE history joined to current SERIES parents, and return focus scrolls both grid and nested history row before requesting the saved digest. The plan is ready for sequential implementation. No feature code changed yet.
