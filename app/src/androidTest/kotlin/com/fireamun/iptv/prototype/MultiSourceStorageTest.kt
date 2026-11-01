@@ -154,6 +154,14 @@ class MultiSourceStorageTest {
         val store = RoomLibraryStore.open(context, name, protector)
         try {
             val restored = store.restore()!!
+            SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+                db.rawQuery("SELECT secret FROM source_state WHERE sourceId = ?", arrayOf("legacy-source")).use { cursor ->
+                    assertTrue(cursor.moveToFirst()); assertArrayEquals(secret, cursor.getBlob(0))
+                }
+                db.rawQuery("SELECT address FROM library_entries WHERE id = 0", null).use { cursor ->
+                    assertTrue(cursor.moveToFirst()); assertArrayEquals(encrypted, cursor.getBlob(0))
+                }
+            }
             assertEquals("legacy-source", restored.sourceId)
             assertEquals(0, restored.entries.single().channel.id)
             val session = store.openSession()!!
