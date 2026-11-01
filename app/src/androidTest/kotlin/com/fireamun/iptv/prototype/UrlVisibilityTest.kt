@@ -143,9 +143,25 @@ class UrlVisibilityTest {
     private fun awaitImportAndOpenSettings(tv: Boolean, sourceCount: Int) {
         val app = instrumentation.targetContext.applicationContext as IptvApplication
         compose.waitUntil(20_000) { runBlocking { app.libraryStore.directory().sources.size == sourceCount } }
+        // Room commits before the ViewModel publishes the first library and leaves Settings.
+        // Wait for that visible transition before requesting Settings again.
+        if (sourceCount == 1) {
+            compose.waitUntil(20_000) {
+                compose.onAllNodesWithTag("nav_live").fetchSemanticsNodes().any {
+                    it.config.getOrElse(SemanticsProperties.Selected) { false }
+                } && compose.onAllNodesWithText("URL visibility fixture").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("URL visibility fixture").assertIsDisplayed()
+        }
         await("nav_settings")
         compose.openDestination("nav_settings", tv)
-        if (tv) awaitFocus("language_switch")
+        compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("add_url"))
+        compose.waitUntil(20_000) {
+            compose.onAllNodesWithTag("add_url").fetchSemanticsNodes().singleOrNull()
+                ?.config?.contains(SemanticsProperties.Disabled) == false
+        }
+        compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("add_url"))
+        compose.onNodeWithTag("add_url").assertIsDisplayed().assertIsEnabled()
     }
     private fun assertRenderedUrl(expected: String) {
         // Password keyboard mode retains the sensitive-input semantics flag even while revealed.
