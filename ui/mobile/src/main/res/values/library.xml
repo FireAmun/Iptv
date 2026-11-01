@@ -27,4 +27,8 @@
     <string name="mobile_paused">Paused</string>
     <string name="mobile_ended">Finished</string>
     <string name="mobile_playback_failed">Unable to play this entry. Check your source or retry.</string>
+    <string name="mobile_show">Show</string>
+    <string name="mobile_hide">Hide</string>
+    <string name="mobile_show_url">Show URL</string>
+    <string name="mobile_hide_url">Hide URL</string>
 </resources>

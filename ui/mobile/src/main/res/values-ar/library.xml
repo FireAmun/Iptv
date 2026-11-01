@@ -27,4 +27,8 @@
     <string name="mobile_paused">متوقف مؤقتًا</string>
     <string name="mobile_ended">انتهى التشغيل</string>
     <string name="mobile_playback_failed">تعذّر تشغيل العنصر. تحقّق من المصدر أو أعد المحاولة.</string>
+    <string name="mobile_show">إظهار</string>
+    <string name="mobile_hide">إخفاء</string>
+    <string name="mobile_show_url">إظهار الرابط</string>
+    <string name="mobile_hide_url">إخفاء الرابط</string>
 </resources>

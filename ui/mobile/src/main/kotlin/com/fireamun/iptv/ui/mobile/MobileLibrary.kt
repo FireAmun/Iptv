@@ -22,11 +22,13 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -216,13 +218,23 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                 Text(stringResource(R.string.mobile_remove_one_source_body), color = p.muted)
             }
         }
-        if (enteringUrl) MobileFormDialog(stringResource(R.string.mobile_add_url), ::dismissUrl, actions = {
-            MobileFormActions(stringResource(R.string.mobile_import_url), ::submit, ::dismissUrl, "import_url", url.isNotBlank())
-        }) {
-            MobileFormField(value = url, onValueChange = { if (it.length <= 4096) url = it }, label = stringResource(R.string.mobile_url_label), tag = "source_url",
-                visualTransformation = PasswordVisualTransformation(), uri = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go),
-                keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank()) submit() }))
+        if (enteringUrl) {
+            var urlVisible by remember { mutableStateOf(false) }
+            val visibilityDescription = stringResource(if (urlVisible) R.string.mobile_hide_url else R.string.mobile_show_url)
+            MobileFormDialog(stringResource(R.string.mobile_add_url), ::dismissUrl, actions = {
+                MobileFormActions(stringResource(R.string.mobile_import_url), ::submit, ::dismissUrl, "import_url", url.isNotBlank(), cancelTag = "url_cancel")
+            }) {
+                MobileFormField(value = url, onValueChange = { if (it.length <= 4096) url = it }, label = stringResource(R.string.mobile_url_label), tag = "source_url",
+                    visualTransformation = if (urlVisible) VisualTransformation.None else PasswordVisualTransformation(), uri = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go),
+                    keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank()) submit() }),
+                    labelAction = {
+                        TextButton(onClick = { urlVisible = !urlVisible }, modifier = Modifier.heightIn(min = 48.dp).testTag("url_visibility")
+                            .semantics { contentDescription = visibilityDescription }) {
+                            Text(stringResource(if (urlVisible) R.string.mobile_hide else R.string.mobile_show), color = p.focus)
+                        }
+                    })
+            }
         }
     }
 }

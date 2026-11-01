@@ -27,4 +27,8 @@
     <string name="tv_paused">متوقف مؤقتًا</string>
     <string name="tv_ended">انتهى التشغيل</string>
     <string name="tv_playback_failed">تعذّر تشغيل العنصر. تحقّق من المصدر أو أعد المحاولة.</string>
+    <string name="tv_show">إظهار</string>
+    <string name="tv_hide">إخفاء</string>
+    <string name="tv_show_url">إظهار الرابط</string>
+    <string name="tv_hide_url">إخفاء الرابط</string>
 </resources>
