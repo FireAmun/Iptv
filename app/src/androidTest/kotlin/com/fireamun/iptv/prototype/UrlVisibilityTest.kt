@@ -84,12 +84,16 @@ class UrlVisibilityTest {
                     if (tv) {
                         compose.onNodeWithTag("source_url").performSemanticsAction(SemanticsActions.RequestFocus)
                         awaitFocus("source_url")
+                        logDialogInsets("before-up")
                         compose.onNodeWithTag("source_url").performKeyInput { pressKey(Key.DirectionUp) }
                         awaitFocus("url_visibility")
+                        logDialogInsets("after-up")
                         compose.onNodeWithTag("url_visibility").assertIsDisplayed().assertTextEquals(expectedLabel)
                             .performKeyInput { pressKey(Key.DirectionCenter) }
                         compose.onNodeWithTag("url_visibility").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
                         awaitFocus("source_url")
+                        logDialogInsets("after-down")
+                        assertUrlAboveKeyboard()
                     } else compose.onNodeWithTag("url_visibility").assertIsDisplayed().assertTextEquals(expectedLabel).performClick()
                 }
                 val show = if (arabicLight) "\u0625\u0638\u0647\u0627\u0631" else "Show"
@@ -101,7 +105,6 @@ class UrlVisibilityTest {
                 compose.onNodeWithTag("source_url").assertTextEquals(first)
                 assertRenderedUrl(first)
                 captureSyntheticPreview(instrumentation, "url-${if (tv) "tv" else "phone"}-${if (arabicLight) "arabic-light" else "english-dark"}")
-                if (tv) assertUrlAboveKeyboard()
                 compose.onNodeWithTag("source_url").performTextReplacement(edited)
                 toggle(hide)
                 compose.onNodeWithTag("source_url").assert(password)
@@ -187,6 +190,16 @@ class UrlVisibilityTest {
             shell(if (original == null) "settings delete secure $setting" else "settings put secure $setting $original")
         }
     }
+    private fun logDialogInsets(stage: String) {
+        if (android.os.Build.VERSION.SDK_INT < 30) return
+        instrumentation.runOnMainSync {
+            val geometry = android.view.inspector.WindowInspector.getGlobalWindowViews().joinToString { root ->
+                val insets = root.rootWindowInsets
+                "size=${root.width}x${root.height}, ime=${insets?.getInsets(android.view.WindowInsets.Type.ime())}, visible=${insets?.isVisible(android.view.WindowInsets.Type.ime())}"
+            }
+            android.util.Log.i("UrlVisibilityInsets", "$stage [$geometry]")
+        }
+    }
     private fun assertUrlAboveKeyboard() {
         // Native IME windows can cover a node that Compose still considers displayed.
         val automation = instrumentation.uiAutomation
@@ -218,7 +231,14 @@ class UrlVisibilityTest {
                     ime != null && !ime.isEmpty && !Rect.intersects(input, ime)
             }
         } catch (failure: ComposeTimeoutException) {
-            throw AssertionError("The complete URL field must be clear of the native keyboard: field=$field measured=$expectedSize keyboard=$keyboard", failure)
+            var windowGeometry = "unavailable"
+            if (android.os.Build.VERSION.SDK_INT >= 30) instrumentation.runOnMainSync {
+                windowGeometry = android.view.inspector.WindowInspector.getGlobalWindowViews().joinToString { root ->
+                    val insets = root.rootWindowInsets
+                    "size=${root.width}x${root.height}, ime=${insets?.getInsets(android.view.WindowInsets.Type.ime())}, visible=${insets?.isVisible(android.view.WindowInsets.Type.ime())}"
+                }
+            }
+            throw AssertionError("The complete URL field must be clear of the native keyboard: field=$field measured=$expectedSize keyboard=$keyboard windows=[$windowGeometry]", failure)
         } finally {
             info.flags = originalFlags
             automation.serviceInfo = info

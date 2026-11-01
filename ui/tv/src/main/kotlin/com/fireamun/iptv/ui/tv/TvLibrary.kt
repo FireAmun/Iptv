@@ -193,9 +193,10 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                 LaunchedEffect(inputFocused, imeBottom, configuration.screenHeightDp, configuration.fontScale) {
                     if (inputFocused) { withFrameNanos { }; relocation.bringIntoView() }
                 }
+                // TV IMEs can remain visible while reporting a zero bottom inset; keep the field above them.
                 BoxWithConstraints(Modifier.fillMaxSize().pointerInput(Unit) {
                     detectTapGestures { point -> if (!panelBounds.contains(point)) dismissPanel() }
-                }.safeDrawingPadding().imePadding().padding(16.dp), contentAlignment = Alignment.Center) {
+                }.safeDrawingPadding().imePadding().padding(16.dp), contentAlignment = Alignment.TopCenter) {
                     val shortWindow = maxHeight < 360.dp * configuration.fontScale
                     val scroll = rememberScrollState()
                     Surface(Modifier.widthIn(max = 600.dp).fillMaxWidth().heightIn(max = minOf(maxHeight, 460.dp))
@@ -215,7 +216,6 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                                         .onPreviewKeyEvent { event ->
                                             // Single-line editors consume vertical arrows; a remote uses them to leave the field.
                                             if (event.type == KeyEventType.KeyDown && (event.key == Key.DirectionUp || event.key == Key.DirectionDown)) {
-                                                keyboard?.hide()
                                                 dialogFocusManager.moveFocus(if (event.key == Key.DirectionUp) FocusDirection.Up else FocusDirection.Down)
                                             } else false
                                         }, textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.text, textDirection = TextDirection.Ltr), cursorBrush = SolidColor(p.focus),
