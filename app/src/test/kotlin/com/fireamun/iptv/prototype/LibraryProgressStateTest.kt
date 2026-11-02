@@ -11,6 +11,7 @@ import org.junit.Before
 import org.junit.Test
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -42,7 +43,8 @@ class LibraryProgressStateTest {
         override suspend fun item(sourceId: String, generation: String, itemId: Int): PlaylistEntry? {
             if (itemId != 7) return backing.entries.firstOrNull { it.channel.id == itemId }
             // This callback deliberately ignores Job cancellation, like an uncooperative disk API.
-            return suspendCoroutine<PlaylistEntry?> { heldLookup = it }.also { lateLookupReturned = true }
+            return try { suspendCoroutine<PlaylistEntry?> { heldLookup = it } }
+            finally { lateLookupReturned = true }
         }
     }
 
@@ -255,6 +257,64 @@ class LibraryProgressStateTest {
         assertEquals(listOf(row), model.continueWatching.value.items)
         model.playRecent(reference); runCurrent()
         assertEquals(12_000L, model.continueWatching.value.prompt!!.positionMs)
+    }
+
+    @Test fun newerRecentPromptRejectsUncooperativeLatePagedLookupFailure() = runTest {
+        assertRecentUnaffectedByLateFailure(continueRecent = false)
+    }
+
+    @Test fun continuedRecentPlaybackRejectsUncooperativeLatePagedLookupFailure() = runTest {
+        assertRecentUnaffectedByLateFailure(continueRecent = true)
+    }
+
+    private fun TestScope.assertRecentUnaffectedByLateFailure(continueRecent: Boolean) {
+        val recentMovie = PlaylistEntry(Channel(8, "Recent movie", null, ContentKind.MOVIE), MediaAddress.parse("https://example.invalid/recent"))
+        val store = PagedStore(Store(listOf(movie, recentMovie)))
+        val recentTarget = ProgressTarget("source", 8, ContentKind.MOVIE)
+        val reference = ProgressReference("source", "b".repeat(64))
+        val saved = WatchProgress(23_000, null, false, 1)
+        store.backing.progress.records[recentTarget] = ProgressRecord(recentTarget, saved, null)
+        store.backing.progress.recentItems = listOf(RecentWatch(reference, ContentKind.MOVIE, "Recent movie", null, 8, null, null, saved, null))
+        val model = LibraryViewModel(persistence = store, progressRecorder = PlaybackProgressRecorder(backgroundScope, store))
+        runCurrent()
+        assertTrue(model.state.value.channels.isEmpty())
+        model.selectTab(LibraryTab.MOVIES); runCurrent()
+        model.selectChannel(7); runCurrent()
+        assertNotNull(store.heldLookup)
+        assertFalse(store.lateLookupReturned)
+        model.playRecent(reference); runCurrent()
+        assertEquals("Recent movie", model.continueWatching.value.prompt!!.title)
+        if (continueRecent) model.continuePlayback()
+        val recentRequest = model.playback.value
+        val recentPrompt = model.continueWatching.value.prompt
+        val selectedTitle = model.state.value.selectedTitle
+        assertNull(model.state.value.error)
+        store.heldLookup!!.resumeWithException(ImportFailure(ImportError.STORAGE)); runCurrent()
+        assertTrue("The old lookup must actually finish through its failure path", store.lateLookupReturned)
+        assertSame(recentRequest, model.playback.value)
+        assertEquals(recentPrompt, model.continueWatching.value.prompt)
+        assertEquals(selectedTitle, model.state.value.selectedTitle)
+        if (continueRecent) {
+            assertEquals("Recent movie", model.state.value.selectedTitle)
+            assertEquals(23_000L, model.playback.value!!.initialOffsetMs)
+        } else {
+            assertEquals("Recent movie", model.continueWatching.value.prompt!!.title)
+            assertEquals(23_000L, model.continueWatching.value.prompt!!.positionMs)
+        }
+        assertNull("Abandoned lookup failure must not become the current selection's error", model.state.value.error)
+    }
+
+    @Test fun stillCurrentPagedLookupFailureRetainsItsActionableError() = runTest {
+        val store = PagedStore(Store(listOf(movie)))
+        val model = LibraryViewModel(persistence = store, progressRecorder = PlaybackProgressRecorder(backgroundScope, store))
+        runCurrent()
+        model.selectChannel(7); runCurrent()
+        assertNotNull(store.heldLookup)
+        assertFalse(store.lateLookupReturned)
+        store.heldLookup!!.resumeWithException(ImportFailure(ImportError.STORAGE)); runCurrent()
+        assertTrue(store.lateLookupReturned)
+        assertEquals(ImportError.STORAGE, model.state.value.error)
+        assertNull(model.playback.value)
     }
 
     @Test fun cancelledFileRefreshRestoresUnchangedHistoryWithoutAnImportCallback() = runTest {

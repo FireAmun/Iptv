@@ -289,7 +289,7 @@ class LibraryViewModel(
                 val entry = persistence?.item(sourceId, selected.generation, id) ?: return@launch
                 if (current == generation && selection == selectionRevision && session === selected) openEntry(entry)
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: ImportFailure) { if (current == generation) reportError(failure.code) }
+            catch (failure: ImportFailure) { if (current == generation && selection == selectionRevision && session === selected) reportError(failure.code) }
         }
     }
     private fun openEntry(entry: PlaylistEntry) {
