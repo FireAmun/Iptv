@@ -161,7 +161,7 @@ class LibraryViewModel(
         progressEvent()
         if (blocked()) return
         val address = MediaAddress.parse(text)
-        if (address == null) { reportError(ImportError.INVALID_ADDRESS); return }
+        if (address == null) { reportError(ImportError.INVALID_ADDRESS); syncProgressContext(); return }
         cancelImport()
         startImport(source = SourceSpec.url(address)) { loadUrl(address) }
     }
@@ -173,6 +173,7 @@ class LibraryViewModel(
         val source = XtreamConnection.create(server, username, password)
         if (label.isBlank() || label.length > 128 || label.any { it.isISOControl() } || source == null) {
             reportError(ImportError.INVALID_LOGIN)
+            syncProgressContext()
             return
         }
         cancelImport()
@@ -310,7 +311,7 @@ class LibraryViewModel(
     fun backToCatalog() {
         progressEvent()
         if (mutableState.value.saving || mutableState.value.restoring) return
-        val root = parent ?: return
+        val root = parent ?: run { syncProgressContext(); return }
         cancelImport()
         closePlayback()
         library = root.first
@@ -327,10 +328,10 @@ class LibraryViewModel(
         mutablePlayback.value?.let { progress.closing(it.sessionId) }
         mutablePlayback.value = null
     }
-    fun playRecent(reference: ProgressReference) = progress.playRecent(reference)
+    fun playRecent(reference: ProgressReference) { selectionRevision++; progress.playRecent(reference) }
     fun continuePlayback() = progress.continuePlayback()
     fun startPlaybackOver() = progress.startOver()
-    fun cancelResumeChoice() { selectionRevision++; progress.cancelChoice() }
+    fun cancelResumeChoice() { selectionRevision++; progress.cancelChoice(); syncProgressContext() }
     fun dismissProgressError() = progress.dismissError()
     fun retryPlayback(request: PlaybackRequest) = progress.retry(request)
     fun startPlaybackInstance(sessionId: String) = progress.startInstance(sessionId)
@@ -350,9 +351,9 @@ class LibraryViewModel(
     fun refreshSource(onFileNeeded: () -> Unit) {
         progressEvent()
         if (mutableState.value.importing || blocked()) return
-        val source = activeSource ?: return
+        val source = activeSource ?: run { syncProgressContext(); return }
         when (source.kind) {
-            SourceKind.FILE -> onFileNeeded()
+            SourceKind.FILE -> { onFileNeeded(); syncProgressContext() }
             SourceKind.URL -> {
                 val address = source.url!!
                 startImport(source, refreshing = true) { loadUrl(address) }
@@ -378,7 +379,7 @@ class LibraryViewModel(
     fun renameSource(sourceId: String, name: String) {
         progressEvent()
         if (mutableState.value.importing) return
-        val normalized = normalizeSourceName(name) ?: run { reportError(ImportError.INVALID_NAME); return }
+        val normalized = normalizeSourceName(name) ?: run { reportError(ImportError.INVALID_NAME); syncProgressContext(); return }
         manageSource(sourceId) { persistence!!.rename(sourceId, normalized); refreshDirectory() }
     }
     fun removeSource(sourceId: String) {
@@ -399,7 +400,7 @@ class LibraryViewModel(
     }
     private fun manageSource(sourceId: String, switching: Boolean = false, action: suspend () -> Unit) {
         progressEvent()
-        if (persistence == null || mutableState.value.importing || mutableState.value.sources.none { it.id == sourceId }) return
+        if (persistence == null || mutableState.value.importing || mutableState.value.sources.none { it.id == sourceId }) { syncProgressContext(); return }
         cancelImport()
         mutableState.value = mutableState.value.copy(importing = true, saving = true, switchingSource = switching, error = null)
         progress.invalidate()

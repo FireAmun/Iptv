@@ -9,6 +9,9 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryProgressStateTest {
@@ -17,18 +20,30 @@ class LibraryProgressStateTest {
     private val movie = PlaylistEntry(Channel(7, "Movie", null, ContentKind.MOVIE), MediaAddress.parse("https://example.invalid/movie"))
     private val series = PlaylistEntry(Channel(50, "Series", null, ContentKind.SERIES), null, 800)
     private val target = ProgressTarget("source", 7, ContentKind.MOVIE)
-    private class Store(val entries: List<PlaylistEntry>, val progress: ProgressMemoryStore = ProgressMemoryStore()) : LibraryPersistence, PlaybackProgressPersistence by progress {
-        val source = SourceSpec.xtream("Synthetic", XtreamConnection.create("https://example.invalid", "u", "p")!!)
+    private class Store(val entries: List<PlaylistEntry>, val progress: ProgressMemoryStore = ProgressMemoryStore(),
+        val source: SourceSpec = SourceSpec.xtream("Synthetic", XtreamConnection.create("https://example.invalid", "u", "p")!!),
+    ) : LibraryPersistence, PlaybackProgressPersistence by progress {
         var activationGate: CompletableDeferred<Unit>? = null
         var activeId = "source"
         override suspend fun restore() = SavedLibrary(source, entries, 1, "source")
-        override suspend fun directory() = SourceDirectory(listOf(SavedSource("source", "Synthetic", SourceKind.XTREAM, 0), SavedSource("other", "Other", SourceKind.XTREAM, 1)), activeId)
+        override suspend fun directory() = SourceDirectory(listOf(SavedSource("source", "Synthetic", source.kind, 0), SavedSource("other", "Other", SourceKind.XTREAM, 1)), activeId)
         override suspend fun activate(sourceId: String): SavedLibrary { activationGate?.await(); activeId = sourceId; return SavedLibrary(source, entries, 1, sourceId) }
         override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?) = SavedLibrary(source, entries, 1, "source")
         override suspend fun clear() = Unit
         override suspend fun rename(sourceId: String, name: String) = Unit
         override suspend fun remove(sourceId: String) = Unit
         override suspend fun item(sourceId: String, generation: String, itemId: Int) = entries.firstOrNull { it.channel.id == itemId }
+    }
+
+    private class PagedStore(val backing: Store) : LibraryPersistence by backing, PlaybackProgressPersistence by backing.progress {
+        var heldLookup: Continuation<PlaylistEntry?>? = null
+        var lateLookupReturned = false
+        override suspend fun openSession() = LibrarySession(backing.source, "source", "generation", 1, backing.entries.size)
+        override suspend fun item(sourceId: String, generation: String, itemId: Int): PlaylistEntry? {
+            if (itemId != 7) return backing.entries.firstOrNull { it.channel.id == itemId }
+            // This callback deliberately ignores Job cancellation, like an uncooperative disk API.
+            return suspendCoroutine<PlaylistEntry?> { heldLookup = it }.also { lateLookupReturned = true }
+        }
     }
 
     @Test fun restoredMovieChoiceCloseFinalAndRetryAreWiredWithoutStartupProviderCalls() = runTest {
@@ -181,5 +196,161 @@ class LibraryProgressStateTest {
         assertNull(model.continueWatching.value.prompt)
         model.playRecent(reference); runCurrent()
         assertNotNull(model.continueWatching.value.prompt)
+    }
+
+    @Test fun newerRecentSelectionRejectsUncooperativeLatePagedLookupForPromptAndPlayback() = runTest {
+        for (continueRecent in listOf(false, true)) {
+            val recentMovie = PlaylistEntry(Channel(8, "Recent movie", null, ContentKind.MOVIE), MediaAddress.parse("https://example.invalid/recent"))
+            val store = PagedStore(Store(listOf(movie, recentMovie)))
+            val recentTarget = ProgressTarget("source", 8, ContentKind.MOVIE)
+            val reference = ProgressReference("source", "b".repeat(64))
+            val saved = WatchProgress(23_000, null, false, 1)
+            store.backing.progress.records[recentTarget] = ProgressRecord(recentTarget, saved, null)
+            store.backing.progress.recentItems = listOf(RecentWatch(reference, ContentKind.MOVIE, "Recent movie", null, 8, null, null, saved, null))
+            val model = LibraryViewModel(persistence = store, progressRecorder = PlaybackProgressRecorder(backgroundScope, store))
+            runCurrent()
+            assertTrue(model.state.value.channels.isEmpty())
+            model.selectTab(LibraryTab.MOVIES); runCurrent()
+            model.selectChannel(7); runCurrent()
+            assertNotNull(store.heldLookup)
+            assertFalse(store.lateLookupReturned)
+            assertEquals(reference, model.continueWatching.value.items.single().reference)
+            model.playRecent(reference); runCurrent()
+            assertEquals("Recent movie", model.continueWatching.value.prompt!!.title)
+            if (continueRecent) model.continuePlayback()
+            val recentRequest = model.playback.value
+            store.heldLookup!!.resume(movie); runCurrent()
+            assertTrue(store.lateLookupReturned)
+            if (continueRecent) {
+                assertSame(recentRequest, model.playback.value)
+                assertEquals(23_000L, model.playback.value!!.initialOffsetMs)
+                assertEquals("Recent movie", model.state.value.selectedTitle)
+                assertNull(model.continueWatching.value.prompt)
+            } else {
+                assertNull(model.playback.value)
+                assertEquals("Recent movie", model.continueWatching.value.prompt!!.title)
+                assertEquals(23_000L, model.continueWatching.value.prompt!!.positionMs)
+            }
+        }
+    }
+
+    @Test fun cancellingOrdinaryMovieChoiceRestoresSameHistoryWithoutChangingProgressOrPlaying() = runTest {
+        val store = Store(listOf(movie))
+        val reference = ProgressReference("source", "a".repeat(64))
+        val saved = WatchProgress(12_000, 100_000, false, 1)
+        val row = RecentWatch(reference, ContentKind.MOVIE, "Movie", null, 7, null, null, saved, null)
+        store.progress.records[target] = ProgressRecord(target, saved, null)
+        store.progress.recentItems = listOf(row)
+        val model = LibraryViewModel(persistence = store, progressRecorder = PlaybackProgressRecorder(backgroundScope, store))
+        runCurrent()
+        model.selectTab(LibraryTab.MOVIES); runCurrent()
+        assertEquals(listOf(row), model.continueWatching.value.items)
+        model.selectChannel(7); runCurrent()
+        assertNotNull(model.continueWatching.value.prompt)
+        model.cancelResumeChoice(); runCurrent()
+        assertNull(model.continueWatching.value.prompt)
+        assertNull(model.playback.value)
+        assertEquals(saved, store.progress.records[target]!!.progress)
+        assertTrue(store.progress.operations.isEmpty())
+        assertEquals(listOf(row), model.continueWatching.value.items)
+        model.playRecent(reference); runCurrent()
+        assertEquals(12_000L, model.continueWatching.value.prompt!!.positionMs)
+    }
+
+    @Test fun cancelledFileRefreshRestoresUnchangedHistoryWithoutAnImportCallback() = runTest {
+        val store = Store(listOf(movie), source = SourceSpec.file())
+        val row = rememberMovie(store)
+        val model = LibraryViewModel(persistence = store, progressRecorder = PlaybackProgressRecorder(backgroundScope, store))
+        runCurrent()
+        model.selectTab(LibraryTab.MOVIES); runCurrent()
+        assertEquals(listOf(row), model.continueWatching.value.items)
+        var pickerOpened = 0
+        model.refreshSource { pickerOpened++ }
+        // Returning without importFile models a cancelled picker (null URI has no VM callback).
+        runCurrent()
+        assertEquals(1, pickerOpened)
+        assertFalse(model.state.value.importing)
+        assertEquals("source", model.state.value.activeSourceId)
+        assertEquals(listOf(row), model.continueWatching.value.items)
+        assertUnchangedHistoryAndCanChoose(model, store, row)
+    }
+
+    @Test fun rejectedUrlLoginAndSourceNameRestoreUnchangedHistoryAndActions() = runTest {
+        for (rejection in 0..2) {
+            val store = Store(listOf(movie))
+            val row = rememberMovie(store)
+            val model = LibraryViewModel(persistence = store, progressRecorder = PlaybackProgressRecorder(backgroundScope, store))
+            runCurrent()
+            model.selectTab(LibraryTab.MOVIES); runCurrent()
+            when (rejection) {
+                0 -> model.importUrl("file:///invalid")
+                1 -> model.importXtream("", "invalid", "", "")
+                2 -> model.renameSource("source", "\n")
+            }
+            runCurrent()
+            assertEquals(when (rejection) { 0 -> ImportError.INVALID_ADDRESS; 1 -> ImportError.INVALID_LOGIN; else -> ImportError.INVALID_NAME }, model.state.value.error)
+            assertEquals(listOf(row), model.continueWatching.value.items)
+            assertUnchangedHistoryAndCanChoose(model, store, row)
+        }
+    }
+
+    @Test fun noOpSourceManagementAndRootBackRestoreCurrentHistory() = runTest {
+        for (noOp in 0..3) {
+            val store = Store(listOf(movie))
+            val row = rememberMovie(store)
+            val model = LibraryViewModel(persistence = store, progressRecorder = PlaybackProgressRecorder(backgroundScope, store))
+            runCurrent()
+            model.selectTab(LibraryTab.MOVIES); runCurrent()
+            when (noOp) {
+                0 -> model.selectSource("missing")
+                1 -> model.renameSource("missing", "Valid name")
+                2 -> model.removeSource("missing")
+                3 -> model.backToCatalog()
+            }
+            runCurrent()
+            assertEquals(listOf(row), model.continueWatching.value.items)
+            assertUnchangedHistoryAndCanChoose(model, store, row)
+        }
+    }
+
+    @Test fun rejectedInputDuringImportKeepsHistoryUnavailableUntilImportFinishesOrCancels() = runTest {
+        val pending = CompletableDeferred<List<PlaylistEntry>>()
+        val store = Store(listOf(movie), source = SourceSpec.file())
+        val row = rememberMovie(store)
+        val model = LibraryViewModel(persistence = store, progressRecorder = PlaybackProgressRecorder(backgroundScope, store), loadUrl = { pending.await() })
+        runCurrent()
+        model.selectTab(LibraryTab.MOVIES); runCurrent()
+        model.refreshSource { model.importUrl("https://example.invalid/pending") }
+        runCurrent()
+        assertTrue(model.state.value.importing)
+        model.importUrl("file:///invalid"); runCurrent()
+        assertTrue(model.state.value.importing)
+        assertTrue(model.continueWatching.value.items.isEmpty())
+        model.playRecent(row.reference); runCurrent()
+        assertNull(model.continueWatching.value.prompt)
+        assertNull(model.playback.value)
+        assertEquals(row.progress, store.progress.records[target]!!.progress)
+        assertTrue(store.progress.operations.isEmpty())
+        model.cancelImport()
+        pending.complete(emptyList()); runCurrent()
+        assertEquals(listOf(row), model.continueWatching.value.items)
+    }
+
+    private fun rememberMovie(store: Store): RecentWatch {
+        val reference = ProgressReference("source", "a".repeat(64))
+        val saved = WatchProgress(12_000, 100_000, false, 1)
+        store.progress.records[target] = ProgressRecord(target, saved, null)
+        return RecentWatch(reference, ContentKind.MOVIE, "Movie", null, 7, null, null, saved, null).also { store.progress.recentItems = listOf(it) }
+    }
+
+    private fun TestScope.assertUnchangedHistoryAndCanChoose(model: LibraryViewModel, store: Store, row: RecentWatch) {
+        assertFalse(model.state.value.importing)
+        assertEquals("source", model.state.value.activeSourceId)
+        assertEquals(row.progress, store.progress.records[target]!!.progress)
+        assertTrue(store.progress.operations.isEmpty())
+        assertNull(model.playback.value)
+        model.playRecent(row.reference); runCurrent()
+        assertEquals(12_000L, model.continueWatching.value.prompt!!.positionMs)
+        assertNull(model.playback.value)
     }
 }
