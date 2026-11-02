@@ -106,7 +106,7 @@ internal class LifecyclePlayerSession(
                 if (active.playbackState == Player.STATE_READY) onStatus(if (isPlaying) PlaybackStatus.PLAYING else PlaybackStatus.PAUSED)
             }
             override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
-                if (current() && reason == Player.DISCONTINUITY_REASON_SEEK) checkpoint(active)
+                if (current() && reason == Player.DISCONTINUITY_REASON_SEEK) checkpoint(active, ended = false)
             }
             override fun onPlayerError(error: PlaybackException) {
                 if (!current()) return
@@ -132,7 +132,7 @@ internal class LifecyclePlayerSession(
     override fun onStop(owner: LifecycleOwner) { release() }
     override fun onDestroy(owner: LifecycleOwner) { close() }
 
-    private fun checkpoint(active: ExoPlayer, ended: Boolean = false): PlaybackCheckpoint? {
+    private fun checkpoint(active: ExoPlayer, ended: Boolean = active.playbackState == Player.STATE_ENDED): PlaybackCheckpoint? {
         if (closed || player !== active) return null
         val id = instanceId ?: return null
         val position = active.contentPosition

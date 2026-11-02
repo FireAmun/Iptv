@@ -116,6 +116,11 @@ class PlaybackCheckpointTest {
             await { reports.any { it.eligible && !it.ended && it.positionMs >= 5_000 } }
             scenario.onActivity { playerView(it).player!!.seekTo(29_500) }
             await { reports.any { it.eligible && it.ended } }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { assertEquals(Player.STATE_ENDED, playerView(it).player!!.playbackState) }
+            assertTrue("Last checkpoint must keep completion after Media3 settles", reports.last { it.eligible }.ended)
+            scenario.onActivity { playerView(it).player!!.seekTo(4_000) }
+            await { reports.lastOrNull { it.eligible }?.let { !it.ended && it.positionMs in 3_000..8_000 } == true }
         }
     }
 
