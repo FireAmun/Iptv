@@ -12,8 +12,6 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.DefaultTimeBar
 import androidx.compose.ui.graphics.toArgb
 import com.fireamun.iptv.core.designsystem.Cinema
-import com.fireamun.iptv.core.model.ContentKind
-import com.fireamun.iptv.core.model.MediaAddress
 import com.fireamun.iptv.core.model.PlaybackCheckpoint
 import com.fireamun.iptv.core.model.PlaybackRequest
 import com.fireamun.iptv.core.model.PlaybackStart
@@ -61,14 +59,5 @@ fun PlaybackSurface(
             lifecycle.addObserver(session)
             onDispose { lifecycle.removeObserver(session); session.close() }
         }
-    }
-}
-
-/** Compatibility until the application coordinator supplies stable request and instance tokens. */
-@Composable
-fun PlaybackSurface(address: MediaAddress, retry: Int, onStatus: (PlaybackStatus) -> Unit, modifier: Modifier = Modifier) {
-    key(address, retry) {
-        val request = remember { PlaybackRequest("legacy-$retry", address, ContentKind.UNKNOWN, 0) }
-        PlaybackSurface(request, { PlaybackStart(request.sessionId, 0) }, { _, _ -> }, onStatus, {}, modifier)
     }
 }

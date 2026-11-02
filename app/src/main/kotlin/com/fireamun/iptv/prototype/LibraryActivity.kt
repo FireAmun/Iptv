@@ -35,7 +35,10 @@ abstract class LibraryActivity : AppCompatActivity() {
     private var refreshingFile = false
     private val library by lazy {
         ViewModelProvider(this, object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T = modelClass.cast(LibraryViewModel(persistence = (application as IptvApplication).libraryStore))!!
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = modelClass.cast(LibraryViewModel(
+                persistence = (application as IptvApplication).libraryStore,
+                progressRecorder = (application as IptvApplication).progressRecorder,
+            ))!!
         })[LibraryViewModel::class.java]
     }
     private val picker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -64,7 +67,7 @@ abstract class LibraryActivity : AppCompatActivity() {
         enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
         setContent {
             val state by library.state.collectAsStateWithLifecycle()
-            val address by library.playback.collectAsStateWithLifecycle()
+            val request by library.playback.collectAsStateWithLifecycle()
             val catalogue = library.catalogue.collectAsLazyPagingItems()
             val browserState = rememberSaveableStateHolder()
             // A recreated activity has already consumed this launch, even if rotated mid-intro.
@@ -76,18 +79,24 @@ abstract class LibraryActivity : AppCompatActivity() {
                     isAppearanceLightNavigationBars = if (showStartup) false else !dark
                 }
             }
-            val active = address
+            val active = request
             if (showStartup) {
                 AmarStartupScreen(onIntroFinished = { introFinished = true })
             } else if (active != null) {
-                key(active) {
+                key(active.sessionId) {
                     var status by remember { mutableStateOf(PlaybackStatus.PREPARING) }
-                    var retry by remember { mutableIntStateOf(0) }
                     val title = state.selectedTitle ?: getString(R.string.player_title)
-                    val surface: @Composable (Modifier) -> Unit = { PlaybackSurface(active, retry, { status = it }, it) }
+                    val surface: @Composable (Modifier) -> Unit = { modifier -> PlaybackSurface(
+                        active,
+                        { library.startPlaybackInstance(active.sessionId) },
+                        { instanceId, checkpoint -> library.playbackCheckpoint(active.sessionId, instanceId, checkpoint) },
+                        { status = it },
+                        { library.playbackDisposed(active.sessionId) },
+                        modifier,
+                    ) }
                     BackHandler { library.closePlayback() }
-                    if (television) TvPlayback(title, status, library::closePlayback, { retry++ }, surface)
-                    else MobilePlayback(title, status, library::closePlayback, { retry++ }, surface)
+                    if (television) TvPlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface)
+                    else MobilePlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface)
                 }
             } else {
                 BackHandler(enabled = state.canGoBack) { library.backToCatalog() }
