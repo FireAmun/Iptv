@@ -35,6 +35,17 @@ class EpisodeSnapshotCodecTest {
         encoded.fill(0)
     }
 
+    @Test fun longUtf8LocatorStaysWithinEncodedBoundAndRoundTrips() {
+        val longAddress = MediaAddress.parse("https://example.invalid/" + "界".repeat(3_900))!!
+        val snapshot = EpisodeSnapshot("EPISODE:31", "ع".repeat(512), 1, 2, longAddress)
+        val encoded = EpisodeSnapshotCodec.encode(snapshot)
+        try {
+            assertTrue(encoded.size > 11_000)
+            assertTrue(encoded.size <= EpisodeSnapshotCodec.MAX_BYTES)
+            assertEquals(longAddress.reveal(), EpisodeSnapshotCodec.decode(encoded).address.reveal())
+        } finally { encoded.fill(0) }
+    }
+
     @Test fun invalidProviderKeyAndNumbersAreRejected() {
         for (key in listOf("", "EPISODE:0", "EPISODE:-2", "MOVIE:31", "EPISODE:31:extra")) {
             try { EpisodeSnapshot(key, null, null, null, address); fail("Accepted invalid key") }
