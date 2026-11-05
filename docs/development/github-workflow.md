@@ -15,6 +15,8 @@ The owner authorized this sequence for normal development without asking again a
 
 Do not push code directly to `main` or force-push shared history. The initial empty `main` commit exists only to provide a PR base; all project files are introduced through the bootstrap PR.
 
+When CI is the only remaining work, use a background `gh run watch <run-id> --repo FireAmun/Iptv --exit-status --interval 60` command and resume on completion. Keep its output in an ignored log. Do not spend model turns repeatedly checking unchanged status or dispatch an agent just to poll. After completion, inspect the latest jobs, actual XML and process logs. This records the owner's 5 November token-cost preference.
+
 This is the agent/project delivery policy, not an unattended bot that merges arbitrary future pushes. GitHub Actions runs checks automatically; project agents open PRs, inspect those checks, and perform the authorized merge. Repository settings automatically remove merged head branches.
 
 ## What CI checks now

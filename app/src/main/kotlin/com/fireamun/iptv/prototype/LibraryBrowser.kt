@@ -169,6 +169,16 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     val targetIndex = if (selectedIndex >= 0) selectedIndex else visibleStart.coerceAtMost((items.itemCount - 1).coerceAtLeast(0))
     val recentTarget = recentItems.indexOfFirst { it.reference.refDigest == lastRecentDigest }.takeIf { it >= 0 }
         ?: lastRecentIndex.coerceIn(0, (recentItems.size - 1).coerceAtLeast(0))
+    val focusKind = if (state.canGoBack) ContentKind.EPISODE else when (state.tab) {
+        LibraryTab.LIVE -> ContentKind.LIVE
+        LibraryTab.MOVIES -> ContentKind.MOVIE
+        LibraryTab.SERIES -> ContentKind.SERIES
+        else -> null
+    }
+    fun catalogueReadyForFocus(): Boolean {
+        val loaded = items.itemSnapshotList.items
+        return loaded.isNotEmpty() && loaded.all { matchesKind(it.kind, focusKind) }
+    }
     LaunchedEffect(window.isWindowFocused) {
         if (television && window.isWindowFocused && !focusBaselineReady) {
             // Removing Settings can give native fallback focus to navigation during layout.
@@ -211,15 +221,17 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
                 if (!categoryRowHasFocus && !userMoved && externalFocusEpoch == initialExternalEpoch) { restorePending = false; recentFocus.requestFocus() }
             }
             else if (state.entryCount > 0) {
-                snapshotFlow { items.itemCount > 0 || items.loadState.refresh is LoadState.Error }.first { it }
+                // Paging can retain the outgoing tab's snapshot until the new page arrives.
+                // Do not spend this context's one restoration on that incompatible content.
+                snapshotFlow { catalogueReadyForFocus() || items.loadState.refresh is LoadState.Error }.first { it }
                 if (categoryRowHasFocus || userMoved || externalFocusEpoch != initialExternalEpoch) { restorePending = false; return@LaunchedEffect }
-                if (items.itemCount > 0) {
+                if (catalogueReadyForFocus()) {
                     val index = items.itemSnapshotList.items.indexOfFirst { it.id == (lastFocusedId ?: state.selectedId) }.takeIf { it >= 0 }
                         ?: visibleStart.coerceAtMost(items.itemCount - 1)
                     if (posters) grid.scrollToItem(index + headerCount) else list.scrollToItem(index)
                 }
                 withFrameNanos { }
-                if (items.itemCount > 0 && !categoryRowHasFocus && !userMoved && externalFocusEpoch == initialExternalEpoch) { restorePending = false; entryFocus.requestFocus() }
+                if (catalogueReadyForFocus() && !categoryRowHasFocus && !userMoved && externalFocusEpoch == initialExternalEpoch) { restorePending = false; entryFocus.requestFocus() }
             }
         }
     }

@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 5 November 2026 (Asia/Riyadh)  
-Overall status: Continue Watching is implemented and independently reviewed locally: protected movie/episode positions, resume choices and Cinema rows. Build/lint, APK/test APK and 116 JVM tests pass. Normal TV passed 85/85, compact TV/font1.3 passed 4/4, portrait phone passed 8/8; both distinct-process persistence probes passed every source/progress marker. Actual English/dark and Arabic/light previews were inspected. GitHub delivery remains pending; nothing from this feature is merged yet.
+Overall status: Continue Watching is implemented/reviewed; PR #18 is open and unmerged. CI run69 found the same Live→Movies→Live focus failure on both devices (84/85 passing). Its UI-only correction is source-reviewed and now passes the deterministic regression, original journey, complete local86/86 TV suite and cold-process probe. Full build/lint/116 JVM pass; prior compact4/portrait8 and both probes remain recorded. The correction must pass complete latest-head CI before merge.
 Current phase: P3/P4 persistent movie/episode playback progress. P7 minimal monitoring is delivered; release controls remain open.
-Next task: Commit and bind the final review, then push/open PR, verify all latest-head CI jobs plus 85 actual XML cases and every process marker per device, merge with the tested head and verify main. Then validate 300k before raising or advertising the current 100k cap; preserve owner sources/research.
+Next task: Push the locally verified Paging/focus correction to [PR #18](https://github.com/FireAmun/Iptv/pull/18), then wait for complete latest-head CI with86 actual XML cases and every process marker per device. Use a background completion watcher rather than repeated model polling. Merge only with the tested head and verify main. Then validate300k before raising or advertising the current100k cap; preserve owner sources/research.
 
 ## 1. Start here in a new chat
 

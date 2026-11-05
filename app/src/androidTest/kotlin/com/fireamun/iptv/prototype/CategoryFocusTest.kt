@@ -108,6 +108,34 @@ class CategoryFocusTest {
         compose.onNodeWithTag("nav_series").assertIsFocused()
     }
 
+    @Test fun outgoingMoviePageWaitsForLiveDataAndPreservesLaterNavigation() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as IptvApplication
+        val live = Channel(0, "Live fixture", null, ContentKind.LIVE)
+        val movie = Channel(1, "Movie fixture", null, ContentKind.MOVIE)
+        val series = Channel(2, "Series fixture", null, ContentKind.SERIES)
+        val state = mutableStateOf(LibraryState(channels = listOf(live, movie, series), tab = LibraryTab.LIVE, activeSourceId = "fixture"))
+        val pages = MutableStateFlow(PagingData.from(listOf(movie)))
+        compose.setContent {
+            LibraryBrowser(state.value, pages.collectAsLazyPagingItems(), true, app.artworkLoader,
+                onTab = {}, onQuery = {}, onCategory = {}, onPlay = {}, onFavourite = {}, onBack = {}, onCloseSearch = {},
+                watch = ContinueWatchingState("fixture", ContentKind.EPISODE), settings = {})
+        }
+        compose.waitUntil(5000) { compose.onAllNodesWithTag("channel_1").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForIdle()
+        compose.runOnIdle { pages.value = PagingData.from(listOf(live)) }
+        awaitFocus("channel_0")
+
+        // Another tab change is pending, but a deliberate navigation choice owns focus.
+        compose.runOnIdle { pages.value = PagingData.from(listOf(movie)); state.value = state.value.copy(tab = LibraryTab.SERIES) }
+        compose.waitUntil(5000) { compose.onAllNodesWithTag("channel_1").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("nav_settings").performSemanticsAction(SemanticsActions.RequestFocus)
+        awaitFocus("nav_settings")
+        compose.runOnIdle { pages.value = PagingData.from(listOf(series)) }
+        compose.waitUntil(5000) { compose.onAllNodesWithTag("channel_2").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("nav_settings").assertIsFocused()
+    }
+
     @Test fun pendingHistoryPreservesTheUsersCatalogueFavouriteFocus() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as IptvApplication
         val channels = listOf(Channel(0, "Movie fixture", null, ContentKind.MOVIE))
