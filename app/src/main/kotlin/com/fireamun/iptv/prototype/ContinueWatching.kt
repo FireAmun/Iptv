@@ -103,6 +103,8 @@ internal fun ProgressOverlays(state: ContinueWatchingState, television: Boolean,
         val prompt = state.prompt
         if (prompt != null) {
             val focus = remember(prompt) { FocusRequester() }
+            val startOverFocus = remember(prompt) { FocusRequester() }
+            val cancelFocus = remember(prompt) { FocusRequester() }
             var focusedOnce by remember(prompt) { mutableStateOf(false) }
             Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
                 val window = LocalWindowInfo.current
@@ -112,11 +114,17 @@ internal fun ProgressOverlays(state: ContinueWatchingState, television: Boolean,
                             Text(prompt.title ?: stringResource(R.string.browse_progress_untitled), fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold, maxLines = 3, overflow = TextOverflow.Ellipsis)
                             if (state.error == ProgressProblem.RESET) Text(stringResource(R.string.browse_progress_reset_failed), color = p.error, modifier = Modifier.testTag("progress_error"))
                             // Isolate the media timestamp inside the translated label, retaining the surrounding RTL text.
-                            BrowserTarget(onContinue, Modifier.fillMaxWidth().heightIn(min = 52.dp).focusRequester(focus).testTag("resume_continue"), enabled = !state.loading) {
+                            BrowserTarget(onContinue, Modifier.fillMaxWidth().heightIn(min = 52.dp).focusRequester(focus)
+                                .then(if (television) Modifier.focusProperties { up = FocusRequester.Cancel; down = if (state.loading) cancelFocus else startOverFocus } else Modifier)
+                                .testTag("resume_continue"), enabled = !state.loading) {
                                 Text(stringResource(R.string.browse_continue_at, "\u2066${mediaTime(prompt.positionMs)}\u2069"), Modifier.padding(14.dp), color = p.focus, fontWeight = FontWeight.Bold)
                             }
-                            BrowserTarget(onStartOver, Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("resume_start_over"), enabled = !state.loading) { Text(stringResource(R.string.browse_start_over), Modifier.padding(14.dp)) }
-                            BrowserTarget(onCancel, Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("resume_cancel"), quiet = true) { Text(stringResource(R.string.browse_progress_cancel), Modifier.padding(14.dp), color = p.muted) }
+                            BrowserTarget(onStartOver, Modifier.fillMaxWidth().heightIn(min = 52.dp).focusRequester(startOverFocus)
+                                .then(if (television) Modifier.focusProperties { up = focus; down = cancelFocus } else Modifier)
+                                .testTag("resume_start_over"), enabled = !state.loading) { Text(stringResource(R.string.browse_start_over), Modifier.padding(14.dp)) }
+                            BrowserTarget(onCancel, Modifier.fillMaxWidth().heightIn(min = 52.dp).focusRequester(cancelFocus)
+                                .then(if (television) Modifier.focusProperties { up = if (state.loading) FocusRequester.Cancel else startOverFocus; down = FocusRequester.Cancel } else Modifier)
+                                .testTag("resume_cancel"), quiet = true) { Text(stringResource(R.string.browse_progress_cancel), Modifier.padding(14.dp), color = p.muted) }
                         }
                     }
                 }

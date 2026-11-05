@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 5 November 2026 (Asia/Riyadh)  
-Overall status: Continue Watching is implemented/reviewed; PR #18 is open and unmerged. CI run69 found the same Live→Movies→Live focus failure on both devices (84/85 passing). Its UI-only correction is source-reviewed and now passes the deterministic regression, original journey, complete local86/86 TV suite and cold-process probe. Full build/lint/116 JVM pass; prior compact4/portrait8 and both probes remain recorded. The correction must pass complete latest-head CI before merge.
+Overall status: PR #18 is open and unmerged. CI run70 verifies the Paging/focus correction: phone86/86 plus all probes passed; TV had85/86 with one first-D-pad dialog failure. Explicit TV navigation and same-budget native-dialog readiness now pass source review, normal/compact dialog tests, full local86/86 and all cold-process markers. Build/lint/116 JVM pass. Complete latest-head CI remains required before merge; no check is bypassed.
 Current phase: P3/P4 persistent movie/episode playback progress. P7 minimal monitoring is delivered; release controls remain open.
-Next task: Push the locally verified Paging/focus correction to [PR #18](https://github.com/FireAmun/Iptv/pull/18), then wait for complete latest-head CI with86 actual XML cases and every process marker per device. Use a background completion watcher rather than repeated model polling. Merge only with the tested head and verify main. Then validate300k before raising or advertising the current100k cap; preserve owner sources/research.
+Next task: Verify and push the resume-dialog hardening to [PR #18](https://github.com/FireAmun/Iptv/pull/18), currently at b455349. Require all latest-head jobs,86 actual XML cases and every process marker per device. Use a background completion watcher rather than repeated model polling. Merge only with the tested head and verify main. Then validate300k before raising or advertising the current100k cap; preserve owner sources/research.
 
 ## 1. Start here in a new chat
 
