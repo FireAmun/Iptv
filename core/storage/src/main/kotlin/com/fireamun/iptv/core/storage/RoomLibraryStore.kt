@@ -17,9 +17,10 @@ import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-class RoomLibraryStore private constructor(private val database: LibraryDatabase, private val protector: EnvelopeProtector) : LibraryPersistence {
+class RoomLibraryStore private constructor(private val database: LibraryDatabase, private val protector: EnvelopeProtector) : LibraryPersistence, PlaybackProgressPersistence {
     private val dao = database.library()
     private val mutex = Mutex()
+    private val progressStore = WatchProgressStore(dao)
     private class Envelope(val source: SourceSpec, val key: ByteArray)
 
     override suspend fun openSession(): LibrarySession? = guarded {
@@ -190,7 +191,7 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
         mutex.withLock {
             val empty = database.withTransaction {
                 require(dao.source(sourceId) != null)
-                dao.clearSearch(sourceId); dao.clearFavourites(sourceId); dao.clearEntries(sourceId); dao.clearIdentities(sourceId); dao.clearSource(sourceId)
+                dao.clearSearch(sourceId); dao.clearFavourites(sourceId); dao.clearProgress(sourceId); dao.clearEntries(sourceId); dao.clearIdentities(sourceId); dao.clearSource(sourceId)
                 val remaining = dao.sources()
                 if (remaining.isEmpty()) dao.clearActive()
                 else {
@@ -282,12 +283,58 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     override suspend fun clear(): Unit = guarded {
         mutex.withLock {
             database.withTransaction {
-                dao.clearSearch(); dao.clearFavourites(); dao.clearEntries(); dao.clearIdentities(); dao.clearSource(); dao.clearActive()
+                dao.clearSearch(); dao.clearFavourites(); dao.clearProgress(); dao.clearEntries(); dao.clearIdentities(); dao.clearSource(); dao.clearActive()
             }
             clearUnusedKey()
         }
     }
     fun close() = database.close()
+
+    override suspend fun save(target: ProgressTarget, progress: WatchProgress, snapshot: EpisodeSnapshot?): Unit = guarded {
+        mutex.withLock { database.withTransaction {
+            val source = dao.source(target.sourceId) ?: error("Missing saved source")
+            val root = dao.entry(target.sourceId, target.rootItemId) ?: error("Missing catalogue root")
+            val authenticated = envelope(source)
+            try { progressStore.save(target, progress, snapshot, root, authenticated.key) }
+            finally { authenticated.key.fill(0) }
+        } }
+    }
+    override suspend fun read(target: ProgressTarget): ProgressRecord? = guarded {
+        mutex.withLock { database.withTransaction {
+            val source = dao.source(target.sourceId) ?: return@withTransaction null
+            val root = dao.entry(target.sourceId, target.rootItemId) ?: return@withTransaction null
+            val authenticated = envelope(source)
+            try { progressStore.read(target, root, authenticated.key) }
+            finally { authenticated.key.fill(0) }
+        } }
+    }
+    override suspend fun read(reference: ProgressReference): ProgressRecord? = guarded {
+        mutex.withLock { database.withTransaction {
+            val source = dao.source(reference.sourceId) ?: return@withTransaction null
+            val row = dao.progress(reference.sourceId, reference.refDigest) ?: return@withTransaction null
+            val root = dao.entry(reference.sourceId, row.rootItemId) ?: return@withTransaction null
+            val authenticated = envelope(source)
+            try { progressStore.read(reference, row, root, authenticated.key) }
+            finally { authenticated.key.fill(0) }
+        } }
+    }
+    override suspend fun reset(target: ProgressTarget): Unit = guarded {
+        mutex.withLock { database.withTransaction {
+            val source = dao.source(target.sourceId) ?: error("Missing saved source")
+            val authenticated = envelope(source)
+            try { dao.clearProgress(target.sourceId, progressStore.digest(target, authenticated.key)) }
+            finally { authenticated.key.fill(0) }
+        } }
+    }
+    override suspend fun recent(sourceId: String, kind: ContentKind, limit: Int): List<RecentWatch> = guarded {
+        require(limit in 1..20 && kind in setOf(ContentKind.MOVIE, ContentKind.EPISODE))
+        mutex.withLock { database.withTransaction {
+            val source = dao.source(sourceId) ?: return@withTransaction emptyList()
+            val authenticated = envelope(source)
+            try { progressStore.recent(sourceId, kind, limit, authenticated.key) }
+            finally { authenticated.key.fill(0) }
+        } }
+    }
 
     private fun clearUnusedKey() {
         // The DB deletion is committed. Platform cleanup failure must not revive removed data in UI.
@@ -331,6 +378,6 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     }
     companion object {
         fun open(context: Context, name: String = "library.db", protector: EnvelopeProtector = KeystoreEnvelope()) =
-            RoomLibraryStore(Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build(), protector)
+            RoomLibraryStore(Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build(), protector)
     }
 }

@@ -37,3 +37,11 @@ internal val MIGRATION_2_3 = object : Migration(2, 3) {
         for (ch in "\u0622\u0623\u0625\u0671") db.execSQL("UPDATE entry_search SET searchText = replace(searchText,?, '\u0627') WHERE searchText LIKE ?", arrayOf(ch.toString(), "%$ch%"))
     }
 }
+
+/** Add protected progress without changing existing source, identity, or catalogue bytes. */
+internal val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS watch_progress (sourceId TEXT NOT NULL, refDigest TEXT NOT NULL, rootItemId INTEGER NOT NULL, kind TEXT NOT NULL, positionMs INTEGER NOT NULL, durationMs INTEGER, completed INTEGER NOT NULL, watchedAtMs INTEGER NOT NULL, snapshot BLOB, PRIMARY KEY(sourceId, refDigest))")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_progress_sourceId_kind_completed_watchedAtMs ON watch_progress(sourceId, kind, completed, watchedAtMs)")
+    }
+}

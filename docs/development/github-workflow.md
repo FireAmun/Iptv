@@ -15,9 +15,13 @@ The owner authorized this sequence for normal development without asking again a
 
 Do not push code directly to `main` or force-push shared history. The initial empty `main` commit exists only to provide a PR base; all project files are introduced through the bootstrap PR.
 
+When CI is the only remaining work, use a background `gh run watch <run-id> --repo FireAmun/Iptv --exit-status --interval 60` command and resume on completion. Keep its output in an ignored log. Do not spend model turns repeatedly checking unchanged status or dispatch an agent just to poll. After completion, inspect the latest jobs, actual XML and process logs. This records the owner's 5 November token-cost preference.
+
 This is the agent/project delivery policy, not an unattended bot that merges arbitrary future pushes. GitHub Actions runs checks automatically; project agents open PRs, inspect those checks, and perform the authorized merge. Repository settings automatically remove merged head branches.
 
 ## What CI checks now
+
+When CI is the only remaining work, run a background completion watcher such as `gh run watch RUN_ID --repo FireAmun/Iptv --exit-status --interval 60` and resume after it exits. Keep the log under ignored `.tools/`. Do not repeatedly poll with model turns or assign an agent merely to poll. Once complete, inspect the final latest-head jobs, actual device XML and process-probe logs before merging.
 
 [The CI workflow](../../.github/workflows/ci.yml) runs on every PR update, pushes to `main`, and manual dispatch. Open/update the work branch's PR when pushing; the PR event checks that exact new head. This avoids duplicate device jobs for the branch push and its PR event. Unpublished branches can be tested using manual dispatch.
 
@@ -29,7 +33,7 @@ This is the agent/project delivery policy, not an unattended bot that merges arb
 
 CI requires the complete wrapper and runs `:core:model:test`, `:core:data:test`, `testDebugUnitTest`, `lintDebug`, `assembleDebug`, and `:app:assembleDebugAndroidTest` with Java 21 and SDK 36/Build Tools 36.0.0. It publishes the debug APK. A partial wrapper/settings setup fails CI rather than silently bypassing Android checks.
 
-Device jobs run `:app:connectedDebugAndroidTest` on API 28 phone and API 36 Android TV emulators on disposable Linux runners. The final gate requires both matrix legs and the Android build to succeed. Ten tests cover language/RTL, recreation, TV focus, file/URL import and cancellation, synthetic playback lifecycle, transport consent, and saved appearance/library retention. Twenty JVM tests cover model/parser/transport/ViewModel behavior and semantic colour contrast. These do not establish private-provider, codec, billing or physical-device compatibility. The old bootstrap Android skip was only repository coverage.
+Device jobs run `:app:connectedDebugAndroidTest` on API 28 phone and API 36 Android TV emulators on disposable Linux runners. The final gate requires both matrix legs and the Android build to succeed. The complete registered instrumentation suite covers language/RTL, recreation, TV focus, source entry/cancellation, synthetic playback, cached catalogues, search/favourites and Continue Watching. Each device also runs the separate-process persistence probe, requiring distinct seed/restore PIDs and every source/progress verification marker. Inspect the actual latest-head XML and probe logs; the count grows as features are added. JVM checks cover model/parser/transport/ViewModel behavior, progress ordering and semantic colour contrast. These do not establish private-provider, codec, billing or physical-device compatibility. The old bootstrap Android skip was only repository coverage.
 
 Actions are pinned to commit SHAs; workflow tokens have read-only repository access and checkout does not retain credentials. Gradle caches are read-only off `main`. No provider credentials or release signing material are required by this workflow.
 

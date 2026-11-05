@@ -12,17 +12,33 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.DefaultTimeBar
 import androidx.compose.ui.graphics.toArgb
 import com.fireamun.iptv.core.designsystem.Cinema
-import com.fireamun.iptv.core.model.MediaAddress
+import com.fireamun.iptv.core.model.PlaybackCheckpoint
+import com.fireamun.iptv.core.model.PlaybackRequest
+import com.fireamun.iptv.core.model.PlaybackStart
 import com.fireamun.iptv.core.model.PlaybackStatus
 
 @OptIn(UnstableApi::class)
 @Composable
-fun PlaybackSurface(address: MediaAddress, retry: Int, onStatus: (PlaybackStatus) -> Unit, modifier: Modifier = Modifier) {
-    key(address, retry) {
+fun PlaybackSurface(
+    request: PlaybackRequest,
+    startInstance: () -> PlaybackStart?,
+    onCheckpoint: (String, PlaybackCheckpoint) -> Unit,
+    onStatus: (PlaybackStatus) -> Unit,
+    onDisposed: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    key(request.sessionId) {
         val context = LocalContext.current
         val lifecycle = LocalLifecycleOwner.current.lifecycle
-        val statusCallback by rememberUpdatedState(onStatus)
-        val session = remember { LifecyclePlayerSession(context.applicationContext, address) { statusCallback(it) } }
+        val latestStart by rememberUpdatedState(startInstance)
+        val latestCheckpoint by rememberUpdatedState(onCheckpoint)
+        val latestStatus by rememberUpdatedState(onStatus)
+        val latestDisposed by rememberUpdatedState(onDisposed)
+        val session = remember {
+            LifecyclePlayerSession(context.applicationContext, request,
+                { latestStart() }, { id, value -> latestCheckpoint(id, value) },
+                { latestStatus(it) }, { latestDisposed() })
+        }
         AndroidView(modifier = modifier.testTag("player_surface"), factory = { viewContext ->
             PlayerView(viewContext).apply {
                 setBackgroundColor(android.graphics.Color.BLACK)

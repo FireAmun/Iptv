@@ -110,7 +110,7 @@ internal class XtreamJson(private val limits: ParserLimits, private val nanoTime
                     val row = row(reader)
                     row.id?.takeIf { it > 0 }?.let { id ->
                         val address = source.playbackAddress(ContentKind.EPISODE, id, row.extension?.takeIf { it.isNotBlank() } ?: "mp4") ?: throw ImportFailure(ImportError.SERVER_RESPONSE)
-                        entries.add(PlaylistEntry(Channel(entries.size, row.name, null, ContentKind.EPISODE, row.season ?: season, row.episode), address))
+                        entries.add(PlaylistEntry(Channel(entries.size, row.name, null, ContentKind.EPISODE, row.season ?: season, row.episode), address, providerKey = "EPISODE:$id"))
                     }
                 }
             }; reader.endObject()

@@ -7,7 +7,8 @@ probe() {
   local output
   output="$(timeout 90s adb shell am instrument -w -e persistenceProbe "$1" com.fireamun.iptv.prototype.test/com.fireamun.iptv.prototype.ManualFixtureRunner)" || return $?
   printf '%s\n' "$output"
-  [[ "$output" == *IPTV_PERSISTENCE_PROBE_OK* ]]
+  [[ "$output" == *IPTV_PERSISTENCE_PROBE_OK* ]] &&
+    [[ "$output" == *"IPTV_PROGRESS_PROBE_OK stage=$1"* ]]
 }
 seed="$(probe seed)"
 printf '%s\n' "$seed"

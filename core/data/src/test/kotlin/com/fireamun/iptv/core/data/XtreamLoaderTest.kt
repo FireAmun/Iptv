@@ -75,6 +75,7 @@ class XtreamLoaderTest {
             assertEquals(ContentKind.EPISODE, episodes.single().channel.kind)
             assertEquals(1, episodes.single().channel.season)
             assertEquals(2, episodes.single().channel.episode)
+            assertEquals("EPISODE:31", episodes.single().providerKey)
             assertTrue(episodes.single().address!!.reveal().endsWith("/series/synthetic-user/synthetic-password/31.mp4"))
             repeat(8) { assertEquals("/player_api.php", server.takeRequest().url.encodedPath) }
         }

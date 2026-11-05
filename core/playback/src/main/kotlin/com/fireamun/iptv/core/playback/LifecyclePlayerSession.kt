@@ -1,6 +1,8 @@
 package com.fireamun.iptv.core.playback
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.OptIn
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -13,20 +15,43 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
-import com.fireamun.iptv.core.model.MediaAddress
+import com.fireamun.iptv.core.model.ContentKind
+import com.fireamun.iptv.core.model.PlaybackCheckpoint
+import com.fireamun.iptv.core.model.PlaybackRequest
+import com.fireamun.iptv.core.model.PlaybackStart
 import com.fireamun.iptv.core.model.PlaybackStatus
+import com.fireamun.iptv.core.model.isBookmarkEligible
+import com.fireamun.iptv.core.model.resumeOffset
 
 @OptIn(UnstableApi::class)
 internal class LifecyclePlayerSession(
     private val context: Context,
-    private val address: MediaAddress,
+    private val request: PlaybackRequest,
+    private val startInstance: () -> PlaybackStart?,
+    private val onCheckpoint: (String, PlaybackCheckpoint) -> Unit,
     private val onStatus: (PlaybackStatus) -> Unit,
+    private val onDisposed: () -> Unit,
 ) : DefaultLifecycleObserver {
+    private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
+    private var listener: Player.Listener? = null
     private var view: PlayerView? = null
+    private var instanceId: String? = null
+    private var prepared = false
+    private var checkedTimeline = false
+    private var lastEligibleCheckpoint: PlaybackCheckpoint? = null
+    private var closed = false
+    private val poll = object : Runnable {
+        override fun run() {
+            val active = player ?: return
+            if (closed || !active.isPlaying) return
+            checkpoint(active)
+            handler.postDelayed(this, 5_000)
+        }
+    }
 
     fun attach(target: PlayerView) {
-        if (view === target) return
+        if (closed || view === target) return
         view?.player = null
         view = target
         target.player = player
@@ -35,41 +60,110 @@ internal class LifecyclePlayerSession(
     }
 
     override fun onStart(owner: LifecycleOwner) {
-        if (player != null) return
+        if (closed || player != null) return
+        val start = startInstance() ?: return
+        instanceId = start.instanceId
+        prepared = false
+        checkedTimeline = false
+        lastEligibleCheckpoint = null
         // Nested network exceptions may contain credentials; never enable provider logs.
         Log.setLogLevel(Log.LOG_LEVEL_OFF)
-        val sources = DefaultMediaSourceFactory(PlaybackDataSourceFactory(allowCleartext = address.isCleartext))
-        val active = ExoPlayer.Builder(context).setMediaSourceFactory(sources).setSeekBackIncrementMs(30_000).setSeekForwardIncrementMs(30_000).build()
+        val sources = DefaultMediaSourceFactory(PlaybackDataSourceFactory(allowCleartext = request.address.isCleartext))
+        val active = ExoPlayer.Builder(context).setMediaSourceFactory(sources)
+            .setSeekBackIncrementMs(30_000).setSeekForwardIncrementMs(30_000).build()
         player = active
         active.setAudioAttributes(AudioAttributes.DEFAULT, true)
         active.setHandleAudioBecomingNoisy(true)
-        active.addListener(object : Player.Listener {
+        val observer = object : Player.Listener {
+            private fun current() = !closed && player === active
             override fun onPlaybackStateChanged(playbackState: Int) {
+                if (!current()) return
                 when (playbackState) {
                     Player.STATE_BUFFERING -> onStatus(PlaybackStatus.BUFFERING)
-                    Player.STATE_READY -> onStatus(if (active.isPlaying) PlaybackStatus.PLAYING else PlaybackStatus.PAUSED)
-                    Player.STATE_ENDED -> onStatus(PlaybackStatus.ENDED)
+                    Player.STATE_READY -> {
+                        prepared = true
+                        if (!checkedTimeline && request.kind in setOf(ContentKind.MOVIE, ContentKind.EPISODE)) {
+                            checkedTimeline = true
+                            if (!isBookmarkEligible(request.kind, true, active.isCurrentMediaItemSeekable,
+                                    active.isCurrentMediaItemDynamic, active.isCurrentMediaItemLive)) {
+                                active.seekToDefaultPosition()
+                            } else if (active.duration > 0 && active.contentPosition >= active.duration) {
+                                active.seekTo(resumeOffset(active.contentPosition, active.duration))
+                            }
+                        }
+                        onStatus(if (active.isPlaying) PlaybackStatus.PLAYING else PlaybackStatus.PAUSED)
+                    }
+                    Player.STATE_ENDED -> {
+                        checkpoint(active, ended = true)
+                        onStatus(PlaybackStatus.ENDED)
+                    }
                 }
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (!current()) return
+                handler.removeCallbacks(poll)
+                if (isPlaying) handler.postDelayed(poll, 5_000) else checkpoint(active)
                 if (active.playbackState == Player.STATE_READY) onStatus(if (isPlaying) PlaybackStatus.PLAYING else PlaybackStatus.PAUSED)
             }
-            override fun onPlayerError(error: PlaybackException) { onStatus(PlaybackStatus.FAILED) }
-        })
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+                if (current() && reason == Player.DISCONTINUITY_REASON_SEEK) checkpoint(active, ended = false)
+            }
+            override fun onPlayerError(error: PlaybackException) {
+                if (!current()) return
+                val latest = checkpoint(active)
+                if (latest?.eligible != true) {
+                    lastEligibleCheckpoint?.let { saved -> instanceId?.let { onCheckpoint(it, saved) } }
+                }
+                onStatus(PlaybackStatus.FAILED)
+            }
+        }
+        listener = observer
+        active.addListener(observer)
         onStatus(PlaybackStatus.PREPARING)
         view?.apply { player = active; showController(); requestFocus() }
-        active.setMediaItem(MediaItem.fromUri(address.reveal()))
+        val item = MediaItem.fromUri(request.address.reveal())
+        if (request.kind in setOf(ContentKind.MOVIE, ContentKind.EPISODE))
+            active.setMediaItem(item, resumeOffset(start.positionMs, null))
+        else active.setMediaItem(item)
         active.prepare()
         active.playWhenReady = true
     }
 
     override fun onStop(owner: LifecycleOwner) { release() }
     override fun onDestroy(owner: LifecycleOwner) { close() }
-    private fun release() {
-        view?.player = null
-        val old = player
-        player = null
-        old?.release()
+
+    private fun checkpoint(active: ExoPlayer, ended: Boolean = active.playbackState == Player.STATE_ENDED): PlaybackCheckpoint? {
+        if (closed || player !== active) return null
+        val id = instanceId ?: return null
+        val position = active.contentPosition
+        val duration = active.duration.takeIf { it > 0 }
+        val value = PlaybackCheckpoint(position, duration, ended,
+            isBookmarkEligible(request.kind, prepared, active.isCurrentMediaItemSeekable,
+                active.isCurrentMediaItemDynamic, active.isCurrentMediaItemLive))
+        if (value.eligible && value.positionMs >= 0) lastEligibleCheckpoint = value
+        onCheckpoint(id, value)
+        return value
     }
-    fun close() { release(); view = null }
+
+    private fun release() {
+        handler.removeCallbacks(poll)
+        val old = player ?: return
+        checkpoint(old, old.playbackState == Player.STATE_ENDED)
+        player = null
+        view?.player = null
+        listener?.let(old::removeListener)
+        listener = null
+        instanceId = null
+        prepared = false
+        lastEligibleCheckpoint = null
+        old.release()
+    }
+
+    fun close() {
+        if (closed) return
+        release()
+        closed = true
+        view = null
+        onDisposed()
+    }
 }

@@ -7,7 +7,7 @@
     <string name="tv_save_source">Save</string>
     <string name="tv_close_sources">Close</string>
     <string name="tv_remove_named_source">Remove %1$s?</string>
-    <string name="tv_remove_one_source_body">Remove this playlist and its saved login from this device? Your other playlists will stay.</string>
+    <string name="tv_remove_one_source_body">Remove this playlist, its saved login, favourites and playback positions from this device? Your other playlists will stay.</string>
     <string name="tv_file_playlist">File playlist %1$d</string>
     <string name="tv_url_playlist">M3U playlist %1$d</string>
     <string name="tv_server_playlist">Server playlist %1$d</string>

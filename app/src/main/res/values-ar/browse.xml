@@ -1,4 +1,12 @@
 <resources>
+    <string name="browse_continue_watching">متابعة المشاهدة</string>
+    <string name="browse_progress_untitled">بدون عنوان</string>
+    <string name="browse_continue_at">متابعة من %1$s</string>
+    <string name="browse_start_over">البدء من جديد</string>
+    <string name="browse_progress_cancel">إلغاء</string>
+    <string name="browse_progress_read_failed">تعذرت قراءة موضع المشاهدة المحفوظ. أغلق هذه الرسالة واختر العنصر مجددًا لإعادة المحاولة.</string>
+    <string name="browse_progress_save_failed">تعذر حفظ موضع المشاهدة. يمكنك متابعة التشغيل وسيبقى الموضع المحفوظ سابقًا.</string>
+    <string name="browse_progress_reset_failed">تعذرت إعادة تعيين موضع المشاهدة. جرّب البدء من جديد، أو تابع، أو ألغِ.</string>
     <string name="nav_live">البث المباشر</string>
     <string name="nav_movies">الأفلام</string>
     <string name="nav_series">المسلسلات</string>

@@ -21,6 +21,12 @@ internal data class ActiveRow(@PrimaryKey val slot: Int = 1, val sourceId: Strin
 internal data class SearchRow(@PrimaryKey @ColumnInfo(name = "rowid") val id: Int, val searchText: String)
 @Entity(tableName = "favourites", primaryKeys = ["sourceId", "itemId"])
 internal data class FavouriteRow(val sourceId: String, val itemId: Int)
+@Entity(tableName = "watch_progress", primaryKeys = ["sourceId", "refDigest"], indices = [Index(value = ["sourceId", "kind", "completed", "watchedAtMs"])])
+internal data class WatchProgressRow(val sourceId: String, val refDigest: String, val rootItemId: Int, val kind: String, val positionMs: Long,
+    val durationMs: Long?, val completed: Boolean, val watchedAtMs: Long, val snapshot: ByteArray?) {
+    override fun toString() = "[protected watch progress row]"
+}
+internal data class JoinedWatchRow(@Embedded val watch: WatchProgressRow, val rootTitle: String?, val rootKind: String, val rootArtwork: ByteArray?, val generation: String)
 internal data class BrowseRow(val id: Int, val title: String?, val groupLabel: String?, val kind: String, val categoryKey: String?, val year: Int?, val rating: Double?, val hasArtwork: Boolean, val favourite: Boolean)
 @Dao
 internal interface LibraryDao {
@@ -41,6 +47,19 @@ internal interface LibraryDao {
     @Query("SELECT itemId FROM favourites WHERE sourceId = :sourceId") suspend fun favouriteIds(sourceId: String): List<Int>
     @Query("DELETE FROM favourites WHERE sourceId = :sourceId") suspend fun clearFavourites(sourceId: String)
     @Query("DELETE FROM favourites") suspend fun clearFavourites()
+    @Query("SELECT * FROM watch_progress WHERE sourceId = :sourceId AND refDigest = :refDigest") suspend fun progress(sourceId: String, refDigest: String): WatchProgressRow?
+    @Upsert suspend fun progress(row: WatchProgressRow)
+    @Query("DELETE FROM watch_progress WHERE sourceId = :sourceId AND refDigest = :refDigest") suspend fun clearProgress(sourceId: String, refDigest: String)
+    @Query("DELETE FROM watch_progress WHERE sourceId = :sourceId") suspend fun clearProgress(sourceId: String)
+    @Query("DELETE FROM watch_progress") suspend fun clearProgress()
+    @Query("""SELECT w.*, e.title AS rootTitle, e.kind AS rootKind, e.artwork AS rootArtwork, s.generation AS generation
+        FROM watch_progress w JOIN library_entries e ON e.sourceId = w.sourceId AND e.id = w.rootItemId
+        JOIN source_state s ON s.sourceId = w.sourceId
+        WHERE w.sourceId = :sourceId AND w.kind = :kind AND w.completed = 0
+        AND ((w.kind = 'MOVIE' AND e.kind = 'MOVIE' AND w.snapshot IS NULL)
+          OR (w.kind = 'EPISODE' AND e.kind = 'EPISODE' AND w.snapshot IS NULL)
+          OR (w.kind = 'EPISODE' AND e.kind = 'SERIES' AND w.snapshot IS NOT NULL))
+        ORDER BY w.watchedAtMs DESC, w.refDigest DESC LIMIT :limit""") suspend fun recentProgress(sourceId: String, kind: String, limit: Int): List<JoinedWatchRow>
     @Query("DELETE FROM entry_search WHERE rowid IN (SELECT id FROM library_entries WHERE sourceId = :sourceId)") suspend fun clearSearch(sourceId: String)
     @Query("DELETE FROM entry_search") suspend fun clearSearch()
     @Query("SELECT * FROM item_identities WHERE sourceId = :sourceId") suspend fun identities(sourceId: String): List<IdentityRow>
@@ -57,5 +76,5 @@ internal interface LibraryDao {
     @Query("DELETE FROM source_state") suspend fun clearSource()
     @Query("DELETE FROM active_library") suspend fun clearActive()
 }
-@Database(entities = [SourceRow::class, IdentityRow::class, EntryRow::class, ActiveRow::class, SearchRow::class, FavouriteRow::class], version = 3, exportSchema = true)
+@Database(entities = [SourceRow::class, IdentityRow::class, EntryRow::class, ActiveRow::class, SearchRow::class, FavouriteRow::class, WatchProgressRow::class], version = 4, exportSchema = true)
 internal abstract class LibraryDatabase : RoomDatabase() { abstract fun library(): LibraryDao }

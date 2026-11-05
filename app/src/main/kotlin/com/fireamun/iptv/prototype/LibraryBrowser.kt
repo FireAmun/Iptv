@@ -48,6 +48,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import com.fireamun.iptv.core.designsystem.*
 import com.fireamun.iptv.core.model.*
+import com.fireamun.iptv.core.data.ProgressReference
 import com.fireamun.iptv.ui.mobile.CinemaTheme
 import kotlinx.coroutines.flow.first
 
@@ -57,7 +58,7 @@ internal fun LibraryTab.tag() = "nav_" + when (this) {
 }
 internal val LoadedCatalogueItems = SemanticsPropertyKey<Int>("LoadedCatalogueItems")
 internal val ArtworkLoaded = SemanticsPropertyKey<Boolean>("ArtworkLoaded")
-private val LocalBrowserTv = staticCompositionLocalOf { false }
+internal val LocalBrowserTv = staticCompositionLocalOf { false }
 // Foundation clickable uses touch-mode-dependent focus. TV targets must always accept remote focus.
 @Composable private fun Modifier.tvFocus(): Modifier = if (LocalBrowserTv.current) focusProperties { canFocus = true } else this
 private fun LibraryTab.label() = when (this) {
@@ -68,7 +69,8 @@ private fun LibraryTab.label() = when (this) {
 @Composable
 internal fun LibraryBrowser(state: LibraryState, items: LazyPagingItems<Channel>, television: Boolean, imageLoader: ImageLoader,
     onTab: (LibraryTab) -> Unit, onQuery: (String) -> Unit, onCategory: (String?) -> Unit, onPlay: (Int) -> Unit,
-    onFavourite: (Channel) -> Unit, onBack: () -> Unit, onCloseSearch: () -> Unit, settings: @Composable () -> Unit) {
+    onFavourite: (Channel) -> Unit, onBack: () -> Unit, onCloseSearch: () -> Unit,
+    watch: ContinueWatchingState = ContinueWatchingState(), onRecent: (ProgressReference) -> Unit = {}, settings: @Composable () -> Unit) {
     CompositionLocalProvider(LocalBrowserTv provides television) {
       CinemaTheme {
         val p = cinemaPalette()
@@ -77,6 +79,7 @@ internal fun LibraryBrowser(state: LibraryState, items: LazyPagingItems<Channel>
         val wideTv = television && LocalConfiguration.current.screenWidthDp >= 600
         var navigationFocused by remember { mutableStateOf(false) }
         var topBarFocused by remember { mutableStateOf(false) }
+        var externalFocusEpoch by remember { mutableLongStateOf(0) }
         BackHandler(enabled = television && !state.canGoBack && state.tab != LibraryTab.SETTINGS && !navigationFocused && !topBarFocused) { navigationFocus.getValue(state.tab).requestFocus() }
         Surface(Modifier.fillMaxSize(), color = p.background, contentColor = p.text) {
          Column(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.safeDrawingPadding().consumeWindowInsets(WindowInsets.safeDrawing)) {
@@ -91,14 +94,14 @@ internal fun LibraryBrowser(state: LibraryState, items: LazyPagingItems<Channel>
                 Box(Modifier.weight(1f)) { AmarWordmark(p.text, Modifier.testTag("app_brand"), 20.sp) }
                 val searchLabel = stringResource(R.string.nav_search)
                 BrowserTarget({ onTab(LibraryTab.SEARCH) }, Modifier.size(48.dp).focusRequester(navigationFocus.getValue(LibraryTab.SEARCH)).testTag("nav_search")
-                    .semantics { selected = state.tab == LibraryTab.SEARCH; contentDescription = searchLabel }, selected = state.tab == LibraryTab.SEARCH, quiet = true) {
+                    .semantics { selected = state.tab == LibraryTab.SEARCH; contentDescription = searchLabel }, selected = state.tab == LibraryTab.SEARCH, onFocused = { externalFocusEpoch++ }, quiet = true) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { NavIcon(LibraryTab.SEARCH, Modifier.size(24.dp), state.tab == LibraryTab.SEARCH) }
                 }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (state.tab == LibraryTab.SETTINGS) settings()
                 else pages.SaveableStateProvider("${state.activeSourceId}:${state.catalogueGeneration}:${state.tab}:${state.canGoBack}") {
-                    ContentBrowser(state, items, television, imageLoader, onTab, onQuery, onCategory, onPlay, onFavourite, onBack)
+                    ContentBrowser(state, items, television, imageLoader, onTab, onQuery, onCategory, onPlay, onFavourite, onBack, watch, onRecent, externalFocusEpoch)
                 }
             }
             HorizontalDivider(color = p.outline.copy(alpha = .2f))
@@ -106,7 +109,7 @@ internal fun LibraryBrowser(state: LibraryState, items: LazyPagingItems<Channel>
                 listOf(LibraryTab.LIVE, LibraryTab.MOVIES, LibraryTab.SERIES, LibraryTab.FAVOURITES, LibraryTab.SETTINGS).forEach { tab ->
                     val selected = state.tab == tab
                     val label = stringResource(tab.label())
-                    BrowserTarget(onClick = { onTab(tab) }, modifier = Modifier.weight(1f).focusRequester(navigationFocus.getValue(tab)).testTag(tab.tag()).semantics { this.selected = selected }, quiet = true) {
+                    BrowserTarget(onClick = { onTab(tab) }, modifier = Modifier.weight(1f).focusRequester(navigationFocus.getValue(tab)).testTag(tab.tag()).semantics { this.selected = selected }, onFocused = { externalFocusEpoch++ }, quiet = true) {
                         Column(Modifier.fillMaxWidth().heightIn(min = if (television) 52.dp else 56.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(Modifier.height(3.dp).width(22.dp).clip(RoundedCornerShape(3.dp)).background(if (selected) p.focus else androidx.compose.ui.graphics.Color.Transparent))
                             if (wideTv) Row(Modifier.heightIn(min = 48.dp).padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -129,7 +132,8 @@ internal fun LibraryBrowser(state: LibraryState, items: LazyPagingItems<Channel>
 
 @Composable
 private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>, television: Boolean, imageLoader: ImageLoader,
-    onTab: (LibraryTab) -> Unit, onQuery: (String) -> Unit, onCategory: (String?) -> Unit, onPlay: (Int) -> Unit, onFavourite: (Channel) -> Unit, onBack: () -> Unit) {
+    onTab: (LibraryTab) -> Unit, onQuery: (String) -> Unit, onCategory: (String?) -> Unit, onPlay: (Int) -> Unit, onFavourite: (Channel) -> Unit, onBack: () -> Unit,
+    watch: ContinueWatchingState, onRecent: (ProgressReference) -> Unit, externalFocusEpoch: Long) {
     val p = cinemaPalette()
     var detail by remember { mutableStateOf<Channel?>(null) }
     var lastFocusedId by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -137,38 +141,97 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     var choosingCategory by remember { mutableStateOf(false) }
     var restoreCategoryFocus by remember { mutableStateOf(false) }
     var categoryRowHasFocus by remember { mutableStateOf(false) }
+    var lastRecentDigest by rememberSaveable { mutableStateOf<String?>(null) }
+    var lastRecentIndex by rememberSaveable { mutableIntStateOf(0) }
+    var restorePending by remember { mutableStateOf(true) }
+    var initialExternalEpoch by remember { mutableLongStateOf(externalFocusEpoch) }
+    val latestExternalEpoch by rememberUpdatedState(externalFocusEpoch)
+    var focusBaselineReady by remember { mutableStateOf(!television) }
+    var userMoved by remember { mutableStateOf(false) }
     val padding = if (television) 36.dp else 20.dp
     val grid = rememberLazyGridState()
     val list = rememberLazyListState()
+    val recentList = rememberLazyListState()
+    val recentFocus = remember { FocusRequester() }
     val entryFocus = remember { FocusRequester() }
     val searchFocus = remember { FocusRequester() }
     val categoryFocus = remember { FocusRequester() }
     val window = LocalWindowInfo.current
     val keyboard = LocalSoftwareKeyboardController.current
     val posters = !state.canGoBack && state.tab in setOf(LibraryTab.MOVIES, LibraryTab.SERIES, LibraryTab.FAVOURITES)
-    val visibleStart = if (posters) grid.firstVisibleItemIndex else list.firstVisibleItemIndex
+    val historyKind = when (state.tab) { LibraryTab.MOVIES -> ContentKind.MOVIE; LibraryTab.SERIES -> ContentKind.EPISODE; else -> null }
+    val historyContext = historyKind != null && !state.canGoBack && state.query.isEmpty() && state.category == null && state.activeSourceId != null
+    val recentItems = if (historyContext && watch.sourceId == state.activeSourceId && watch.kind == historyKind)
+        watch.items.filter { it.reference.sourceId == state.activeSourceId && it.kind == historyKind }.take(20) else emptyList()
+    val headerCount = if (recentItems.isNotEmpty()) 1 else 0
+    val visibleStart = if (posters) (grid.firstVisibleItemIndex - headerCount).coerceAtLeast(0) else list.firstVisibleItemIndex
     val selectedIndex = items.itemSnapshotList.items.indexOfFirst { it.id == (lastFocusedId ?: state.selectedId) }
     val targetIndex = if (selectedIndex >= 0) selectedIndex else visibleStart.coerceAtMost((items.itemCount - 1).coerceAtLeast(0))
-    LaunchedEffect(state.tab, state.activeSourceId, state.canGoBack, window.isWindowFocused, items.loadState.refresh, items.itemSnapshotList.items.firstOrNull()?.id, choosingCategory) {
-        if (television && window.isWindowFocused && !choosingCategory && !categoryRowHasFocus) {
+    val recentTarget = recentItems.indexOfFirst { it.reference.refDigest == lastRecentDigest }.takeIf { it >= 0 }
+        ?: lastRecentIndex.coerceIn(0, (recentItems.size - 1).coerceAtLeast(0))
+    val focusKind = if (state.canGoBack) ContentKind.EPISODE else when (state.tab) {
+        LibraryTab.LIVE -> ContentKind.LIVE
+        LibraryTab.MOVIES -> ContentKind.MOVIE
+        LibraryTab.SERIES -> ContentKind.SERIES
+        else -> null
+    }
+    fun catalogueReadyForFocus(): Boolean {
+        val loaded = items.itemSnapshotList.items
+        return loaded.isNotEmpty() && loaded.all { matchesKind(it.kind, focusKind) }
+    }
+    LaunchedEffect(window.isWindowFocused) {
+        if (television && window.isWindowFocused && !focusBaselineReady) {
+            // Removing Settings can give native fallback focus to navigation during layout.
+            // Establish ownership after that frame; later navigation still cancels restoration.
+            withFrameNanos { }
+            initialExternalEpoch = latestExternalEpoch
+            focusBaselineReady = true
+        }
+    }
+    LaunchedEffect(historyContext, watch.sourceId, watch.loading, headerCount) {
+        if (!television && restorePending) {
+            if (historyContext && (watch.sourceId != state.activeSourceId || watch.loading)) return@LaunchedEffect
+            restorePending = false
+            // Stable catalogue keys otherwise keep the old first poster above a newly inserted header.
+            // Only reveal initial history at the top, or return to the row that launched playback.
+            if (headerCount == 1 && (lastRecentDigest != null || (lastFocusedId == null &&
+                    grid.firstVisibleItemIndex <= 1 && grid.firstVisibleItemScrollOffset == 0 && !grid.isScrollInProgress))) {
+                grid.scrollToItem(0)
+                recentList.scrollToItem(recentTarget)
+            }
+        }
+    }
+    LaunchedEffect(state.tab, state.activeSourceId, state.canGoBack, window.isWindowFocused, items.loadState.refresh, items.itemSnapshotList.items.firstOrNull()?.id,
+        choosingCategory, watch.loading, recentItems.map { it.reference.refDigest }, externalFocusEpoch, focusBaselineReady) {
+        if (television && window.isWindowFocused && focusBaselineReady && !choosingCategory && !categoryRowHasFocus) {
             if (restoreCategoryFocus && state.categories.isNotEmpty() && !state.canGoBack) {
                 withFrameNanos { }
                 if (!categoryRowHasFocus) categoryFocus.requestFocus()
             }
+            else if (!restorePending || userMoved || externalFocusEpoch != initialExternalEpoch) { restorePending = false }
             else if (state.tab == LibraryTab.SEARCH && !state.canGoBack && (lastFocusedId == null || searchHasFocus)) {
                 withFrameNanos { }
-                if (!categoryRowHasFocus) searchFocus.requestFocus()
+                if (!categoryRowHasFocus && !userMoved && externalFocusEpoch == initialExternalEpoch) { restorePending = false; searchFocus.requestFocus() }
+            }
+            else if (historyContext && (watch.sourceId != state.activeSourceId || watch.loading)) { /* Wait for current source history, without stealing later user focus. */ }
+            else if (recentItems.isNotEmpty() && (lastRecentDigest != null || lastFocusedId == null)) {
+                grid.scrollToItem(0)
+                recentList.scrollToItem(recentTarget)
+                withFrameNanos { }
+                if (!categoryRowHasFocus && !userMoved && externalFocusEpoch == initialExternalEpoch) { restorePending = false; recentFocus.requestFocus() }
             }
             else if (state.entryCount > 0) {
-                snapshotFlow { items.itemCount > 0 || items.loadState.refresh is LoadState.Error }.first { it }
-                if (categoryRowHasFocus) return@LaunchedEffect
-                if (items.itemCount > 0) {
+                // Paging can retain the outgoing tab's snapshot until the new page arrives.
+                // Do not spend this context's one restoration on that incompatible content.
+                snapshotFlow { catalogueReadyForFocus() || items.loadState.refresh is LoadState.Error }.first { it }
+                if (categoryRowHasFocus || userMoved || externalFocusEpoch != initialExternalEpoch) { restorePending = false; return@LaunchedEffect }
+                if (catalogueReadyForFocus()) {
                     val index = items.itemSnapshotList.items.indexOfFirst { it.id == (lastFocusedId ?: state.selectedId) }.takeIf { it >= 0 }
-                        ?: (if (posters) grid.firstVisibleItemIndex else list.firstVisibleItemIndex).coerceAtMost(items.itemCount - 1)
-                    if (posters) grid.scrollToItem(index) else list.scrollToItem(index)
+                        ?: visibleStart.coerceAtMost(items.itemCount - 1)
+                    if (posters) grid.scrollToItem(index + headerCount) else list.scrollToItem(index)
                 }
                 withFrameNanos { }
-                if (items.itemCount > 0 && !categoryRowHasFocus) entryFocus.requestFocus()
+                if (catalogueReadyForFocus() && !categoryRowHasFocus && !userMoved && externalFocusEpoch == initialExternalEpoch) { restorePending = false; entryFocus.requestFocus() }
             }
         }
     }
@@ -190,7 +253,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
         }
         // Paging/window updates may finish after the user has moved to a chip.
         // Preserve that deliberate focus instead of replaying an earlier restoration.
-        if (state.categories.isNotEmpty() && !state.canGoBack) Row(Modifier.fillMaxWidth().onFocusChanged { categoryRowHasFocus = it.hasFocus }.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (state.categories.isNotEmpty() && !state.canGoBack) Row(Modifier.fillMaxWidth().onFocusChanged { categoryRowHasFocus = it.hasFocus; if (it.hasFocus) userMoved = true }.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             LazyRow(Modifier.weight(1f).testTag("category_list"), contentPadding = PaddingValues(start = padding, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { FilterChip(selected = state.category == null, onClick = { restoreCategoryFocus = false; onCategory(null) }, label = { Text(stringResource(R.string.browse_all_categories)) }, modifier = Modifier.tvFocus().testTag("category_all")) }
                 items(state.categories, key = { it }) { category -> FilterChip(selected = state.category == category, onClick = { restoreCategoryFocus = false; onCategory(category) }, modifier = Modifier.tvFocus(), label = { Text(category, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp)) }) }
@@ -200,7 +263,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CinemaIcon(CinemaSymbol.CATEGORIES, tint = p.focus) }
             }
         }
-        if (items.itemCount == 0) {
+        if (items.itemCount == 0 && headerCount == 0) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(Modifier.padding(padding).widthIn(max = 440.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (items.loadState.refresh is LoadState.Loading) { CircularProgressIndicator(); Text(stringResource(R.string.browse_loading)) }
@@ -216,16 +279,21 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
         } else if (posters) {
             LazyVerticalGrid(columns = GridCells.Adaptive(if (television) 128.dp else 145.dp), state = grid, modifier = Modifier.weight(1f).testTag("catalogue_grid").semantics { this[LoadedCatalogueItems] = items.itemCount },
                 contentPadding = PaddingValues(start = padding, end = padding, bottom = 20.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                if (headerCount == 1) item(key = "continue_watching_header", span = { GridItemSpan(maxLineSpan) }) {
+                    ContinueWatchingRow(recentItems, watch.loading, imageLoader, recentList, recentTarget, recentFocus,
+                        onPlay = { item -> lastRecentDigest = item.reference.refDigest; lastFocusedId = item.rootItemId; onRecent(item.reference) },
+                        onFocused = { item, index -> restoreCategoryFocus = false; lastRecentDigest = item.reference.refDigest; lastRecentIndex = index; lastFocusedId = item.rootItemId })
+                }
                 items(items.itemCount, key = items.itemKey { it.id }) { index -> items[index]?.let { channel ->
                     PosterCard(channel, state, imageLoader, Modifier.then(if (index == targetIndex) Modifier.focusRequester(entryFocus) else Modifier),
-                        onClick = { keyboard?.hide(); lastFocusedId = channel.id; if (channel.kind in setOf(ContentKind.MOVIE, ContentKind.SERIES)) detail = channel else onPlay(channel.id) }, onFavourite = { restoreCategoryFocus = false; onFavourite(channel) }, onFocused = { restoreCategoryFocus = false; lastFocusedId = channel.id })
+                        onClick = { keyboard?.hide(); lastRecentDigest = null; lastFocusedId = channel.id; if (channel.kind in setOf(ContentKind.MOVIE, ContentKind.SERIES)) detail = channel else onPlay(channel.id) }, onFavourite = { restoreCategoryFocus = false; onFavourite(channel) }, onFocused = { userMoved = true; restoreCategoryFocus = false; lastRecentDigest = null; lastFocusedId = channel.id })
                 } }
                 if (items.loadState.append is LoadState.Error) item(span = { GridItemSpan(maxLineSpan) }) { TextButton(onClick = { items.retry() }, modifier = Modifier.tvFocus()) { Text(stringResource(R.string.browse_retry)) } }
             }
         } else {
             LazyColumn(state = list, modifier = Modifier.weight(1f).testTag("catalogue_list"), contentPadding = PaddingValues(start = padding, end = padding, bottom = 20.dp, top = 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(items.itemCount, key = items.itemKey { it.id }) { index -> items[index]?.let { channel ->
-                    BrowserTarget({ keyboard?.hide(); lastFocusedId = channel.id; if (!state.canGoBack && channel.kind in setOf(ContentKind.MOVIE, ContentKind.SERIES)) detail = channel else onPlay(channel.id) }, Modifier.fillMaxWidth().then(if (index == targetIndex) Modifier.focusRequester(entryFocus) else Modifier).testTag("channel_${channel.id}"), onFocused = { restoreCategoryFocus = false; lastFocusedId = channel.id }, quiet = true) {
+                    BrowserTarget({ keyboard?.hide(); lastFocusedId = channel.id; if (!state.canGoBack && channel.kind in setOf(ContentKind.MOVIE, ContentKind.SERIES)) detail = channel else onPlay(channel.id) }, Modifier.fillMaxWidth().then(if (index == targetIndex) Modifier.focusRequester(entryFocus) else Modifier).testTag("channel_${channel.id}"), onFocused = { userMoved = true; restoreCategoryFocus = false; lastFocusedId = channel.id }, quiet = true) {
                         Row(Modifier.padding(horizontal = 8.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Artwork(channel, state, imageLoader, Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -237,7 +305,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
                                 }
                                 if (channel.kind == ContentKind.EPISODE && channel.season != null && channel.episode != null) Text(stringResource(R.string.browse_episode, channel.season!!, channel.episode!!), color = p.muted, style = MaterialTheme.typography.bodySmall)
                             }
-                            if (!state.canGoBack) FavouriteButton(channel, onClick = { restoreCategoryFocus = false; onFavourite(channel) })
+                            if (!state.canGoBack) FavouriteButton(channel, onClick = { restoreCategoryFocus = false; onFavourite(channel) }, onFocused = { userMoved = true; restoreCategoryFocus = false; lastFocusedId = channel.id })
                         }
                     }
                     HorizontalDivider(color = p.outline.copy(alpha = .18f))
@@ -280,13 +348,13 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
 }
 
 @Composable
-private fun BrowserTarget(onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false, onFocused: () -> Unit = {}, quiet: Boolean = false, content: @Composable () -> Unit) {
+internal fun BrowserTarget(onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false, onFocused: () -> Unit = {}, quiet: Boolean = false, enabled: Boolean = true, content: @Composable () -> Unit) {
     val p = cinemaPalette()
     var focused by remember { mutableStateOf(false) }
     Box(modifier.tvFocus().onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }.clip(RoundedCornerShape(14.dp))
         .background(if (focused) p.raised else if (selected) p.focus.copy(alpha = .10f) else if (quiet) androidx.compose.ui.graphics.Color.Transparent else p.panel)
         .border(if (focused) 2.dp else if (quiet) 0.dp else 1.dp, if (focused) p.focus else if (quiet) androidx.compose.ui.graphics.Color.Transparent else p.outline.copy(alpha = .2f), RoundedCornerShape(14.dp))
-        .clickable(role = Role.Button, onClick = onClick)) { content() }
+        .clickable(enabled = enabled, role = Role.Button, onClick = onClick)) { content() }
 }
 @Composable
 private fun PosterCard(channel: Channel, state: LibraryState, imageLoader: ImageLoader, modifier: Modifier, onClick: () -> Unit, onFavourite: () -> Unit, onFocused: () -> Unit) {
@@ -298,7 +366,7 @@ private fun PosterCard(channel: Channel, state: LibraryState, imageLoader: Image
                 Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(74.dp).background(Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color.Transparent, Cinema.Night.copy(alpha = .88f)))))
                 Text(channel.title ?: stringResource(R.string.browse_entry, channel.id + 1), Modifier.align(Alignment.BottomStart).padding(12.dp), color = Cinema.Cream, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Box(Modifier.align(Alignment.TopEnd).padding(4.dp).clip(RoundedCornerShape(24.dp)).background(Cinema.Night.copy(alpha = .72f))) { FavouriteButton(channel, onFavourite, onArtwork = true) }
+            Box(Modifier.align(Alignment.TopEnd).padding(4.dp).clip(RoundedCornerShape(24.dp)).background(Cinema.Night.copy(alpha = .72f))) { FavouriteButton(channel, onFavourite, onArtwork = true, onFocused = onFocused) }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Metadata(channel)
@@ -313,10 +381,10 @@ private fun PosterCard(channel: Channel, state: LibraryState, imageLoader: Image
         channel.rating?.let { rating -> val value = String.format(java.util.Locale.ROOT, "%.1f", rating); val label = stringResource(R.string.browse_rating, value); Text("★ $value", color = p.focus, fontSize = 12.sp, modifier = Modifier.clearAndSetSemantics { contentDescription = label }) }
     }
 }
-@Composable private fun FavouriteButton(channel: Channel, onClick: () -> Unit, onArtwork: Boolean = false) {
+@Composable private fun FavouriteButton(channel: Channel, onClick: () -> Unit, onArtwork: Boolean = false, onFocused: () -> Unit = {}) {
     val p = cinemaPalette()
     val label = stringResource(if (channel.favourite) R.string.browse_remove_favourite else R.string.browse_add_favourite)
-    TextButton(onClick = onClick, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).tvFocus().testTag("favourite_${channel.id}").semantics { contentDescription = label }, contentPadding = PaddingValues(8.dp)) {
+    TextButton(onClick = onClick, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).tvFocus().onFocusChanged { if (it.isFocused) onFocused() }.testTag("favourite_${channel.id}").semantics { contentDescription = label }, contentPadding = PaddingValues(8.dp)) {
         CinemaIcon(if (channel.favourite) CinemaSymbol.FAVOURITE_FILLED else CinemaSymbol.FAVOURITE, tint = if (channel.favourite) { if (onArtwork) Cinema.Saffron else p.focus } else if (onArtwork) Cinema.Cream else p.muted)
     }
 }

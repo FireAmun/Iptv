@@ -9,6 +9,8 @@ import com.posthog.android.PostHogAndroid
 
 class IptvApplication : Application() {
     val libraryStore by lazy { com.fireamun.iptv.core.storage.RoomLibraryStore.open(this) }
+    private val progressScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+    val progressRecorder by lazy { PlaybackProgressRecorder(progressScope, libraryStore) }
     val artworkLoader by lazy { protectedImageLoader(this, libraryStore) }
     override fun onCreate() {
         super.onCreate()

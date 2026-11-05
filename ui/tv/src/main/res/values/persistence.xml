@@ -6,6 +6,6 @@
     <string name="tv_refresh_source">Refresh playlist</string>
     <string name="tv_remove_source">Remove playlist</string>
     <string name="tv_remove_title">Remove saved playlist?</string>
-    <string name="tv_remove_body">This removes the saved playlist and provider login from this device. You can add them again.</string>
+    <string name="tv_remove_body">This removes the playlist, provider login, favourites and saved playback positions from this device. Your other playlists will stay. You can add this playlist again.</string>
     <string name="tv_storage_failed">Unable to read or save the playlist. Open Playlists to choose another saved playlist or remove this one.</string>
 </resources>

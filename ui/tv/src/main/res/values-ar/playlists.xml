@@ -7,7 +7,7 @@
     <string name="tv_save_source">حفظ</string>
     <string name="tv_close_sources">إغلاق</string>
     <string name="tv_remove_named_source">إزالة %1$s؟</string>
-    <string name="tv_remove_one_source_body">هل تريد إزالة هذه القائمة وبيانات الدخول المحفوظة من هذا الجهاز؟ ستبقى قوائمك الأخرى.</string>
+    <string name="tv_remove_one_source_body">هل تريد إزالة هذه القائمة وبيانات دخولها والمفضلة ومواضع المشاهدة المحفوظة من هذا الجهاز؟ ستبقى قوائمك الأخرى.</string>
     <string name="tv_file_playlist">قائمة ملف %1$d</string>
     <string name="tv_url_playlist">قائمة M3U %1$d</string>
     <string name="tv_server_playlist">قائمة خادم %1$d</string>
