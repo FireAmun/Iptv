@@ -1,0 +1,21 @@
+# Continue Watching and saved positions
+
+Amar Iptv 0.9.0 (code 11) remembers unfinished movies and episodes on this device. The active playlist's unfiltered Movies and Series pages show up to 20 recent unfinished items above the catalogue. Search, categories, episode lists, Live TV and Favourites retain their existing browsing layouts.
+
+Selecting a saved item, either from its catalogue or Continue Watching, offers Continue from the displayed time, Start over, or Cancel. Start over clears that item's position before playback starts at zero. Cancel leaves its saved position intact. An item leaves the row when the player actually reaches its end; a nearly finished percentage alone does not mark completion. Saved positions outside the recent row remain available through ordinary catalogue selection.
+
+Only explicitly classified movies and episodes with a prepared, seekable, non-live timeline receive positions. A generic M3U entry marked UNKNOWN is not classified from its title or address and does not receive a bookmark. Live channels keep their existing playback behavior. Known durations display a progress bar; unknown durations display the saved timestamp. Media times remain left-to-right in Arabic.
+
+Positions save about every five seconds during playback and on pause, seek, background/stop, end and normal player exit. Force-killing the process can lose work since the last acknowledged save. Closing and reopening the app restores the local library/history without playing a stream or refreshing the provider automatically.
+
+History belongs to its playlist. Renaming or manually refreshing preserves positions for confidently matched stable items. Removing a playlist removes its favourites and positions without touching other playlists. Refreshing is not removal. A title missing from the current catalogue is unavailable in the row; unmatched history is retained for a confident later reappearance.
+
+Movie identities use the saved stable catalogue item. Episodes obtained through the server API use the stable series parent and actual provider episode identity, independent of response order. An encrypted, bounded episode snapshot supplies the title and playback locator for direct resume; the row uses the current parent-series artwork. Saved episode locators follow the existing manual-refresh model. A provider may expire a cached locator: use the normal playback retry after connectivity recovers, or open the series again to obtain its current episode data. There is no automatic request to every series during startup.
+
+Read failures ask you to close the message and reselect the item to retry. A failed Start over retains its prompt and offers retry, Continue or Cancel. A save failure keeps the previous saved position and shows a dismissible message while playback can continue. Messages contain fixed localized guidance and never echo provider responses or stream addresses.
+
+On TV, Continue receives initial focus once in its prompt. Returning from playback restores the item that launched it: a catalogue selection returns to its catalogue card, while a Continue Watching selection returns to its history card after scrolling both containers. A completed or missing history item falls back to another recent item, its already loaded catalogue parent, or the visible catalogue. Focus restoration does not fetch the whole catalogue and late page/history updates preserve later navigation choices.
+
+Storage uses Room schema 4 and existing Keystore protection. History is local: no account, cloud sync, backend or new monitoring event is added. Keep the existing 100,000-entry limit. Emulator tests do not establish physical phone/TV codec compatibility, endurance or larger-catalogue support.
+
+The feature verification contract includes JVM policy/codec/recorder/coordinator tests, Room migration and identity cases, real Media3 Movie/Episode journeys with the bundled synthetic 30-second clip on phone/TV, Arabic/light and English/dark previews, compact TV focus and separate-process seed/verify/clear probes. Delivery requires the latest-head CI device results and process gates; current evidence and remaining hardware work are recorded in [progress](../../progress.md).

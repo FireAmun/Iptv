@@ -26,7 +26,8 @@ case "$7" in
   clear) pid=102 ;;
   *) exit 9 ;;
 esac
-if [[ "$STUB_MODE" != missing_marker ]]; then echo "INSTRUMENTATION_RESULT: stream=IPTV_PERSISTENCE_PROBE_OK pid=$pid"; fi
+if [[ "$STUB_MODE" != missing_marker && "$STUB_MODE" != "missing_old_$7" ]]; then echo "INSTRUMENTATION_RESULT: stream=IPTV_PERSISTENCE_PROBE_OK pid=$pid"; fi
+if [[ "$STUB_MODE" != missing_progress_marker && "$STUB_MODE" != "missing_progress_$7" ]]; then echo "IPTV_PROGRESS_PROBE_OK stage=$7"; fi
 if [[ "$STUB_MODE" == timeout_after_marker && "$7" == seed ]]; then exit 124; fi
 """,
                 "timeout": '#!/usr/bin/env bash\nshift\nexec "$@"\n',
@@ -54,6 +55,16 @@ if [[ "$STUB_MODE" == timeout_after_marker && "$7" == seed ]]; then exit 124; fi
 
     def test_missing_marker_is_rejected(self):
         self.assertNotEqual(0, self.run_script("persistence-process-test.sh", "missing_marker"))
+
+    def test_each_progress_stage_is_required(self):
+        for mode in ("missing_progress_seed", "missing_progress_verify", "missing_progress_clear"):
+            with self.subTest(mode=mode):
+                self.assertNotEqual(0, self.run_script("persistence-process-test.sh", mode))
+
+    def test_each_original_marker_is_required(self):
+        for mode in ("missing_old_seed", "missing_old_verify", "missing_old_clear"):
+            with self.subTest(mode=mode):
+                self.assertNotEqual(0, self.run_script("persistence-process-test.sh", mode))
 
     def test_gradle_failure_is_preserved(self):
         self.assertEqual(7, self.run_script("device-tests.sh", gradle=7, probe=9))

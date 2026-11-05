@@ -15,7 +15,7 @@ The [architecture](2026-10-24-iptv-architecture-design.md) and [approved UI audi
 - Selecting a row offers Continue from the saved timestamp, Start over, and cancellation. Ordinary catalogue Play offers the same choice when eligible progress exists. Cancel changes neither progress nor playback.
 - Start over clears that position before starting at zero. Completed items leave the row when playback reaches its end; do not guess a completion percentage. Selecting a completed title through its catalogue starts normally from the beginning.
 - Save meaningful progress from 1 second onward. Display a progress bar only when duration is known; otherwise display the saved timestamp. Media-time direction remains LTR in Arabic.
-- Returning from playback restores the row/card focus when present; completing an item falls back to a remaining row item or its catalogue parent. Late Paging emissions must not take focus from the user.
+- Returning from playback restores the row/card focus when present; completing an item falls back to a remaining row item or its loaded catalogue parent. If the parent is outside the current Paging window, use the first visible catalogue card rather than loading the catalogue to locate it. Late Paging emissions must not take focus from the user.
 - Use the existing Cinema poster treatment and semantic palette. Resume controls must fit phone/TV, large text and Arabic; primary Continue gets initial TV focus once per dialog. Do not introduce standard pale dialogs.
 
 ## Identity and protected storage

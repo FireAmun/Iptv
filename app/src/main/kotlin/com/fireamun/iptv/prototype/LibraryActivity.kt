@@ -68,6 +68,7 @@ abstract class LibraryActivity : AppCompatActivity() {
         setContent {
             val state by library.state.collectAsStateWithLifecycle()
             val request by library.playback.collectAsStateWithLifecycle()
+            val watch by library.continueWatching.collectAsStateWithLifecycle()
             val catalogue = library.catalogue.collectAsLazyPagingItems()
             val browserState = rememberSaveableStateHolder()
             // A recreated activity has already consumed this launch, even if rotated mid-intro.
@@ -103,12 +104,14 @@ abstract class LibraryActivity : AppCompatActivity() {
                 BackHandler(enabled = state.tab == com.fireamun.iptv.core.model.LibraryTab.SEARCH && !state.canGoBack) { library.closeSearch() }
                 browserState.SaveableStateProvider("browser") {
                     LibraryBrowser(state, catalogue, television, (application as IptvApplication).artworkLoader,
-                        library::selectTab, library::search, library::selectCategory, library::selectChannel, library::toggleFavourite, library::backToCatalog, library::closeSearch) {
+                        library::selectTab, library::search, library::selectCategory, library::selectChannel, library::toggleFavourite, library::backToCatalog, library::closeSearch,
+                        watch, library::playRecent) {
                         if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
                         else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
                     }
                 }
             }
+            if (!showStartup) ProgressOverlays(watch, television, library::continuePlayback, library::startPlaybackOver, library::cancelResumeChoice, library::dismissProgressError)
         }
     }
     override fun onSaveInstanceState(outState: Bundle) {

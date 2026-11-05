@@ -94,12 +94,20 @@ class PlaylistFlowTest {
                     else compose.onNodeWithTag("import_url").performClick()
                     compose.onNodeWithTag("http_confirm").assertDoesNotExist()
                     waitForChannel()
-                    compose.waitUntil(timeoutMillis = 5000) {
-                        var focused = false
-                        scenario.onActivity { focused = it.hasWindowFocus() }
-                        focused
-                    }
                     val channel = compose.onNodeWithTag("channel_0")
+                    try {
+                        compose.waitUntil(timeoutMillis = 5000) {
+                            var focused = false
+                            scenario.onActivity { focused = it.hasWindowFocus() }
+                            focused && (!tv || channel.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false })
+                        }
+                    } catch (failure: ComposeTimeoutException) {
+                        val focusedTags = compose.onAllNodes(isFocused(), useUnmergedTree = true).fetchSemanticsNodes()
+                            .map { it.config.getOrElse(SemanticsProperties.TestTag) { "untagged" } }
+                        println("IPTV_IMPORT_FOCUS_TIMEOUT targets=$focusedTags")
+                        captureSyntheticPreview(instrumentation, "tv-import-focus-failure")
+                        throw failure
+                    }
                     if (tv) channel.assertIsFocused().performKeyInput { keyDown(Key.DirectionCenter); keyUp(Key.DirectionCenter) }
                     else channel.performClick()
                     compose.onNodeWithTag("http_confirm").assertDoesNotExist()

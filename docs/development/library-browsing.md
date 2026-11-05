@@ -1,6 +1,6 @@
-# Library browsing (v0.8.0)
+# Library browsing (v0.9.0)
 
-The bottom bar contains Live TV, Movies, Series, Settings and Favourites on both phone and TV. Search is a separate action in the top header, with a Back action to return to the previous destination. Results use compact rows so titles and hearts fit below the search field. Setup, saved playlist selection/rename/removal, timestamps, entry counts, refresh, language and appearance live in Settings. An empty installation opens Settings; an existing cache opens Live TV.
+The bottom bar contains Live TV, Movies, Series, Favourites and Settings on both phone and TV. Search is a separate action in the top header, with a Back action to return to the previous destination. Results use compact rows so titles and hearts fit below the search field. Setup, saved playlist selection/rename/removal, timestamps, entry counts, refresh, language and appearance live in Settings. An empty installation opens Settings; an existing cache opens Live TV.
 
 Live TV includes untyped M3U entries. Movies and Series show provider artwork, year and rating when available, with deliberate Cinema placeholders otherwise. Selecting a movie/series opens basic details and a Play/View episodes action. Series episodes load on demand. No title-based hierarchy or invented ratings are supplied.
 
@@ -16,10 +16,10 @@ Refresh is explicit in Settings. Existing v0.7 caches did not retain artwork/yea
 
 HTTP sources/imports/playback proceed without a repeated confirmation, per the owner's 27 October decision. Normal URL validation and TLS trust remain; HTTPS playback still rejects plaintext subresources and HTTPS network clients do not follow HTTP downgrades.
 
-Artwork URLs are encrypted in Room under their own source/generation/item context. Coil sees opaque references as request/cache data; its fetcher resolves the private URL on demand. Only memory image caching is enabled, with opaque keys and no logger. The app has no hosted backend, analytics or provider logging.
+Artwork URLs are encrypted in Room under their own source/generation/item context. Coil sees opaque references as request/cache data; its fetcher resolves the private URL on demand. Only memory image caching is enabled, with opaque keys and no logger. There is no hosted application backend or provider logging. Optional [PostHog monitoring](posthog.md) uses a restricted event contract and receives no new playback-history fields or events.
 
 ## Follow-up scope
 
-Continue Watching/persistent resume, rich movie/series info, caption/audio/quality selectors, phone PiP/minimize and EPG remain requested follow-up slices. The UI does not expose placeholder controls for these. See the [feature matrix](../superpowers/specs/2026-10-27-library-browser-design.md) and [progress tracker](../../progress.md).
+Version 0.9.0 adds local [Continue Watching](continue-watching.md) for classified movies and episodes; see the [progress tracker](../../progress.md) for current verification and delivery. Rich movie/series info, caption/audio/quality selectors, phone PiP/minimize and EPG remain follow-up slices. The UI does not expose placeholder controls for these.
 
 Device verification must include real Room migration/FTS/favourite/lazy-locator cases, paging/search/focus journeys, protected artwork fetches and distinct-process persistence. Run test APKs only on disposable CI devices, never on the owner's saved emulator. Owner hands-on checks use install-r/manual UI and preserve sources.
