@@ -163,7 +163,7 @@ class ContinueWatchingFlowTest {
                 compose.openDestination("nav_series", tv)
                 compose.onNodeWithTag("nav_series").assertTextContains("المسلسلات", substring = true)
                 activate("channel_${fixture.seriesId}", tv); activate("detail_play", tv)
-                awaitTag("channel_0"); activate("channel_0", tv)
+                awaitEpisode(0, "Episode A"); activate("channel_0", tv)
                 awaitPlayer(scenario) { it.playbackState == Player.STATE_READY }
                 scenario.onActivity { player(it).seekTo(10_000); player(it).pause() }
                 awaitPosition(target, 9_000L..12_000L)
@@ -192,7 +192,7 @@ class ContinueWatchingFlowTest {
                 scenario.onActivity { player(it).pause() }; back(); awaitTag(tag)
                 fixture.reordered.set(true)
                 activate("channel_${fixture.seriesId}", tv); activate("detail_play", tv)
-                awaitTag("channel_1"); activate("channel_1", tv)
+                awaitEpisode(1, "Episode A"); activate("channel_1", tv)
                 awaitTag("resume_continue")
                 assertEquals(2, fixture.providerRequests.get())
                 activate("resume_continue", tv)
@@ -252,7 +252,7 @@ class ContinueWatchingFlowTest {
             activate("detail_play", tv)
             awaitTag("resume_continue")
             activate("resume_cancel", tv)
-            awaitTag(tag, enabled = true)
+            exposeRecent(tag, tv)
             compose.onNodeWithTag(tag).assertExists()
         }
     }
@@ -276,11 +276,22 @@ class ContinueWatchingFlowTest {
         compose.onAllNodesWithTag(tag).fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } }
     }
     private fun exposeRecent(tag: String, tv: Boolean) {
-        compose.onNodeWithTag("catalogue_grid").performScrollToIndex(0)
-        awaitTag(tag, enabled = true)
+        // A late history reload can prepend the header after stable poster keys anchor the grid.
+        compose.waitUntil(10_000) {
+            compose.onNodeWithTag("catalogue_grid").performScrollToIndex(0)
+            compose.onAllNodes(hasTestTag(tag) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        }
         if (tv) {
             compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus)
             awaitFocus(tag)
+        }
+    }
+    private fun awaitEpisode(id: Int, title: String) {
+        // Episode indices can match outgoing root IDs while the screen is changing.
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("library_back").fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodes(hasTestTag("channel_$id") and hasText(title) and isEnabled())
+                    .fetchSemanticsNodes().isNotEmpty()
         }
     }
     private fun activate(tag: String, tv: Boolean) {

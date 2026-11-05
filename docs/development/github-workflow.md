@@ -21,6 +21,8 @@ This is the agent/project delivery policy, not an unattended bot that merges arb
 
 ## What CI checks now
 
+When CI is the only remaining work, run a background completion watcher such as `gh run watch RUN_ID --repo FireAmun/Iptv --exit-status --interval 60` and resume after it exits. Keep the log under ignored `.tools/`. Do not repeatedly poll with model turns or assign an agent merely to poll. Once complete, inspect the final latest-head jobs, actual device XML and process-probe logs before merging.
+
 [The CI workflow](../../.github/workflows/ci.yml) runs on every PR update, pushes to `main`, and manual dispatch. Open/update the work branch's PR when pushing; the PR event checks that exact new head. This avoids duplicate device jobs for the branch push and its PR event. Unpublished branches can be tested using manual dispatch.
 
 - Python unit tests for the repository link checker, including missing targets, invalid UTF-8, repository escape, encoded paths, and fenced examples.
