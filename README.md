@@ -48,8 +48,10 @@ Core and UI modules have `src/main/kotlin` and `src/test/kotlin` directories. `.
 
 ## Current state
 
+Local AVD launching is suspended under the6 November2026 [host policy](AGENTS.md). Old devices were removed; the standalone launcher fails closed. Use local JVM/build checks and the existing cloud phone/TV matrix, not personal devices for fixtures.
+
 Amar Iptv configures `:app`, `:ui:mobile`, `:ui:tv`, `:core:model`, `:core:data`, `:core:storage`, `:core:playback`, and `:core:designsystem`. It supports Arabic/English, multiple M3U file/URL or Xtream-compatible sources, cached source restoration, paged live/movie/series browsing, search, favourites, episode navigation and Media3 playback. Local Continue Watching adds classified movie/episode positions and resume choices. Cinema appearance provides saved dark/light modes, shared palette/fonts and phone/TV layouts; see [progress](progress.md) for current verification and delivery. The remaining core directories reserve future boundaries. The temporary application ID is `com.fireamun.iptv.prototype`; permanent Play identity remains open.
 
-See [build/install instructions](docs/development/first-build.md), [M3U/playback behavior and manual testing](docs/development/m3u-playback.md), [server login](docs/development/xtream-login.md), [saved-library protection](docs/development/saved-library.md), [browsing/search/favourites](docs/development/library-browsing.md) and [Continue Watching](docs/development/continue-watching.md). EPG, pairing, billing and physical-device compatibility checks remain roadmap work.
+See [build/install instructions](docs/development/first-build.md), [M3U/playback behavior and manual testing](docs/development/m3u-playback.md), [server login](docs/development/xtream-login.md), [saved-library protection](docs/development/saved-library.md), [browsing/search/favourites](docs/development/library-browsing.md) and [Continue Watching](docs/development/continue-watching.md) and [300k capacity measurements](docs/development/catalogue-capacity.md). EPG, pairing, billing and physical-device compatibility checks remain roadmap work.
 
 Keep provider credentials and private source URLs out of tracked files. Machine SDK paths belong in an ignored `local.properties` when build configuration is introduced.

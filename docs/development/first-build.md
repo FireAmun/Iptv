@@ -16,36 +16,38 @@ Other machines should set `JAVA_HOME` and `ANDROID_HOME` to their own installati
 
 APK: `app/build/outputs/apk/debug/app-debug.apk`. CI publishes `iptv-debug` for seven days. It is debug-signed, uses temporary ID `com.fireamun.iptv.prototype`, and is not a Play release. Prototype minSdk 28 is a test baseline, not a final support policy. Compile/target SDK is 36 and bytecode target is JVM 17.
 
-Install only when device testing is intended:
+## Current host restriction — 6 November 2026
+
+Use the existing GitHub Actions Ubuntu/KVM phone API28 and TV API36 matrix for instrumentation and persistence testing. Windows AEHD/GVM and HAXM are prohibited on this laptop. The ten old AVDs and their backup were removed at the owner's request; do not restore or recreate them automatically. Cloud Linux KVM is a different hypervisor path and remains authorized.
+
+The owner's post-restart verification recorded HypervisorPresent=True, GVM Stopped/Disabled and WHPX installed and usable. This verifies acceleration capability, not long-running guest stability or the cause of earlier resets. It does not authorize creating a new local AVD. Follow [AGENTS.md](../../AGENTS.md) before any future device action.
+
+Local repository/JVM tests, lint and APK/test-APK builds remain authorized; the build command above does not launch a device. Do not run connectedDebugAndroidTest, a Gradle managed-device task, Android Studio's Run/Device Manager launch, an old emulator command or a fixture/persistence script against a personal device.
+
+## Manual personal-phone use
+
+Only for an owner-authorized device, use a data-preserving update and operate the app manually:
 
 ```powershell
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n com.fireamun.iptv.prototype/.MobileActivity
-adb shell am start -n com.fireamun.iptv.prototype/.TvActivity
-./gradlew.bat --no-daemon --console=plain :app:connectedDebugAndroidTest
+$deviceSerial = '<owner-authorized-device-serial>'
+adb -s $deviceSerial install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Run with one emulator/device connected. Connected tests exercise English → Arabic → English, RTL/LTR, recreation, TV focus, file/URL import and playback lifecycle. The original shell had no business-rule JVM tests; the current slice adds model, parser, transport and ViewModel tests. Use the additional core JVM commands in [the playback guide](m3u-playback.md).
+Do not uninstall, clear app data, install test fixtures or run instrumentation/persistence scripts on a personal phone or TV. Installation/signing and same-package requirements are described in [the personal-device guide](personal-device-testing.md).
 
-## Run the phone without Android Studio
+## Standalone emulator launcher
 
-From the project folder in PowerShell, including the VS Code terminal:
+scripts/start-phone.ps1 is intentionally disabled under the current host policy. Old desktop/VS Code shortcuts may still call it, but it now fails before accessing the SDK or starting a guest. Do not follow older instructions to recreate Iptv_Phone_API_34 or any removed review device.
 
-```powershell
-./scripts/start-phone.ps1
-```
+If the owner later explicitly authorizes one fresh disposable local AVD, implement a fail-closed launcher that checks the current SDK binary's usable WHPX result, confirms the Microsoft hypervisor and stopped/disabled legacy drivers, refuses parallel guests, and cold-boots the named new device without old snapshots. Never fall back to AEHD/GVM/HAXM or change firmware/firewall/drivers/reboot automatically.
 
-This starts `Iptv_Phone_API_34` in a separate window using the installed SDK. Android Studio is not required. Close any other emulator first; the launcher does not terminate a running device. No build or reinstall is needed just to use the phone. Open IPTV from its launcher, or drag the local debug APK onto the emulator if it is not installed.
+## Historical environment evidence
 
-On the prepared workstation, the local desktop shortcut **IPTV Phone** and the ignored VS Code task **IPTV: Start phone emulator** invoke this script. In VS Code use **Terminal → Run Task → IPTV: Start phone emulator**. These shortcuts are machine-local settings; the script is shared in Git.
+The original October local tests were run before the November restriction. The owner has since reported repeated unclean resets with fatal firmware WHEA records; emulator launch/use is correlated in the investigation history, but the exact cause remains unconfirmed. Software graphics such as SwiftShader does not determine CPU virtualization and did not establish host safety. Preserve earlier logs and do not count an interrupted suite as passed.
 
-## Local device testing authorization
+The final capacity TV suite was interrupted after65 of91 cases; no final JUnit success or following persistence-probe result exists. Complete latest-head cloud phone/TV reports and all process markers remain mandatory before merge. SDK build tools, project source, signing/debug keys and investigation evidence are retained.
 
-During the app-shell milestone the owner reported a prior laptop restart and cancelled a Windows Firewall network-access prompt. No elevation, driver install, firewall-rule change or reboot command was issued. ADB's TCP listener was observed on `127.0.0.1:5037`. Windows recorded an unexpected shutdown; its cause remains unresolved. The tools were stopped then. On 24 October 2026 the owner explicitly re-authorized local hands-on app testing alongside CI: use one emulator at a time with no host firewall/driver/reboot changes. See [the playback guide](m3u-playback.md).
-
-The TV AVD was recreated with the installed TV API 36 image and reached ADB online before being stopped. This is not a completed UI or playback test. SDK Manager's versioned local copy also contained an unreadable JAR; the intact downloaded tools were used for AVD recreation. Local SDK/tool integrity and reboot investigation remain separate environment follow-up work.
-
-CI runs the device tests on disposable Linux runners: API 28 phone and API 36 Android TV. The first TV attempt exited before boot because its default userdata partition needed more disk than the runner had available. CI now sets a 2 GB data partition and removes unused preinstalled .NET/NDK directories on the disposable TV runner. No local firewall permission or Windows virtualization changes are needed for that path. See [the workflow](../../.github/workflows/ci.yml) and [progress](../../progress.md) for actual results.
+See [the CI workflow](../../.github/workflows/ci.yml), [environment notes](environment.md) and [progress](../../progress.md) for current evidence. The historical SDK Manager copy-integrity issue remains separate from host reset investigation.
 
 ## Dependency basis
 

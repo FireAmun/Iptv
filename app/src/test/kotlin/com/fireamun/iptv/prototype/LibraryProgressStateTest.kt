@@ -40,6 +40,10 @@ class LibraryProgressStateTest {
         var heldLookup: Continuation<PlaylistEntry?>? = null
         var lateLookupReturned = false
         override suspend fun openSession() = LibrarySession(backing.source, "source", "generation", 1, backing.entries.size)
+        override suspend fun saveSession(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): LibrarySession {
+            backing.save(source, entries, refreshing, targetSourceId)
+            return openSession()
+        }
         override suspend fun item(sourceId: String, generation: String, itemId: Int): PlaylistEntry? {
             if (itemId != 7) return backing.entries.firstOrNull { it.channel.id == itemId }
             // This callback deliberately ignores Job cancellation, like an uncooperative disk API.

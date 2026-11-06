@@ -1,6 +1,16 @@
 # Development environment inventory
 
-Checked: 24 October 2026 (Asia/Riyadh).
+Historical inventory: 24 October 2026 (Asia/Riyadh). Current host policy updated 6 November 2026.
+
+## Current host policy
+
+AEHD/GVM and HAXM are prohibited. The owner removed all ten old local AVDs and their backup; do not restore or recreate them automatically. Existing project/build tools/keys and investigation evidence are preserved. Local builds/JVM/lint remain authorized; use the existing Ubuntu/KVM CI matrix for device instrumentation and persistence.
+
+The supplied post-restart verification records HypervisorPresent=True, GVM Stopped/Disabled and current emulator accel-check reporting WHPX installed and usable. This establishes capability only. No new guest or long-running stability test was performed after migration, and the cause of repeated WHEA-associated unclean resets remains unconfirmed. Any future local disposable AVD requires explicit owner authorization and a fresh fail-closed WHPX/legacy-driver check.
+
+The historical entries below are not current authorization to use old devices or drivers. scripts/start-phone.ps1 is disabled. Follow [AGENTS.md](../../AGENTS.md) and the [current build/device guide](first-build.md).
+
+## Historical October inventory
 
 This is the observed local inventory after tool setup and the M3U/playback slice. See [the build guide](first-build.md) for commands and device-test restrictions; [progress](../../progress.md) records current verification.
 
@@ -28,7 +38,7 @@ gradle --version
 android --no-metrics --version
 ```
 
-The owner explicitly authorized local app testing after the earlier suspension. Use one emulator at a time; no host firewall, driver or reboot changes. The SDK Manager copy also needs integrity repair before use; the inventory above separates original archives from the later copy failure.
+The October authorization below is historical and is superseded by the 6 November host restriction. Use cloud device CI now; do not launch a guest, restore an old AVD, change host firewall/drivers or reboot automatically. The SDK Manager copy also needs integrity repair before use; the inventory above separates original archives from the later copy failure.
 
 SDK Manager 22 needs a correct SDK root/layout for image discovery. The later class-loading failure in the versioned copy is documented above; do not treat earlier executable checks as proof that copy still works. Native-access warnings occurred with Java 25. Binary downloads, checksums, and installation logs are kept under ignored `.tools/` and are not pushed to GitHub.
 

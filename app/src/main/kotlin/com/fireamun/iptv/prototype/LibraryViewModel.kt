@@ -234,8 +234,7 @@ class LibraryViewModel(
                             // This is the local commit point. A user cancellation cannot split saved and visible state.
                             mutableState.value = mutableState.value.copy(saving = true)
                             withContext(NonCancellable) {
-                                val saved = persistence.save(source, entries, refreshing, targetSourceId)
-                                commitSession(persistence.openSession() ?: LibrarySession(saved.source, saved.sourceId, saved.savedAtMillis.toString(), saved.savedAtMillis, saved.entries.size, saved.entries))
+                                commitSession(persistence.saveSession(source, entries, refreshing, targetSourceId))
                                 refreshDirectory()
                             }
                         }

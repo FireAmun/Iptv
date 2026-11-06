@@ -32,7 +32,7 @@ The regular [device workflow](github-workflow.md) uses synthetic sources. Keep t
 | Application Installed/Updated/Opened/Backgrounded | SDK lifecycle events. | Restricted app/device/SDK context. |
 | `$exception` | SDK uncaught-exception capture; it can start before remote configuration arrives, which subsequently acts as a project kill switch. | A fixed known error-class label (otherwise `UncaughtException`) and a withheld-details message. Messages, frames, breadcrumbs and arbitrary exception attributes are removed. |
 
-Events carry `app_environment=debug/release` and an SDK-generated anonymous installation identity. There is no provider-based identification. Counts use `0_100`, `101_1000`, `1001_10000`, `10001_100000` or `over_100000`; these are analytics buckets, not a capacity promise. The catalogue limit remains 100k.
+Events carry `app_environment=debug/release` and an SDK-generated anonymous installation identity. There is no provider-based identification. Counts use `0_100`, `101_1000`, `1001_10000`, `10001_100000` or `over_100000`; these are analytics buckets, not a capacity promise. The 0.10.0 catalogue count guard is 300k; the existing analytics buckets are unchanged. See [capacity evidence](catalogue-capacity.md).
 
 Structured INFO/WARN import logs use service `amar-iptv`, environment `debug/release`, a fixed message, operation enum, source kind and count bucket or safe error code. Existing app/Logcat output is not forwarded. Failed refreshes retain `operation=refresh`.
 
