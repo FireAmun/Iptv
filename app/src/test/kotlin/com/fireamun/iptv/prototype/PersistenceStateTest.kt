@@ -60,6 +60,41 @@ class PersistenceStateTest {
         model.removeSavedSource(); advanceUntilIdle()
         assertNull(store.value); assertTrue(model.state.value.channels.isEmpty()); assertFalse(model.state.value.hasSavedSource)
     }
+    @Test fun importAndRefreshCommitSessionHeadersWithoutRequestingLegacyCatalogueOutput() = runTest {
+        val loaded = entries("Imported")
+        val gate = CompletableDeferred<Unit>()
+        var header: LibrarySession? = null
+        var opens = 0
+        val operations = mutableListOf<Pair<Boolean, String?>>()
+        val store = object : LibraryPersistence by Store() {
+            override suspend fun openSession(): LibrarySession? { opens++; return header }
+            override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): SavedLibrary =
+                throw ImportFailure(ImportError.STORAGE)
+            override suspend fun saveSession(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): LibrarySession {
+                assertSame(loaded, entries)
+                gate.await()
+                operations.add(refreshing to targetSourceId)
+                return LibrarySession(source, "session-source", "generation-${operations.size}", 5678, entries.size).also { header = it }
+            }
+            override suspend fun directory() = SourceDirectory(header?.let { listOf(SavedSource("session-source", null, it.source.kind, 1)) }.orEmpty(), header?.sourceId)
+        }
+        val model = LibraryViewModel(persistence = store, loadUrl = { loaded })
+        advanceUntilIdle()
+        model.importUrl("https://example.invalid/list"); runCurrent()
+        assertTrue(model.state.value.saving)
+        model.cancelImport()
+        gate.complete(Unit); advanceUntilIdle()
+        assertNull(model.state.value.error)
+        assertTrue(model.state.value.hasSavedSource)
+        assertEquals(1, model.state.value.entryCount)
+        assertEquals("generation-1", model.state.value.catalogueGeneration)
+        assertEquals(5678L, model.state.value.savedAtMillis)
+        assertTrue(model.state.value.channels.isEmpty())
+        model.refreshSource {}; advanceUntilIdle()
+        assertEquals(listOf(false to null, true to "session-source"), operations)
+        assertEquals("generation-2", model.state.value.catalogueGeneration)
+        assertEquals(1, opens)
+    }
     @Test fun fileRefreshRequestsAFileAndFailedRestoreDoesNotOverwriteUnreadableData() = runTest {
         val store = Store(SavedLibrary(SourceSpec.file(), entries(), 1234))
         val model = LibraryViewModel(persistence = store, ioDispatcher = StandardTestDispatcher(testScheduler))

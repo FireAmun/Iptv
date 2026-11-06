@@ -16,14 +16,19 @@ import androidx.test.runner.AndroidJUnitRunner
 class ManualFixtureRunner : AndroidJUnitRunner() {
     private var manual = false
     private var persistenceProbe: String? = null
+    private var capacityProbe: String? = null
+    private var capacitySize: String? = null
     override fun onCreate(arguments: Bundle?) {
         manual = arguments?.getString("manualFixture") == "true"
         persistenceProbe = arguments?.getString("persistenceProbe")
+        capacityProbe = arguments?.getString("capacityProbe")
+        capacitySize = arguments?.getString("capacitySize")
         super.onCreate(arguments)
     }
     override fun onStart() {
         if (manual) serveFixture()
         else if (persistenceProbe != null) persistenceProcessProbe(persistenceProbe!!)
+        else if (capacityProbe != null) catalogueCapacityProbe(capacityProbe!!, capacitySize)
         else super.onStart()
     }
     private fun serveFixture() {

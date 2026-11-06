@@ -205,7 +205,15 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
         }
     }
 
-    override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): SavedLibrary = guarded {
+    override suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): SavedLibrary {
+        val saved = persist(source, entries, refreshing, targetSourceId, retainRemapped = true)
+        return SavedLibrary(saved.source, saved.initialEntries, saved.savedAtMillis, saved.sourceId)
+    }
+
+    override suspend fun saveSession(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?): LibrarySession =
+        persist(source, entries, refreshing, targetSourceId, retainRemapped = false)
+
+    private suspend fun persist(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean, targetSourceId: String?, retainRemapped: Boolean): LibrarySession = guarded {
         mutex.withLock {
             require(entries.isNotEmpty() && entries.size <= MAX_CATALOGUE_ENTRIES)
             val previous = if (refreshing && targetSourceId != null) dao.source(targetSourceId) else dao.source()
@@ -226,56 +234,72 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
                 val row = SourceRow(slot = slot, sourceId = id,
                     generation = UUID.randomUUID().toString(), secret = secret, savedAt = System.currentTimeMillis(), kind = source.kind.name,
                     label = if (refreshing) previous!!.label ?: old!!.source.name?.let { sealLabel(it, id) } else source.name?.let { sealLabel(it, id) })
-                val identities = (if (refreshing) dao.identities(id) else emptyList()).associateBy { it.identityKey }.toMutableMap()
-                var nextId = dao.maxId().toLong() + 1
-                val added = mutableListOf<IdentityRow>()
                 val occurrences = mutableMapOf<String, Int>()
-                val cipher = AesGcm { SecretKeySpec(key, "AES") }
+                val aesKey = SecretKeySpec(key, "AES")
+                val cipher = AesGcm { aesKey }
                 val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }
-                val remapped = mutableListOf<PlaylistEntry>()
-                val rows = entries.mapIndexed { index, entry ->
-                    currentCoroutineContext().ensureActive()
-                    require((entry.channel.title?.length ?: 0) <= 512 && (entry.channel.group?.length ?: 0) <= 512)
-                    val identity = entry.providerKey?.let { "provider:$it" } ?: "locator:${entry.address?.reveal() ?: error("Missing locator")}"
-                    val digest = buildString {
-                        for (byte in mac.doFinal(identity.toByteArray(Charsets.UTF_8))) {
-                            val value = byte.toInt() and 255
-                            append("0123456789abcdef"[value ushr 4]); append("0123456789abcdef"[value and 15])
-                        }
-                    }
-                    val occurrence = occurrences.getOrDefault(digest, 0); occurrences[digest] = occurrence + 1
-                    val identityKey = "$digest:$occurrence"
-                    val stable = identities[identityKey] ?: run {
-                        require(nextId <= Int.MAX_VALUE)
-                        IdentityRow(nextId++.toInt(), id, identityKey).also { identities[identityKey] = it; added.add(it) }
-                    }
-                    val channel = entry.channel.copy(id = stable.id)
-                    remapped.add(PlaylistEntry(channel, entry.address, entry.seriesId, entry.providerKey, entry.artwork))
-                    val plaintext = entry.address?.reveal()?.toByteArray(Charsets.UTF_8)
-                    val encrypted = try { plaintext?.let { cipher.seal(it, addressContext(row, stable.id)) } } finally { plaintext?.fill(0) }
-                    val picture = entry.artwork?.reveal()?.toByteArray(Charsets.UTF_8)
-                    val artwork = try { picture?.let { cipher.seal(it, artworkContext(row, stable.id)) } } finally { picture?.fill(0) }
-                    EntryRow(stable.id, index, channel.title, channel.group, channel.kind.name, entry.seriesId, entry.providerKey, encrypted, id, channel.categoryKey, channel.year, channel.rating, artwork)
-                }
-                currentCoroutineContext().ensureActive()
+                // Legacy save retains the full remapped output. The paged session path avoids
+                // those copies; the parsed input and global occurrence map still remain O(n).
+                val remapped = if (retainRemapped) ArrayList<PlaylistEntry>(entries.size) else null
                 database.withTransaction {
+                    currentCoroutineContext().ensureActive()
+                    var nextId = dao.maxId().toLong() + 1
                     dao.clearSearch(id); dao.clearEntries(id)
-                    added.chunked(250).forEach { dao.insertIdentities(it) }
-                    rows.chunked(250).forEach { dao.insertEntries(it) }
-                    // One prepared statement inside the same transaction, without 100k coroutine queries.
+                    // Reuse one FTS statement across all batches in the same atomic transaction.
                     database.openHelper.writableDatabase.compileStatement("INSERT INTO entry_search(rowid, searchText) VALUES (?, ?)").use { statement ->
-                        rows.forEach { entry ->
-                            currentCoroutineContext().ensureActive()
-                            statement.bindLong(1, entry.id.toLong())
-                            statement.bindString(2, normalizeSearch("${entry.title.orEmpty()} ${entry.groupLabel.orEmpty()}"))
-                            statement.executeInsert()
+                        var start = 0
+                        while (start < entries.size) {
+                            val end = minOf(start + SAVE_BATCH_SIZE, entries.size)
+                            val batch = (start until end).map { index ->
+                                currentCoroutineContext().ensureActive()
+                                val entry = entries[index]
+                                currentCoroutineContext().ensureActive()
+                                require((entry.channel.title?.length ?: 0) <= 512 && (entry.channel.group?.length ?: 0) <= 512)
+                                val identity = entry.providerKey?.let { "provider:$it" } ?: "locator:${entry.address?.reveal() ?: error("Missing locator")}"
+                                val digest = buildString {
+                                    for (byte in mac.doFinal(identity.toByteArray(Charsets.UTF_8))) {
+                                        val value = byte.toInt() and 255
+                                        append("0123456789abcdef"[value ushr 4]); append("0123456789abcdef"[value and 15])
+                                    }
+                                }
+                                // Occurrences are global so duplicates retain their original identity
+                                // semantics even when they straddle a batch boundary.
+                                val occurrence = occurrences.getOrDefault(digest, 0); occurrences[digest] = occurrence + 1
+                                entry to "$digest:$occurrence"
+                            }
+                            val identities = if (refreshing) dao.identities(id, batch.map { it.second }).associateBy { it.identityKey } else emptyMap()
+                            val added = ArrayList<IdentityRow>(batch.size)
+                            val rows = batch.mapIndexed { offset, (entry, identityKey) ->
+                                currentCoroutineContext().ensureActive()
+                                val stable = identities[identityKey] ?: run {
+                                    require(nextId <= Int.MAX_VALUE)
+                                    IdentityRow(nextId++.toInt(), id, identityKey).also { added.add(it) }
+                                }
+                                val channel = entry.channel
+                                if (remapped != null) remapped.add(PlaylistEntry(channel.copy(id = stable.id), entry.address, entry.seriesId, entry.providerKey, entry.artwork))
+                                val plaintext = entry.address?.reveal()?.toByteArray(Charsets.UTF_8)
+                                val encrypted = try { plaintext?.let { cipher.seal(it, addressContext(row, stable.id)) } } finally { plaintext?.fill(0) }
+                                val picture = entry.artwork?.reveal()?.toByteArray(Charsets.UTF_8)
+                                val artwork = try { picture?.let { cipher.seal(it, artworkContext(row, stable.id)) } } finally { picture?.fill(0) }
+                                EntryRow(stable.id, start + offset, channel.title, channel.group, channel.kind.name, entry.seriesId, entry.providerKey, encrypted, id, channel.categoryKey, channel.year, channel.rating, artwork)
+                            }
+                            dao.insertIdentities(added)
+                            dao.insertEntries(rows)
+                            rows.forEach { entry ->
+                                currentCoroutineContext().ensureActive()
+                                statement.bindLong(1, entry.id.toLong())
+                                statement.bindString(2, normalizeSearch("${entry.title.orEmpty()} ${entry.groupLabel.orEmpty()}"))
+                                statement.executeInsert()
+                            }
+                            start = end
                         }
                     }
                     dao.source(row)
                     dao.active(ActiveRow(sourceId = id))
                     currentCoroutineContext().ensureActive()
                 }
-                SavedLibrary(source, remapped, row.savedAt, id)
+                // Publish the header only after the full transaction commits successfully.
+                LibrarySession(source, id, row.generation, row.savedAt, entries.size, remapped ?: emptyList())
             } finally { key.fill(0); old?.key?.fill(0) }
         }
     }
@@ -377,6 +401,7 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
         catch (_: IllegalArgumentException) { throw ImportFailure(ImportError.STORAGE) }
     }
     companion object {
+        private const val SAVE_BATCH_SIZE = 250
         fun open(context: Context, name: String = "library.db", protector: EnvelopeProtector = KeystoreEnvelope()) =
             RoomLibraryStore(Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build(), protector)
     }

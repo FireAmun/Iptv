@@ -1,16 +1,18 @@
 # Try Amar Iptv on a personal phone or TV
 
-28 October 2026. The local Cinema UI preview is based on v0.8.0/code 10 (merged PR #12) with the approved presentation changes applied. The owner accepted this preview and authorized GitHub delivery on 28 October; use progress.md for the current delivery/CI state. Phone selected by the owner: Samsung S25 Ultra. TV model/system is still undecided.
+Updated6 November2026. Candidate0.10.0/code12 includes the tested300k count guard and Continue Watching; check [progress](../../progress.md) for actual CI/delivery state. Phone selected by the owner: Samsung S25 Ultra; TV model/system remains undecided.
+
+The6 November host restriction supersedes older emulator recipes. All ten old local AVDs were removed; do not restore/recreate them. Use cloud Ubuntu/KVM for instrumentation and persistence. Personal phones/TVs are for owner-authorized manual use and install-r only, with no fixture clearing or test scripts.
 
 ## Easiest S25 Ultra installation: copy the APK
 
-1. On this workstation, open `D:\Side_p\iptv\.tools\releases\Amar-Iptv-UI-preview-2026-10-28.apk` in File Explorer.
+1. On this workstation, open `D:\Side_p\iptv\.tools\releases\Amar-Iptv-0.10.0-300k-2026-11-06.apk` in File Explorer.
 2. Connect the phone by USB, choose file transfer, and copy that APK to the phone's Downloads folder. No Android Studio or developer options are needed for this method.
-3. Open **My Files → Downloads → Amar-Iptv-UI-preview-2026-10-28.apk** on the phone. Allow My Files to install unknown apps if prompted, then install.
+3. Open **My Files → Downloads → Amar-Iptv-0.10.0-300k-2026-11-06.apk** on the phone. Allow My Files to install unknown apps if prompted, then install.
 4. If Samsung Auto Blocker prevents the local APK installation, temporarily turn it off in **Settings → Security and privacy → Auto Blocker**, install this build, then restore the setting and My Files' install permission. Samsung's menu names can vary by One UI version; see the [official Samsung guide](https://www.samsung.com/uk/support/mobile-devices/protect-your-galaxy-device-with-the-new-auto-blocker-feature/).
 5. Open **Amar Iptv** and add your source once in Settings. Each installation has its own protected local cache; it does not copy or sync the emulator's saved account.
 
-The dated preview APK is 45,151,755 bytes (about 45 MB). SHA-256 at handoff: `CFC5E00E729AA3CEA0CFFA47638D70E02E8C61F06A1D78B529E4E947755BACB6`. It is a debug build, not a Play release. Keep using the workstation's local build for updates so the signing identity stays consistent. A CI debug build can have a different signing key.
+Use the current Windows-signed local debug APK; its SHA256 is recorded with the release evidence in progress.md. This is not a Play release. Keep using the same signing identity for updates; a CI debug build can have a different signing key. Do not uninstall an existing personal installation merely to work around a signing mismatch.
 
 ## Optional: install/update from the VS Code terminal
 
@@ -34,9 +36,9 @@ $iptvAdb = Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
 - Close and reopen the app: source and favourites should restore from the saved cache without another provider download. Refresh stays manual in Settings.
 - Try one authorized live stream and one movie/episode, pause, use the existing 30-second seek controls and return to browsing.
 - Switch English/Arabic and dark/light; check the keyboard, rotation and larger text size on the actual phone.
-- Persistent movie/episode playback positions and 300k support are planned, not present in v0.8.0. Do not report their absence as a regression in this build.
+- Verify saved movie/episode positions, Continue/Start over/Cancel and the Continue Watching row after reopening. The300k guard is synthetically validated; practical physical-device capacity remains to be measured.
 
-Use personal devices for hands-on use, not the destructive disposable-device CI scripts or instrumentation. Keep the emulator/My IPTV cache intact.
+Use personal devices for hands-on use, not the destructive disposable-device CI scripts or instrumentation. Preserve personal app data. The old emulator AVDs were removed at the owner's request and must not be restored automatically.
 
 ## TV installation and testing
 

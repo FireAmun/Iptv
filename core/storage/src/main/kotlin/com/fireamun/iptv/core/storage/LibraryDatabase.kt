@@ -62,7 +62,7 @@ internal interface LibraryDao {
         ORDER BY w.watchedAtMs DESC, w.refDigest DESC LIMIT :limit""") suspend fun recentProgress(sourceId: String, kind: String, limit: Int): List<JoinedWatchRow>
     @Query("DELETE FROM entry_search WHERE rowid IN (SELECT id FROM library_entries WHERE sourceId = :sourceId)") suspend fun clearSearch(sourceId: String)
     @Query("DELETE FROM entry_search") suspend fun clearSearch()
-    @Query("SELECT * FROM item_identities WHERE sourceId = :sourceId") suspend fun identities(sourceId: String): List<IdentityRow>
+    @Query("SELECT * FROM item_identities WHERE sourceId = :sourceId AND identityKey IN (:identityKeys)") suspend fun identities(sourceId: String, identityKeys: List<String>): List<IdentityRow>
     @Query("SELECT COALESCE(MAX(id), -1) FROM item_identities") suspend fun maxId(): Int
     @Insert suspend fun insertIdentities(rows: List<IdentityRow>)
     @Insert suspend fun insertEntries(rows: List<EntryRow>)

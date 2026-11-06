@@ -13,6 +13,10 @@ class SavedLibrary(val source: SourceSpec, val entries: List<PlaylistEntry>, val
 interface LibraryPersistence {
     suspend fun restore(): SavedLibrary?
     suspend fun save(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean = false, targetSourceId: String? = null): SavedLibrary
+    suspend fun saveSession(source: SourceSpec, entries: List<PlaylistEntry>, refreshing: Boolean = false, targetSourceId: String? = null): LibrarySession {
+        val saved = save(source, entries, refreshing, targetSourceId)
+        return openSession() ?: saved.session()
+    }
     suspend fun clear()
     suspend fun directory(): SourceDirectory
     suspend fun activate(sourceId: String): SavedLibrary
