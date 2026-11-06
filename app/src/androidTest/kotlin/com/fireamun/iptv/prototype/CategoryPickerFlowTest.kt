@@ -1,8 +1,10 @@
 package com.fireamun.iptv.prototype
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.Intent
 import android.view.KeyEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -75,6 +77,8 @@ class CategoryPickerFlowTest {
             compose.onNodeWithTag("category_search").performImeAction()
             if (tv) {
                 compose.onNodeWithTag("category_picker_close").performSemanticsAction(SemanticsActions.RequestFocus).assertIsFocused()
+                awaitNativeBackReady()
+                compose.onNodeWithTag("category_picker_close").assertIsFocused()
                 instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
             } else activate("category_picker_close", false)
             compose.waitUntil(5000) { compose.onAllNodesWithTag("category_picker").fetchSemanticsNodes().isEmpty() }
@@ -90,6 +94,27 @@ class CategoryPickerFlowTest {
             compose.onNodeWithTag("category_all").assertIsSelected()
             compose.onNodeWithTag("catalogue_list").performScrollToIndex(0)
             await("channel_0")
+        }
+    }
+    private fun awaitNativeBackReady() {
+        val automation = instrumentation.uiAutomation
+        val info = automation.serviceInfo
+        val originalFlags = info.flags
+        fun ready(): Boolean {
+            val windows = automation.windows
+            return windows.any { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused } &&
+                windows.none { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+        }
+        try {
+            info.flags = originalFlags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            automation.serviceInfo = info
+            // Compose focus does not wait for native IME hide/back-callback propagation.
+            compose.waitUntil(5000) { ready() }
+            automation.waitForIdle(100, 5000)
+            assertTrue("Native app focus and a hidden keyboard are required before dialog Back", ready())
+        } finally {
+            info.flags = originalFlags
+            automation.serviceInfo = info
         }
     }
     private fun await(tag: String) = compose.waitUntil(10000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
