@@ -57,6 +57,7 @@ class PlaybackCheckpointTest {
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
             awaitPlayer(scenario) { it.playbackState == Player.STATE_READY && it.contentPosition in 3_000..9_000 }
+            scenario.onActivity { assertFalse("A user pause must survive a real STOP/START", playerView(it).player!!.playWhenReady) }
             assertEquals(2, starts.size)
             assertTrue(starts[1] < 10_000)
         }

@@ -46,7 +46,7 @@
 
 Rich300k Xtream with unique artwork passes the bounded legacy save but reaches the full192MiB sampled Java heap. The production ViewModel immediately discards that full remapped return list in favor of openSession. Add an optional lightweight save contract rather than retain this unnecessary production allocation:
 
-- [x] Add LibraryPersistence.saveSession with the exact compatibility default save→openSession() ?: saved.session(). First write a ViewModel fake overriding saveSession whose legacy save fails; run it RED against the old VM.
+- [x] Add LibraryPersistence.saveSession with the exact compatibility default saveâ†’openSession() ?: saved.session(). First write a ViewModel fake overriding saveSession whose legacy save fails; run it RED against the old VM.
 - [x] Share Room persistence with a retainRemapped switch; preserve legacy save, while saveSession allocates no remapped list or output entry/channel copies and returns actual committed count/generation metadata only after transaction completion. Keep crypto/transaction/cancellation rules unchanged.
 - [x] Switch VM commit to saveSession at its existing NonCancellable boundary; preserve directory/progress behavior and explicitly adapt delegating paged test wrappers. Verify fallback/header/refresh/lookup/rollback/legacy contracts.
 - [x] Move capacity probe to the production session contract and obtain IDs from bounded pages; label new measurements saveContract=session. Re-run rich300k and original-scanner M3U300k, including actual UI and process-interrupted refresh before selecting the final cap.
@@ -57,8 +57,12 @@ Rich300k Xtream with unique artwork passes the bounded legacy save but reaches t
 - [x] Exercise representative hands-on browsing/search/navigation on one review TV/phone at a time. Physical hardware claims remain pending owner hardware evidence.
 - [x] Record chosen cap with measurements/limitations; keep100k if end-to-end results do not justify300k. Expose no unmeasured loading-screen capacity promise.
 - [x] Run appropriate Java21 JVM/build/lint and repo docs/tool checks; obtain independent whole-branch review. Final device regressions/probes use cloud CI under the6 November restriction; incomplete local65/91 is not a pass. Preserve owner research/evidence while staging.
-- [ ] Push branch/open PR, wait with one background completion watcher, inspect actual latest-head phone/TV XML and all process markers, exact-head merge, FF main, delete branch and verify main CI. Update handoff and provide report/APK as applicable.
+- [x] Push branch/open PR, wait with one background completion watcher, inspect actual latest-head phone/TV XML and all process markers, exact-head merge, FF main, delete branch and verify main CI. Update handoff and provide report/APK as applicable.
 
-## Execution checkpoint — 6 November 2026
+## Execution checkpoint â€” 6 November 2026
 
 Implementation and historical capacity measurements are complete; see the [capacity report](../../development/catalogue-capacity.md). Baseline300k save OOM was reproduced; bounded transactional batches and lightweight session return passed final100k/200k/300k M3U and rich300k Xtream state/refresh/recovery checks. Original production parser retained after the experiment showed no clear speed gain. Independent whole-change and safety reviews passed. Post-handoff local127 JVM tests, lint, app/test APKs and repository checks passed. The final local native suite is incomplete65/91, not passed; remaining full-suite/probe validation and delivery use cloud CI only. The last two checkboxes remain open until complete latest-head cloud evidence, exact-head merge, main verification and branch cleanup. No local AVD launch/recreation or personal-device fixture tests are authorized.
+
+## Delivery complete — 9 November 2026
+
+CapacityPR19 and test-readinessPR20 merged through exact-head gates. FinalPR42659827470 and main42664239929 passed all five jobs, independently verified91 phone/91 TV XML without failures/errors/skips and every persistence/progress marker. Tested/merged trees match; main synced and work branches deleted. The6 November checkpoint above is historical and its pending gates are now satisfied; local65/91 remains incomplete rather than retroactively passed. Windows0.10/code12 APK, final report and current physical-device follow-ups are in the tracker. No further local device or host action was used.
