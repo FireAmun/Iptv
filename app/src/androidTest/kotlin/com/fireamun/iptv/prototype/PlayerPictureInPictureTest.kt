@@ -86,6 +86,11 @@ class PlayerPictureInPictureTest {
         fullscreen(fixture)
         awaitPlayer(fixture) { it === player && !it.playWhenReady && !it.isPlaying }
         read(fixture) { assertEquals(pausedAt, attached(it).contentPosition) }
+        // Expansion must reset dismissal tracking: a later ordinary paused Home keeps the request.
+        home(fixture)
+        await { read(fixture) { !it.isInPictureInPictureMode && playerView(it)?.player == null } }
+        fullscreen(fixture)
+        awaitPlayer(fixture) { it !== player && it.playbackState == Player.STATE_READY && !it.playWhenReady && !it.isPlaying }
     }
 
     @Test fun playingHomeEntersNativePipAndSystemCloseFinalizesProgressWithoutReopeningPlayback() = movie { fixture ->
@@ -224,7 +229,10 @@ class PlayerPictureInPictureTest {
         await { read(fixture) { !it.isInPictureInPictureMode && it.hasWindowFocus() && (it as LifecycleOwner).lifecycle.currentState == Lifecycle.State.RESUMED } }
     }
 
-    private fun awaitPip(fixture: Fixture, expected: Boolean) = await { read(fixture) { it.isInPictureInPictureMode == expected } }
+    private fun awaitPip(fixture: Fixture, expected: Boolean) {
+        await { read(fixture) { it.isInPictureInPictureMode == expected } }
+        android.util.Log.i("IptvPipProbe", "IPTV_PIP_MODE active=$expected sdk=${android.os.Build.VERSION.SDK_INT}")
+    }
 
     private fun closeThroughNativePipMenu() {
         val info = automation.serviceInfo
@@ -297,6 +305,7 @@ class PlayerPictureInPictureTest {
     private fun activate(tag: String, tv: Boolean = false) {
         awaitTag(tag)
         val node = compose.onNodeWithTag(tag).assertIsEnabled()
+        if (!tv && tag.startsWith("player_")) assertPlayerTargetClearOfSystemBars(node)
         if (tv) {
             node.performSemanticsAction(SemanticsActions.RequestFocus)
             await { node.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } && nativeWindowFocused() }

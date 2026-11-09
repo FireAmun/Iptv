@@ -249,11 +249,11 @@ private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-fun MobilePlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetry: () -> Unit, player: @Composable (Modifier) -> Unit) {
+fun MobilePlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetry: () -> Unit, player: @Composable (Modifier) -> Unit, hideChrome: Boolean = false) {
     CinemaTheme {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             player(Modifier.fillMaxSize())
-            Column(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .88f), Color.Transparent))).safeDrawingPadding().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (!hideChrome) Column(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .88f), Color.Transparent))).safeDrawingPadding().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     TextButton(onClick = onBack, colors = ButtonDefaults.textButtonColors(contentColor = Cinema.Cream)) {
                         CinemaIcon(CinemaSymbol.BACK, tint = Cinema.Cream); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.mobile_back))

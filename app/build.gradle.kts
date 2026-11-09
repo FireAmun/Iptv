@@ -25,8 +25,8 @@ android {
         applicationId = "com.fireamun.iptv.prototype"
         minSdk = 28
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.10.0"
+        versionCode = 13
+        versionName = "0.11.0"
         testInstrumentationRunner = "com.fireamun.iptv.prototype.ManualFixtureRunner"
         buildConfigField("String", "POSTHOG_API_KEY", safePosthogProjectToken?.let { "\"$it\"" } ?: "null")
         buildConfigField("String", "POSTHOG_HOST", safePosthogHost?.let { "\"$it\"" } ?: "null")

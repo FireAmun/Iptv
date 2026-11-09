@@ -16,8 +16,8 @@ Single player/current request, current parsed/saved source contracts unchanged, 
 Files: new core/playback PlayerTrackControls.kt and track-choice helper; playback strings/build dependency; app PlayerTracksTest.kt plus synthetic HLS assets.
 Consumes current Player? internally; produces @Composable PlayerTrackControls(player:Player?,television:Boolean,modifier:Modifier=Modifier,onMinimize:(()->Unit)?=null). Audio/text/video Auto clears overrides of only its type and enables it; text Off disables it. Validate group still current before override. Media3 listeners rebuild current options/selection; release dismisses dialog. Scrollable Cinema dialog, radio semantics, initial focus once per window/dialog, return focus to originating button.
 
-- [ ] Write real fixture track tests for selecting second audio/text/video and clearing Auto/Off; verify absent controls fail on baseline in cloud without weakening normal matrix.
-- [ ] Implement helper/controls/resources, then integrate into same PlaybackSurface and run JVM/compile/lint.
+- [x] Write real fixture track tests for selecting second audio/text/video and clearing Auto/Off; verify absent controls fail on baseline in cloud without weakening normal matrix.
+- [x] Implement helper/controls/resources, then integrate into same PlaybackSurface and run JVM/compile/lint.
 - [ ] Assert actual selected formats/override/disabled state and rendered subtitles; no external streams. Independently review.
 
 ### Task2: Phone PiP and lifecycle
@@ -26,14 +26,18 @@ Files: core PlaybackPresentation.kt/LifecyclePlayerSession.kt/PlayerSurface.kt; 
 Produces core PlaybackPresentation(canEnter,wantsToPlay,isPlaying,aspectRatio) and PlaybackCommands(play,pause,close). Append compatible Surface flags/callbacks after modifier. LibraryActivity default-off protected hooks: pictureInPictureActive, pictureInPictureSupported, requestPictureInPicture(), updatePlayerPresentation(PlaybackPresentation), updatePlayerCommands(PlaybackCommands?), updatePlayerBounds(Rect); closePlaybackFromPictureInPicture() calls library.closePlayback then concrete commands.close.
 
 - [ ] Test policy and paused STOP/START intent before implementation; preserve onStop release and same player through visible PiP.
-- [ ] Add phone-only manifest/config, manual/native auto/legacy entry, guarded params/valid ratio/source bounds, native session play/pause and no unsupported entry. No TV PiP.
+- [x] Add phone-only manifest/config, manual/native auto/legacy entry, guarded params/valid ratio/source bounds, native session play/pause and no unsupported entry. No TV PiP.
 - [ ] Hide all chrome without moving/recreating player, preserve fullscreen/pause intent, distinguish expansion from STOP/dismissal; close request/owner in required checkpoint order.
 - [ ] Cloud real video tests verify same instance/advancing position/return/paused/close/final progress/denial/Home, modern path as well as API28. Independently review.
 
 ### Task3: Full verification and delivery
 
-- [ ] Generate owned tiny multi-track HLS fixtures with existing ignored ffmpeg; commit only necessary synthetic test assets and fixture source recipe, no dependency installs.
-- [ ] Run local Java21 :core:model:test :core:data:test testDebugUnitTest lintDebug assembleDebug :app:assembleDebugAndroidTest, repository15 tests/docs/actionlint/PowerShell syntax/whitespace. Record actual counts.
+- [x] Generate owned tiny multi-track HLS fixtures with existing ignored ffmpeg; commit only necessary synthetic test assets and fixture source recipe, no dependency installs.
+- [x] Run local Java21 :core:model:test :core:data:test testDebugUnitTest lintDebug assembleDebug :app:assembleDebugAndroidTest, repository15 tests/docs/actionlint/PowerShell syntax/whitespace. Record actual counts.
 - [ ] Inspect synthetic screenshots and cloud runtime evidence; retain any failed RED/diagnostic runs honestly. No owner device automation.
 - [ ] Update version/docs/progress, obtain whole-change review, stage only public files (exclude private tracker section/research), push/update one PR.
 - [ ] One background watcher to complete latest-head CI; verify actual XML and every source/progress marker, exact-head merge, FF main, delete branches and independently verify main. Supply Windows-signed APK/current handoff. Do not claim codec/hardware/endurance coverage from synthetic tests.
+
+## Candidate checkpoint9 November
+
+Reviewed source and local127 JVM/lint/APKs passed. Intentional baselineRED actual109each has only intended missing-control/PiP/pause failures; rawhead/digest-verified evidence retained. Final feature runtime/source screenshots remain pending fullphone28/phone36/TV36 latest-head GREEN and every processprobe. Native policy/format tests are real-player instrumentation; existing JVM progress/ordering tests remain intact (no implementation-mirroring policy helper added). One background watcher only.

@@ -19,6 +19,7 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
+    implementation(libs.compose.material3)
     implementation(libs.lifecycle.compose)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.hls)

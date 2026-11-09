@@ -1,0 +1,31 @@
+# Player tracks and phone PiP
+
+Candidate0.11.0 / versionCode13. Implementation, test-APK and source reviews are prepared; final live delivery state is [PR #21](https://github.com/FireAmun/Iptv/pull/21) and [progress](../../progress.md), not this document alone.
+
+## Tracks
+
+Audio, Subtitles and Quality are shared phone/TV controls beneath the video. They use the current Media3 player and supported current stream tracks. Pick a row to apply immediately; Close/Back cancels without changing selection. Auto clears only that type's override; subtitle Off disables text. English/Arabic, explicit radio state, scrollable choices and TV focus restoration are included.
+
+Quality choices display actual supplied dimensions/known bitrates. Auto allows Media3 adaptation. A single-quality stream says so; missing captions are not invented. Unsupported codecs/tracks cannot be selected. This feature does not transcode, discover alternate provider URLs or promise4K. Audio/subtitle language labels use Media3's localized names with bounded safe fallbacks. Group changes/released players dismiss old menus; queued old actions are rejected against the latest group set.
+
+Selections and pause intent are retained across a real STOP/START for the current request. They are not saved as account/global language preferences or reused for a different stream/retry. Existing30-second native seeking and saved movie/episode progress remain in place.
+
+## Phone picture-in-picture
+
+On a phone/image with PiP available and allowed, Minimize opens native PiP while playing or paused. Going Home while video intends to play uses the legacy leave callback on API28–30 and system auto-entry on API31+. Paused, ended/failed, browser and TV paths do not auto-enter. A blocked feature/AppOp hides the action and is handled without a crash. No background audio service or extra player/stream is added.
+
+The same video view/player remains mounted; title/back/status/retry/track chrome and native controller are hidden in PiP. System play/pause acts on that same player through a native media session. Returning fullscreen preserves pause intent and current position. Closing PiP releases playback, closes its request and flushes accepted progress before retirement, even if lifecycle collection has stopped. API29+ can deliver a final pre-stop checkpoint before the Activity close hook; FIFO checkpoint-before-disposal remains the invariant.
+
+The manifest change is phone-only. PiP layout/configuration handling does not consume language or appearance configuration changes. Source bounds and a platform-valid video aspect ratio support transitions. Manual entry hides chrome before entry; API35+ transition callbacks hide it early for system entry. API31–34 automatic-transition animation has not been independently tested; its actual mode callback still hides controls. Physical OEM/gesture/permission behavior remains an owner-device follow-up.
+
+## Validation
+
+Local Java21 JVM/lint/app/test-APK checks and independent source review precede delivery. Owned loopback HLS fixtures supply two H264 qualities (180/360), en/ar AAC tones and English WebVTT; original owned MP4 proves a single-quality/no-caption source. See the [fixture recipe](../../scripts/fixtures/generate_player_tracks.py) and [fixture description](../../app/src/androidTest/assets/player-tracks/README.md).
+
+The normal cloud matrix covers phoneAPI28, modern phoneAPI36 and TVAPI36. Native suites assert actual Media3 override/selected/decoded formats, rendered subtitle pixels and removal, type isolation, pause/position/owner identity, stale same-player and released-player actions, new Arabic labels and physical control bounds outside system bars. PiP tests use actual system modes, media-session commands, Home/return/Close, pause intent, native app-op denial/restoration and final saved progress. Unsupported images assert no action instead of skipping; actual phone entry markers and matching XML must establish both legacy/modern coverage.
+
+All native fixtures run only on disposable cloud Ubuntu/KVM devices. Local AVD/AEHD/GVM/HAXM and personal-device fixture restrictions remain in AGENTS. Baseline RED failures are intentional test-oracle evidence and are not merge candidates; only latest-head full GREEN results/probes permit merge. Exact counts/results belong in the tracker.
+
+## References
+
+[Media3 track selection](https://developer.android.com/media/media3/exoplayer/track-selection), [PiP setup/config](https://developer.android.com/develop/ui/compose/system/pip-setup), [PiP entry timing](https://developer.android.com/develop/ui/compose/system/pip-enter), [PiP lifecycle/media controls](https://developer.android.com/develop/ui/views/picture-in-picture). Existing pins retained; no new runtime media engine/service.

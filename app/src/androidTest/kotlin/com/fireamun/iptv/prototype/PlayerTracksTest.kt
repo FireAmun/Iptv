@@ -104,6 +104,8 @@ class PlayerTracksTest {
         val audio = choose(scenario, "player_audio", C.TRACK_TYPE_AUDIO, 1, tv)
         val formats = read(scenario) { choices(it, C.TRACK_TYPE_VIDEO) }
         assertEquals(setOf(180, 360), formats.map { it.format.height }.toSet())
+        val first = choose(scenario, "player_quality", C.TRACK_TYPE_VIDEO, 0, tv)
+        awaitPlayer(scenario) { selected(it, first) && (it as ExoPlayer).videoFormat?.height == first.format.height }
         val second = choose(scenario, "player_quality", C.TRACK_TYPE_VIDEO, 1, tv)
         awaitPlayer(scenario) { selected(it, second) && (it as ExoPlayer).videoFormat?.height == second.format.height && selected(it, audio) }
         open("player_quality", tv)
@@ -290,6 +292,7 @@ class PlayerTracksTest {
         awaitTag(tag)
         val node = compose.onNodeWithTag(tag)
         node.assertIsEnabled()
+        if (!tv && tag.startsWith("player_")) assertPlayerTargetClearOfSystemBars(node)
         if (tv) {
             node.performSemanticsAction(SemanticsActions.RequestFocus)
             awaitFocused(tag)
@@ -298,6 +301,7 @@ class PlayerTracksTest {
             node.assertIsDisplayed().performClick()
         }
     }
+
 
     private fun playerView(activity: Activity): PlayerView {
         fun find(view: View): PlayerView? = when (view) {
