@@ -251,6 +251,7 @@ class ContinueWatchingFlowTest {
             activate("channel_${recent.rootItemId}", tv)
             activate("detail_play", tv)
             awaitTag("resume_continue")
+            if (tv) awaitFocus("resume_continue")
             activate("resume_cancel", tv)
             exposeRecent(tag, tv)
             compose.onNodeWithTag(tag).assertExists()

@@ -56,7 +56,7 @@ Rich300k Xtream with unique artwork passes the bounded legacy save but reaches t
 - [x] Verify M3U and Xtream catalogue parsing, initial import, reordered refresh, favourites/movie/episode history, failure/cancel rollback, distinct-process cached reopen, Arabic/Latin search, bounded pages and repeated refresh disk behavior at tested sizes.
 - [x] Exercise representative hands-on browsing/search/navigation on one review TV/phone at a time. Physical hardware claims remain pending owner hardware evidence.
 - [x] Record chosen cap with measurements/limitations; keep100k if end-to-end results do not justify300k. Expose no unmeasured loading-screen capacity promise.
-- [ ] Run appropriate Java21 JVM/build/lint and repo docs/tool checks; obtain independent whole-branch review. Final device regressions/probes use cloud CI under the6 November restriction; incomplete local65/91 is not a pass. Preserve owner research/evidence while staging.
+- [x] Run appropriate Java21 JVM/build/lint and repo docs/tool checks; obtain independent whole-branch review. Final device regressions/probes use cloud CI under the6 November restriction; incomplete local65/91 is not a pass. Preserve owner research/evidence while staging.
 - [ ] Push branch/open PR, wait with one background completion watcher, inspect actual latest-head phone/TV XML and all process markers, exact-head merge, FF main, delete branch and verify main CI. Update handoff and provide report/APK as applicable.
 
 ## Execution checkpoint — 6 November 2026
