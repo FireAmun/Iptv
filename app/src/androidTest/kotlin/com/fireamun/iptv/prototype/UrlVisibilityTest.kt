@@ -94,7 +94,15 @@ class UrlVisibilityTest {
                         awaitFocus("source_url")
                         logDialogInsets("after-down")
                         assertUrlAboveKeyboard()
-                    } else compose.onNodeWithTag("url_visibility").assertIsDisplayed().assertTextEquals(expectedLabel).performClick()
+                    } else {
+                        // Native IME resizing/bring-into-view can move the form after text input.
+                        // Settle that geometry before the one coordinate-based touch.
+                        assertUrlAboveKeyboard()
+                        instrumentation.uiAutomation.waitForIdle(100, 5000)
+                        logVisibilityTouch("before-touch")
+                        compose.onNodeWithTag("url_visibility").assertIsDisplayed().assertTextEquals(expectedLabel).performClick()
+                        logVisibilityTouch("after-touch")
+                    }
                 }
                 val show = if (arabicLight) "\u0625\u0638\u0647\u0627\u0631" else "Show"
                 val hide = if (arabicLight) "\u0625\u062e\u0641\u0627\u0621" else "Hide"
@@ -199,6 +207,14 @@ class UrlVisibilityTest {
             }
             android.util.Log.i("UrlVisibilityInsets", "$stage [$geometry]")
         }
+    }
+    private fun logVisibilityTouch(stage: String) {
+        val button = compose.onNodeWithTag("url_visibility").fetchSemanticsNode()
+        val label = button.config.getOrElse(SemanticsProperties.Text) { emptyList() }.map { it.text }
+        val field = compose.onNodeWithTag("source_url").fetchSemanticsNode()
+        // Only fixed action labels and geometry: never the URL or editable field content.
+        android.util.Log.i("UrlVisibilityTouch", "$stage label=$label button=${button.boundsInRoot} field=${field.boundsInRoot}")
+        logDialogInsets(stage)
     }
     private fun assertUrlAboveKeyboard() {
         // Native IME windows can cover a node that Compose still considers displayed.
