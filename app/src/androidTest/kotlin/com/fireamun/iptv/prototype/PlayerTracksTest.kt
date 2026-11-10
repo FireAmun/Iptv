@@ -24,6 +24,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import com.fireamun.iptv.core.data.*
 import com.fireamun.iptv.core.model.*
 import kotlinx.coroutines.runBlocking
@@ -47,6 +49,7 @@ class PlayerTracksTest {
     @get:Rule(order = 2) val compose = createEmptyComposeRule()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val app get() = instrumentation.targetContext.applicationContext as IptvApplication
+    private var openedControl: String? = null
 
     @Test fun phoneSelectsSecondAudioAndAutoPreservesQuality() = audio(MobileActivity::class.java, false)
     @Test fun tvSelectsSecondAudioAndAutoPreservesQuality() = audio(TvActivity::class.java, true)
@@ -249,43 +252,98 @@ class PlayerTracksTest {
         compose.onNodeWithTag("track_option_$index").assertExists()
         activate("track_option_$index", tv)
         awaitPlayer(scenario) { selected(it, choice) && it.trackSelectionParameters.overrides[choice.group]?.trackIndices == listOf(choice.index) }
-        awaitGone("player_track_dialog")
         return choice
     }
 
     private fun open(tag: String, tv: Boolean) {
         activate(tag, tv)
         awaitTag("player_track_dialog")
+        openedControl = tag
         if (tv) compose.waitUntil(5_000) {
-            compose.onAllNodes(isFocused() and hasAnyAncestor(hasTestTag("player_track_dialog"))).fetchSemanticsNodes().isNotEmpty() && nativeWindowFocused()
+            compose.onAllNodes(isFocused() and hasAnyAncestor(hasTestTag("player_track_dialog"))).fetchSemanticsNodes().isNotEmpty() && nativeWindowFocused(dialog = true)
         }
     }
 
     private fun cancel(control: String, tv: Boolean) {
-        awaitNativeWindow()
+        awaitNativeWindow(dialog = true, tag = control)
         instrumentation.uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+        awaitDialogClosed(control, tv)
+    }
+
+    private fun awaitDialogClosed(control: String, tv: Boolean) {
         awaitGone("player_track_dialog")
-        if (tv) awaitFocused(control)
+        // Dismissal removes semantics before the parent-window focus effect restores the opener.
+        if (tv) awaitFocused(control, dialog = false)
+        openedControl = null
     }
 
     private fun awaitTag(tag: String) = compose.waitUntil(10_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
     private fun awaitGone(tag: String) = compose.waitUntil(5_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isEmpty() }
-    private fun awaitFocused(tag: String) = compose.waitUntil(5_000) {
-        compose.onAllNodesWithTag(tag).fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } } && nativeWindowFocused()
+    private fun awaitFocused(tag: String, dialog: Boolean) {
+        try {
+            compose.waitUntil(5_000) {
+                compose.onAllNodesWithTag(tag).fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } } && nativeWindowFocused(dialog)
+            }
+        } catch (failure: ComposeTimeoutException) {
+            recordFocusFailure(tag, dialog)
+            throw failure
+        }
     }
-    private fun awaitNativeWindow() = compose.waitUntil(5_000) { nativeWindowFocused() }
-    private fun nativeWindowFocused(): Boolean {
-        if (android.os.Build.VERSION.SDK_INT < 29) return instrumentation.uiAutomation.rootInActiveWindow?.packageName?.toString() == instrumentation.targetContext.packageName
+    private fun awaitNativeWindow(dialog: Boolean, tag: String) {
+        try {
+            compose.waitUntil(5_000) { nativeWindowFocused(dialog) }
+        } catch (failure: ComposeTimeoutException) {
+            recordFocusFailure(tag, dialog)
+            throw failure
+        }
+    }
+    private fun resumedDecor(): View? = ActivityLifecycleMonitorRegistry.getInstance()
+        .getActivitiesInStage(Stage.RESUMED).singleOrNull()?.window?.decorView
+
+    private fun nativeWindowFocused(dialog: Boolean): Boolean {
+        val activeApp = android.os.Build.VERSION.SDK_INT >= 29 || !dialog ||
+            instrumentation.uiAutomation.rootInActiveWindow?.packageName?.toString() == instrumentation.targetContext.packageName
         var focused = false
         instrumentation.runOnMainSync {
-            focused = android.view.inspector.WindowInspector.getGlobalWindowViews().any {
-                (it.layoutParams as? android.view.WindowManager.LayoutParams)?.type in setOf(
-                    android.view.WindowManager.LayoutParams.TYPE_BASE_APPLICATION,
-                    android.view.WindowManager.LayoutParams.TYPE_APPLICATION,
-                ) && it.hasWindowFocus()
+            val parent = resumedDecor()
+            focused = when {
+                parent == null -> false
+                !dialog -> parent.hasWindowFocus()
+                android.os.Build.VERSION.SDK_INT >= 29 -> android.view.inspector.WindowInspector.getGlobalWindowViews().any {
+                    it !== parent && (it.layoutParams as? android.view.WindowManager.LayoutParams)?.type ==
+                        android.view.WindowManager.LayoutParams.TYPE_APPLICATION && it.hasWindowFocus()
+                }
+                // API28 has no WindowInspector; require the app's active dialog and loss of parent focus.
+                else -> activeApp && !parent.hasWindowFocus()
             }
         }
         return focused
+    }
+
+    /** Only fixture tags and native focus flags; never dump semantics, titles or media URLs. */
+    private fun recordFocusFailure(tag: String, dialog: Boolean) {
+        val knownTags = listOf("nav_movies", "detail_play", "player_audio", "player_subtitles", "player_quality",
+            "track_auto", "track_off", "track_option_0", "track_option_1")
+        val safeTag = tag.takeIf { it in knownTags || it.matches(Regex("channel_[0-9]+")) } ?: "unknown"
+        runCatching {
+            val focused = knownTags.filter { known -> compose.onAllNodesWithTag(known).fetchSemanticsNodes().any {
+                it.config.getOrElse(SemanticsProperties.Focused) { false }
+            } }
+            android.util.Log.e("IptvTrackFocus", "target=$safeTag dialog=$dialog focusedTags=$focused nativeReady=${nativeWindowFocused(dialog)}")
+            instrumentation.runOnMainSync {
+                val parent = resumedDecor()
+                android.util.Log.e("IptvTrackFocus", "parentPresent=${parent != null} parentFocused=${parent?.hasWindowFocus() == true}")
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    android.view.inspector.WindowInspector.getGlobalWindowViews().forEach {
+                        android.util.Log.e("IptvTrackFocus", "nativeType=${(it.layoutParams as? android.view.WindowManager.LayoutParams)?.type} focused=${it.hasWindowFocus()} parent=${it === parent}")
+                    }
+                }
+            }
+            if (android.os.Build.VERSION.SDK_INT < 29) instrumentation.uiAutomation.windows.forEach {
+                android.util.Log.e("IptvTrackFocus", "accessibilityType=${it.type} focused=${it.isFocused}")
+            }
+        }
+        runCatching { captureSyntheticPreview(instrumentation, "tracks-focus-timeout-${safeTag.replace('_', '-')}") }
     }
 
     private fun activate(tag: String, tv: Boolean) {
@@ -293,13 +351,18 @@ class PlayerTracksTest {
         val node = compose.onNodeWithTag(tag)
         node.assertIsEnabled()
         if (!tv && tag.startsWith("player_")) assertPlayerTargetClearOfSystemBars(node)
+        val selectionControl = if (tag == "track_auto" || tag == "track_off" || tag.startsWith("track_option_"))
+            requireNotNull(openedControl) { "Track selection must have an originating control" } else null
         if (tv) {
+            val dialog = selectionControl != null || tag == "detail_play"
+            awaitNativeWindow(dialog, tag)
             node.performSemanticsAction(SemanticsActions.RequestFocus)
-            awaitFocused(tag)
+            awaitFocused(tag, dialog)
             node.performKeyInput { pressKey(Key.DirectionCenter) }
         } else {
             node.assertIsDisplayed().performClick()
         }
+        if (selectionControl != null) awaitDialogClosed(selectionControl, tv)
     }
 
 

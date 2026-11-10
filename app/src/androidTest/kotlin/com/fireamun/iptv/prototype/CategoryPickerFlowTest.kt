@@ -51,6 +51,11 @@ class CategoryPickerFlowTest {
             activate("browse_categories", tv)
             await("category_picker")
             if (tv) {
+                // Dialog semantics can exist before native window focus assigns its initial control.
+                compose.waitUntil(5000) {
+                    compose.onAllNodesWithTag("category_picker_close").fetchSemanticsNodes().singleOrNull()
+                        ?.config?.getOrElse(SemanticsProperties.Focused) { false } == true
+                }
                 compose.onNodeWithTag("category_picker_close").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
                 compose.onNodeWithTag("category_search").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
                 val focusedTags = compose.onAllNodes(isFocused(), useUnmergedTree = true).fetchSemanticsNodes()

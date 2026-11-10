@@ -1,5 +1,6 @@
 package com.fireamun.iptv.prototype
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.Intent
 import androidx.compose.ui.input.key.Key
@@ -183,35 +184,46 @@ class XtreamFlowTest {
                         field.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } &&
                             field.isDisplayed()
                     }
-                } catch (failure: ComposeTimeoutException) {
-                    runCatching {
-                        loginDiagnostics(tag)
-                        captureSyntheticPreview(instrumentation, if (tv) "tv-login-timeout" else "phone-login-timeout")
+                    field.assertIsFocused().assertIsDisplayed().performTextInput(value)
+                    compose.mainClock.advanceTimeBy(100)
+                    field.performImeAction()
+                    compose.mainClock.advanceTimeBy(100)
+                    // The virtual clock does not drive native IME/window layout.
+                    instrumentation.uiAutomation.waitForIdle(100, 5000)
+                } catch (failure: Throwable) {
+                    if (failure is ComposeTimeoutException || failure is AssertionError) {
+                        // Native geometry can change after the poll, before the visibility assertion.
+                        runCatching { loginDiagnostics(tag) }
+                        runCatching { captureSyntheticPreview(instrumentation, if (tv) "tv-login-failure" else "phone-login-failure") }
                     }
                     throw failure
                 }
-                field.assertIsFocused().assertIsDisplayed().performTextInput(value)
-                compose.mainClock.advanceTimeBy(100)
-                field.performImeAction()
-                compose.mainClock.advanceTimeBy(100)
-                // The virtual clock does not drive native IME/window layout.
-                instrumentation.uiAutomation.waitForIdle(100, 5000)
             }
         } finally { compose.mainClock.autoAdvance = autoAdvance }
     }
     private fun loginDiagnostics(expected: String) {
         // Only geometry/known tags from synthetic fixtures; never dump text/semantics trees.
         println("IPTV_LOGIN_STATE expected=$expected virtual=${compose.mainClock.currentTime}")
+        val automation = instrumentation.uiAutomation
+        val info = automation.serviceInfo
+        val originalFlags = info.flags
+        try {
+            info.flags = originalFlags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            automation.serviceInfo = info
+            for (window in automation.windows) {
+                val bounds = android.graphics.Rect()
+                window.getBoundsInScreen(bounds)
+                println("IPTV_LOGIN_WINDOW type=${window.type} focused=${window.isFocused} bounds=$bounds")
+            }
+        } finally {
+            info.flags = originalFlags
+            automation.serviceInfo = info
+        }
         for (tag in listOf("playlist_name", "server_url", "server_username", "server_password", "server_login_fields", "mobile_form_scroll")) {
             val node = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().singleOrNull() ?: continue
             val focused = node.config.getOrElse(SemanticsProperties.Focused) { false }
             val range = if (node.config.contains(SemanticsProperties.VerticalScrollAxisRange)) node.config[SemanticsProperties.VerticalScrollAxisRange] else null
             println("IPTV_LOGIN_FIELD tag=$tag focused=$focused visible=${compose.onNodeWithTag(tag).isDisplayed()} bounds=${node.boundsInRoot} position=${node.positionInRoot} size=${node.size} scroll=${range?.value?.invoke()}/${range?.maxValue?.invoke()}")
-        }
-        for (window in instrumentation.uiAutomation.windows) {
-            val bounds = android.graphics.Rect()
-            window.getBoundsInScreen(bounds)
-            println("IPTV_LOGIN_WINDOW type=${window.type} focused=${window.isFocused} bounds=$bounds")
         }
     }
     private fun preview(activity: Class<out Activity>, tv: Boolean) {

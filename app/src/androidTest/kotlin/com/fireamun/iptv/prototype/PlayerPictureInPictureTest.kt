@@ -22,6 +22,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import androidx.test.core.app.ActivityScenario
@@ -29,6 +30,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.fireamun.iptv.core.data.*
 import com.fireamun.iptv.core.model.*
+import com.fireamun.iptv.core.playback.PlaybackPresentation
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
@@ -71,9 +73,18 @@ class PlayerPictureInPictureTest {
 
     @Test fun pausedManualPipAndNativeSessionCommandsKeepIntentOnFullscreenReturn() = movie { fixture ->
         if (!supportsPip()) { assertUnsupported(fixture); return@movie }
-        val player = read(fixture) { attached(it).apply { pause() } }
-        awaitPlayer(fixture) { !it.playWhenReady && !it.isPlaying }
-        activate("player_pip")
+        val player = read(fixture) { attached(it) }
+        try {
+            awaitTag("player_pip")
+            logPausedMinimizeState(fixture, player, "before_pause")
+            read(fixture) { attached(it).pause() }
+            awaitPlayer(fixture) { !it.playWhenReady && !it.isPlaying }
+            logPausedMinimizeState(fixture, player, "after_pause")
+            activate("player_pip")
+        } catch (failure: ComposeTimeoutException) {
+            diagnosePausedMinimize(fixture, player)
+            throw failure
+        }
         awaitPip(fixture, true)
         awaitPlayer(fixture) { it === player && !it.playWhenReady && !it.isPlaying }
         assertPipChromeHidden(fixture)
@@ -115,10 +126,14 @@ class PlayerPictureInPictureTest {
             var current: Activity? = null
             reopenedScenario.onActivity { current = it }
             val reopenedFixture = fixture.copy(activity = current!!)
-            awaitTag("channel_${fixture.movieId}")
+            awaitTag("nav_movies")
             compose.onNodeWithTag("player_surface").assertDoesNotExist()
             compose.onNodeWithTag("player_pip").assertDoesNotExist()
+            read(fixture) { assertNull("The original player must remain detached", playerView(it)?.player) }
             read(reopenedFixture) { assertNull(playerView(it)?.player) }
+            // A fresh ViewModel starts on Live; select Movies before awaiting its saved card.
+            compose.openDestination("nav_movies", tv = false)
+            awaitTag("channel_${fixture.movieId}")
             val reopened = runBlocking { app.progressRecorder.flush().await(); app.libraryStore.read(fixture.target)!!.progress }
             assertEquals("Retired playback must not overwrite the final checkpoint", final, reopened)
         }
@@ -204,6 +219,45 @@ class PlayerPictureInPictureTest {
     }
 
     private fun supportsPip() = context.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+    private fun logPausedMinimizeState(fixture: Fixture, originalPlayer: Player, stage: String) {
+        // This helper is only called in the owned movie fixture. Never stringify a player,
+        // presentation, exception or UI tree: those can include media/provider metadata.
+        val stateCaptured = runCatching {
+            read(fixture) { activity ->
+                val player = playerView(activity)?.player
+                android.util.Log.i("IptvPipProbe", "IPTV_PIP_PAUSED_STATE stage=$stage lifecycle=${(activity as LifecycleOwner).lifecycle.currentState.name}" +
+                    " nativePip=${activity.isInPictureInPictureMode} focused=${activity.hasWindowFocus()}" +
+                    " attached=${player != null} samePlayer=${player === originalPlayer}" +
+                    " state=${player?.playbackState} playWhenReady=${player?.playWhenReady}" +
+                    " isPlaying=${player?.isPlaying} supportedVideo=${player?.currentTracks?.isTypeSupported(C.TRACK_TYPE_VIDEO)}" +
+                    " errorCode=${player?.playerError?.errorCode}")
+                // Read the compiled lazy field, avoiding method enumeration that could
+                // resolve newer Activity callback parameter classes on API28.
+                val holder = MobileActivity::class.java.getDeclaredField("pictureInPicture\$delegate")
+                    .apply { isAccessible = true }.get(activity) as Lazy<*>
+                check(holder.isInitialized())
+                val host = holder.value!!
+                fun field(name: String): Any? = host.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(host)
+                val presentation = field("presentation") as PlaybackPresentation
+                android.util.Log.i("IptvPipProbe", "IPTV_PIP_PAUSED_HOST stage=$stage available=${field("available") as Boolean}" +
+                    " entering=${field("entering") as Boolean} nativePip=${activity.isInPictureInPictureMode}" +
+                    " canEnter=${presentation.canEnter} wantsToPlay=${presentation.wantsToPlay}" +
+                    " isPlaying=${presentation.isPlaying} commands=${field("commands") != null}")
+            }
+        }.isSuccess
+        android.util.Log.i("IptvPipProbe", "IPTV_PIP_PAUSED_DIAGNOSTICS stage=$stage stateCaptured=$stateCaptured")
+    }
+    private fun diagnosePausedMinimize(fixture: Fixture, originalPlayer: Player) {
+        logPausedMinimizeState(fixture, originalPlayer, "timeout")
+        for (tag in listOf("player_surface", "player_audio", "player_pip", "playback_status")) {
+            val count = runCatching { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().size }.getOrNull()
+            android.util.Log.i("IptvPipProbe", "IPTV_PIP_PAUSED_TAG tag=$tag count=$count")
+        }
+        val previewCaptured = runCatching {
+            captureSyntheticPreview(instrumentation, "pip-paused-missing-minimize-diagnostic")
+        }.isSuccess
+        android.util.Log.i("IptvPipProbe", "IPTV_PIP_PAUSED_DIAGNOSTICS previewCaptured=$previewCaptured")
+    }
     private fun assertUnsupported(fixture: Fixture) {
         compose.onNodeWithTag("player_pip").assertDoesNotExist()
         read(fixture) { assertFalse(it.isInPictureInPictureMode); assertNotNull(playerView(it)?.player) }

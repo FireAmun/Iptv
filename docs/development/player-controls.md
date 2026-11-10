@@ -29,3 +29,7 @@ All native fixtures run only on disposable cloud Ubuntu/KVM devices. Local AVD/A
 ## References
 
 [Media3 track selection](https://developer.android.com/media/media3/exoplayer/track-selection), [PiP setup/config](https://developer.android.com/develop/ui/compose/system/pip-setup), [PiP entry timing](https://developer.android.com/develop/ui/compose/system/pip-enter), [PiP lifecycle/media controls](https://developer.android.com/develop/ui/views/picture-in-picture). Existing pins retained; no new runtime media engine/service.
+
+## Focused cloud diagnosis
+
+CI workflow_dispatch supports full (default), player (track/PiP/checkpoint classes), pip, tracks or forms. These are allowlisted diagnostics for disposable cloud devices. Pull requests and main pushes always use the complete109-case suite on all three profiles; the script rejects any non-full scope outside workflow_dispatch. Every successful diagnostic scope still runs source/progress process probes. Diagnostic runs do not satisfy merge gates: fetch the pull_request run at the exact head and require full XML/probes and separate main verification. The35-minute device job bound allows modern-image setup and the expanded suite; individual assertions/watchdog limits are unchanged.

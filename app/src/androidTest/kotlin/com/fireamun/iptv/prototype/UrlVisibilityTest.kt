@@ -84,9 +84,13 @@ class UrlVisibilityTest {
                     if (tv) {
                         compose.onNodeWithTag("source_url").performSemanticsAction(SemanticsActions.RequestFocus)
                         awaitFocus("source_url")
+                        // The API 36 failure had no native IME, rather than an obscured field.
+                        // Serialize its native show/hide boundaries; cloud verification must confirm this hypothesis.
+                        assertUrlAboveKeyboard()
                         logDialogInsets("before-up")
                         compose.onNodeWithTag("source_url").performKeyInput { pressKey(Key.DirectionUp) }
                         awaitFocus("url_visibility")
+                        awaitNativeKeyboardHidden()
                         logDialogInsets("after-up")
                         compose.onNodeWithTag("url_visibility").assertIsDisplayed().assertTextEquals(expectedLabel)
                             .performKeyInput { pressKey(Key.DirectionCenter) }
@@ -215,6 +219,28 @@ class UrlVisibilityTest {
         // Only fixed action labels and geometry: never the URL or editable field content.
         android.util.Log.i("UrlVisibilityTouch", "$stage label=$label button=${button.boundsInRoot} field=${field.boundsInRoot}")
         logDialogInsets(stage)
+    }
+    private fun awaitNativeKeyboardHidden() {
+        val automation = instrumentation.uiAutomation
+        val info = automation.serviceInfo
+        val originalFlags = info.flags
+        fun ready(): Boolean {
+            val windows = automation.windows
+            return windows.any {
+                it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused &&
+                    it.root?.packageName?.toString() == instrumentation.targetContext.packageName
+            } && windows.none { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+        }
+        try {
+            info.flags = originalFlags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            automation.serviceInfo = info
+            compose.waitUntil(5000) { ready() }
+            automation.waitForIdle(100, 5000)
+            assertTrue("Native app focus and a hidden keyboard are required before toggling URL visibility", ready())
+        } finally {
+            info.flags = originalFlags
+            automation.serviceInfo = info
+        }
     }
     private fun assertUrlAboveKeyboard() {
         // Native IME windows can cover a node that Compose still considers displayed.

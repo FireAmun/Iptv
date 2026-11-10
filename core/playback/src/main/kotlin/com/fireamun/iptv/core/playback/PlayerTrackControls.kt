@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
@@ -172,7 +173,7 @@ private fun PlayerTrackControlsContent(
 private fun TrackButton(label: String, modifier: Modifier, enabled: Boolean, onClick: () -> Unit) {
     val p = cinemaPalette()
     var focused by remember { mutableStateOf(false) }
-    TextButton(onClick, modifier.onFocusChanged { focused = it.isFocused }, enabled = enabled,
+    TextButton(onClick, modifier.focusProperties { canFocus = enabled }.onFocusChanged { focused = it.isFocused }, enabled = enabled,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(if (focused) 2.dp else 1.dp, if (focused) p.focus else p.outline),
         colors = ButtonDefaults.textButtonColors(contentColor = p.text, containerColor = p.panel,
@@ -267,7 +268,7 @@ private fun TrackRow(label: String, selected: Boolean, modifier: Modifier, onCli
     val p = cinemaPalette()
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
-    Row(modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }
+    Row(modifier.fillMaxWidth().focusProperties { canFocus = true }.onFocusChanged { focused = it.isFocused }
         .background(if (focused) p.raised else p.panel, shape)
         .border(if (focused) 2.dp else 1.dp, if (focused) p.focus else p.outline.copy(alpha = .35f), shape)
         .selectable(selected, role = Role.RadioButton, onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp),

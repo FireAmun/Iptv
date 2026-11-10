@@ -11,7 +11,7 @@ BASH = "C:/Program Files/Git/bin/bash.exe" if os.name == "nt" else shutil.which(
 
 
 class DeviceScriptGates(unittest.TestCase):
-    def run_script(self, script, mode="success", gradle=0, probe=0):
+    def run_script(self, script, mode="success", gradle=0, probe=0, event=None, scope=None, expect_filter=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "bin").mkdir()
@@ -36,11 +36,20 @@ if [[ "$STUB_MODE" == timeout_after_marker && "$7" == seed ]]; then exit 124; fi
                 p = root / "bin" / name
                 p.write_text(text, encoding="utf-8", newline="\n")
                 p.chmod(0o755)
-            (root / "gradlew").write_text(f"exit {gradle}\n", encoding="ascii")
+            (root / "gradlew").write_text('''if [[ "$EXPECT_FILTER" == yes && "$*" != *android.testInstrumentationRunnerArguments.class=* ]]; then exit 19; fi
+if [[ "$EXPECT_FILTER" == no && "$*" == *android.testInstrumentationRunnerArguments.class=* ]]; then exit 20; fi
+''' + f"exit {gradle}\n", encoding="ascii")
             (root / "scripts" / "persistence-process-test.sh").write_text(f"exit {probe}\n", encoding="ascii")
             env = os.environ.copy()
             env["PATH"] = str(root / "bin") + os.pathsep + env["PATH"]
             env["STUB_MODE"] = mode
+            env.pop("IPTV_TEST_SCOPE", None)
+            env.pop("GITHUB_EVENT_NAME", None)
+            env["EXPECT_FILTER"] = expect_filter or ""
+            if event is not None:
+                env["GITHUB_EVENT_NAME"] = event
+            if scope is not None:
+                env["IPTV_TEST_SCOPE"] = scope
             return subprocess.run([BASH, str(ROOT / "scripts" / script).replace("\\", "/")], cwd=root,
                                   env=env, text=True, capture_output=True, timeout=15).returncode
 
@@ -71,6 +80,21 @@ if [[ "$STUB_MODE" == timeout_after_marker && "$7" == seed ]]; then exit 124; fi
 
     def test_process_probe_failure_is_preserved(self):
         self.assertEqual(9, self.run_script("device-tests.sh", probe=9))
+
+    def test_dispatch_scope_filters_the_diagnostic_class(self):
+        self.assertEqual(0, self.run_script("device-tests.sh", event="workflow_dispatch", scope="pip", expect_filter="yes"))
+
+    def test_pull_request_cannot_reduce_the_suite(self):
+        self.assertEqual(2, self.run_script("device-tests.sh", event="pull_request", scope="pip"))
+
+    def test_invalid_dispatch_scope_is_rejected(self):
+        self.assertEqual(2, self.run_script("device-tests.sh", event="workflow_dispatch", scope="pip; invalid"))
+
+    def test_normal_scope_has_no_class_filter(self):
+        self.assertEqual(0, self.run_script("device-tests.sh", event="push", scope="full", expect_filter="no"))
+
+    def test_focused_run_preserves_gradle_failure(self):
+        self.assertEqual(7, self.run_script("device-tests.sh", event="workflow_dispatch", scope="pip", gradle=7))
 
 
 if __name__ == "__main__":
