@@ -31,8 +31,9 @@ if [[ "$1" == shell && "$2" == test && "$MODE" == unrooted ]]; then exit 1; fi
 echo "evidence $*"
 ''',
                 "timeout": r'''#!/usr/bin/env bash
-printf '%q ' "$@" >> timeout-calls.txt
-printf '\n' >> timeout-calls.txt
+# The logcat timeout starts concurrently with foreground collection. Give each
+# process its own record so separate printf writes cannot interleave on Linux.
+{ printf '%q ' "$@"; printf '\n'; } > "timeout-call-$$.txt"
 [[ "$1" == -k ]] || exit 96
 [[ "$2" == 2s ]] || exit 97
 limit="$3"
@@ -70,7 +71,7 @@ exit {result}
             files = {str(p.relative_to(output)).replace("\\", "/"): p.read_text(encoding="utf-8")
                      for p in output.rglob("*") if p.is_file()} if output.exists() else {}
             return run, files, (root / "adb-calls.txt").read_text() if (root / "adb-calls.txt").exists() else "", (
-                (root / "timeout-calls.txt").read_text() if (root / "timeout-calls.txt").exists() else ""), (
+                "".join(p.read_text() for p in sorted(root.glob("timeout-call-*.txt")))), (
                 root / "stream-stopped.txt").exists()
 
     def test_guard_rejects_local_or_unknown_event_before_adb(self):
