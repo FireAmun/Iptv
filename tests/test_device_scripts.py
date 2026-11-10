@@ -11,7 +11,7 @@ BASH = "C:/Program Files/Git/bin/bash.exe" if os.name == "nt" else shutil.which(
 
 
 class DeviceScriptGates(unittest.TestCase):
-    def run_script(self, script, mode="success", gradle=0, probe=0, event=None, scope=None, expect_filter=None):
+    def run_script(self, script, mode="success", gradle=0, probe=0, event=None, scope=None, expect_filter=None, capture_args=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "bin").mkdir()
@@ -36,8 +36,11 @@ if [[ "$STUB_MODE" == timeout_after_marker && "$7" == seed ]]; then exit 124; fi
                 p = root / "bin" / name
                 p.write_text(text, encoding="utf-8", newline="\n")
                 p.chmod(0o755)
-            (root / "gradlew").write_text('''if [[ "$EXPECT_FILTER" == yes && "$*" != *android.testInstrumentationRunnerArguments.class=* ]]; then exit 19; fi
-if [[ "$EXPECT_FILTER" == no && "$*" == *android.testInstrumentationRunnerArguments.class=* ]]; then exit 20; fi
+            (root / "gradlew").write_text('''printf '%s\\n' "$@" > gradle-args.txt
+filtered=no
+if [[ "$*" == *android.testInstrumentationRunnerArguments.class=* || "$*" == *android.testInstrumentationRunnerArguments.diagnosticClasses=* ]]; then filtered=yes; fi
+if [[ "$EXPECT_FILTER" == yes && "$filtered" != yes ]]; then exit 19; fi
+if [[ "$EXPECT_FILTER" == no && "$filtered" != no ]]; then exit 20; fi
 ''' + f"exit {gradle}\n", encoding="ascii")
             (root / "scripts" / "persistence-process-test.sh").write_text(f"exit {probe}\n", encoding="ascii")
             env = os.environ.copy()
@@ -45,13 +48,33 @@ if [[ "$EXPECT_FILTER" == no && "$*" == *android.testInstrumentationRunnerArgume
             env["STUB_MODE"] = mode
             env.pop("IPTV_TEST_SCOPE", None)
             env.pop("GITHUB_EVENT_NAME", None)
+            # This harness tests suite/probe gates; bounded cloud collection has
+            # its own fake-command harness and must never use an inherited CI flag.
+            env.pop("GITHUB_ACTIONS", None)
             env["EXPECT_FILTER"] = expect_filter or ""
             if event is not None:
                 env["GITHUB_EVENT_NAME"] = event
             if scope is not None:
                 env["IPTV_TEST_SCOPE"] = scope
-            return subprocess.run([BASH, str(ROOT / "scripts" / script).replace("\\", "/")], cwd=root,
-                                  env=env, text=True, capture_output=True, timeout=15).returncode
+            result = subprocess.run([BASH, str(ROOT / "scripts" / script).replace("\\", "/")], cwd=root,
+                                    env=env, text=True, capture_output=True, timeout=15)
+            if capture_args:
+                return result.returncode, (root / "gradle-args.txt").read_text(encoding="utf-8").splitlines()
+            return result.returncode
+
+    def diagnostic_classes_after_agp_transport(self, scope):
+        result, args = self.run_script("device-tests.sh", event="workflow_dispatch", scope=scope, capture_args=True)
+        self.assertEqual(0, result)
+        prefix = "-Pandroid.testInstrumentationRunnerArguments."
+        # AGP 9.4 UtpTestUtils joins key=value pairs with commas; android-test-engine
+        # 1.0.1 splits on commas and discards tokens without '=' (cached source/bytecode).
+        wire = ",".join(arg.removeprefix(prefix) for arg in args if arg.startswith(prefix))
+        delivered = dict(token.split("=", 1) for token in wire.split(",") if "=" in token)
+        self.assertEqual("90", delivered.pop("diagnosticTimeoutSeconds"))
+        if "diagnosticClasses" in delivered:
+            self.assertEqual({"diagnosticClasses"}, set(delivered))
+            return delivered["diagnosticClasses"].split(";")
+        return delivered["class"].split(",")
 
     def test_cold_process_success_requires_different_pids(self):
         self.assertEqual(0, self.run_script("persistence-process-test.sh"))
@@ -83,6 +106,28 @@ if [[ "$EXPECT_FILTER" == no && "$*" == *android.testInstrumentationRunnerArgume
 
     def test_dispatch_scope_filters_the_diagnostic_class(self):
         self.assertEqual(0, self.run_script("device-tests.sh", event="workflow_dispatch", scope="pip", expect_filter="yes"))
+
+    def test_player_scope_preserves_all_classes_through_agp_transport(self):
+        self.assertEqual([
+            "com.fireamun.iptv.prototype.PlayerTracksTest",
+            "com.fireamun.iptv.prototype.PlayerPictureInPictureTest",
+            "com.fireamun.iptv.prototype.PlaybackCheckpointTest",
+        ], self.diagnostic_classes_after_agp_transport("player"))
+
+    def test_forms_scope_preserves_all_classes_through_agp_transport(self):
+        self.assertEqual([
+            "com.fireamun.iptv.prototype.CategoryPickerFlowTest",
+            "com.fireamun.iptv.prototype.UrlVisibilityTest",
+            "com.fireamun.iptv.prototype.XtreamFlowTest",
+        ], self.diagnostic_classes_after_agp_transport("forms"))
+
+    def test_single_class_scopes_survive_agp_transport(self):
+        for scope, expected in (
+            ("pip", "com.fireamun.iptv.prototype.PlayerPictureInPictureTest"),
+            ("tracks", "com.fireamun.iptv.prototype.PlayerTracksTest"),
+        ):
+            with self.subTest(scope=scope):
+                self.assertEqual([expected], self.diagnostic_classes_after_agp_transport(scope))
 
     def test_pull_request_cannot_reduce_the_suite(self):
         self.assertEqual(2, self.run_script("device-tests.sh", event="pull_request", scope="pip"))

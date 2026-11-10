@@ -19,6 +19,13 @@ class ManualFixtureRunner : AndroidJUnitRunner() {
     private var capacityProbe: String? = null
     private var capacitySize: String? = null
     override fun onCreate(arguments: Bundle?) {
+        if (arguments?.containsKey("diagnosticClasses") == true) {
+            val classes = arguments.getString("diagnosticClasses")
+            require(classes in diagnosticClassLists) { "Unknown diagnostic class scope" }
+            require(!arguments.containsKey("class")) { "Conflicting diagnostic class filters" }
+            arguments.remove("diagnosticClasses")
+            arguments.putString("class", requireNotNull(classes).replace(';', ','))
+        }
         manual = arguments?.getString("manualFixture") == "true"
         persistenceProbe = arguments?.getString("persistenceProbe")
         capacityProbe = arguments?.getString("capacityProbe")
@@ -52,3 +59,18 @@ class ManualFixtureRunner : AndroidJUnitRunner() {
         finish(Activity.RESULT_OK, Bundle())
     }
 }
+
+private val diagnosticClassLists = setOf(
+    "com.fireamun.iptv.prototype.PlayerPictureInPictureTest",
+    "com.fireamun.iptv.prototype.PlayerTracksTest",
+    listOf(
+        "com.fireamun.iptv.prototype.PlayerTracksTest",
+        "com.fireamun.iptv.prototype.PlayerPictureInPictureTest",
+        "com.fireamun.iptv.prototype.PlaybackCheckpointTest",
+    ).joinToString(";"),
+    listOf(
+        "com.fireamun.iptv.prototype.CategoryPickerFlowTest",
+        "com.fireamun.iptv.prototype.UrlVisibilityTest",
+        "com.fireamun.iptv.prototype.XtreamFlowTest",
+    ).joinToString(";"),
+)

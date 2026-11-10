@@ -153,6 +153,8 @@ class PlayerPictureInPictureTest {
 
     @Test fun deniedNativeAppOpHidesMinimizeAndHomeDoesNotEnterPip() {
         val original = originalPipAppOp()
+        val appOps = context.getSystemService(AppOpsManager::class.java)
+        val originalEffective = appOps.checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, Process.myUid(), context.packageName)
         try {
             shell("appops set ${context.packageName} PICTURE_IN_PICTURE deny")
             assertEquals(AppOpsManager.MODE_ERRORED, context.getSystemService(AppOpsManager::class.java).checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, Process.myUid(), context.packageName))
@@ -166,6 +168,8 @@ class PlayerPictureInPictureTest {
             }
         } finally {
             shell("appops set ${context.packageName} PICTURE_IN_PICTURE $original")
+            assertEquals("Restore the original effective PiP app-op mode", originalEffective,
+                appOps.checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, Process.myUid(), context.packageName))
             assertEquals("Restore the exact original PiP app-op mode", original, originalPipAppOp())
         }
     }
@@ -335,7 +339,11 @@ class PlayerPictureInPictureTest {
     private fun originalPipAppOp(): String {
         val output = shell("appops get ${context.packageName} PICTURE_IN_PICTURE")
         return Regex("PICTURE_IN_PICTURE:\\s*(allow|ignore|deny|default|foreground)").find(output)?.groupValues?.get(1)
-            ?: if (output.contains("No operations")) "default" else error("Cannot determine original PiP app-op mode")
+            // An absent PiP op defaults to allow; literal MODE_DEFAULT is a distinct native mode.
+            ?: if (output.contains("No operations")) {
+                Regex("Default mode:\\s*(allow|ignore|deny|default|foreground)").find(output)?.groupValues?.get(1)
+                    ?: error("Cannot determine original default PiP app-op mode")
+            } else error("Cannot determine original PiP app-op mode")
     }
     private fun shell(command: String): String = ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).bufferedReader().use { it.readText() }
 
