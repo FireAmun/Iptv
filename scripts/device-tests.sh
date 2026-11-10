@@ -6,21 +6,16 @@ if [[ "$scope" != full && "${GITHUB_EVENT_NAME:-}" != workflow_dispatch ]]; then
   echo 'Focused test scopes are diagnostic workflow_dispatch runs only.' >&2
   exit 2
 fi
-classes=''
 case "$scope" in
-  full) ;;
-  pip) classes='com.fireamun.iptv.prototype.PlayerPictureInPictureTest' ;;
-  tracks) classes='com.fireamun.iptv.prototype.PlayerTracksTest' ;;
-  player) classes='com.fireamun.iptv.prototype.PlayerTracksTest;com.fireamun.iptv.prototype.PlayerPictureInPictureTest;com.fireamun.iptv.prototype.PlaybackCheckpointTest' ;;
-  forms) classes='com.fireamun.iptv.prototype.CategoryPickerFlowTest;com.fireamun.iptv.prototype.UrlVisibilityTest;com.fireamun.iptv.prototype.XtreamFlowTest' ;;
+  full|pip|tracks|player|forms) ;;
   *) echo 'Unknown diagnostic test scope.' >&2; exit 2 ;;
 esac
 printf 'IPTV_TEST_SCOPE=%s\n' "$scope"
 test_args=()
-if [[ -n "$classes" ]]; then
-  # AGP 9.4 uses unescaped commas between runner arguments. Decode this list
-  # inside ManualFixtureRunner, after that transport, before AndroidJUnitRunner.
-  test_args+=("-Pandroid.testInstrumentationRunnerArguments.diagnosticClasses=$classes")
+if [[ "$scope" != full ]]; then
+  # Only an enum crosses AGP's comma transport and Android's shell. The fixed
+  # class lists live in ManualFixtureRunner, before AndroidJUnitRunner starts.
+  test_args+=("-Pandroid.testInstrumentationRunnerArguments.diagnosticScope=$scope")
 fi
 if [[ "${GITHUB_ACTIONS:-}" == true ]]; then
   source ./scripts/device-diagnostics.sh || exit $?
@@ -29,6 +24,9 @@ if [[ "${GITHUB_ACTIONS:-}" == true ]]; then
 fi
 result=0
 bash ./gradlew --no-daemon --console=plain :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.diagnosticTimeoutSeconds=90 "${test_args[@]}" || result=$?
+if [[ "$result" -eq 0 ]]; then
+  python3 scripts/check_device_results.py --scope "$scope" --results-dir app/build/outputs/androidTest-results/connected/debug || result=$?
+fi
 if [[ "$result" -eq 0 ]]; then
   bash ./scripts/persistence-process-test.sh || result=$?
 fi

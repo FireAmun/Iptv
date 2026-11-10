@@ -89,9 +89,9 @@ class PlayerPictureInPictureTest {
         awaitPlayer(fixture) { it === player && !it.playWhenReady && !it.isPlaying }
         assertPipChromeHidden(fixture)
         // Dispatch through Android's native active MediaSession, rather than app callbacks.
-        shell("cmd media_session dispatch play")
+        dispatchNativeSessionCommand("play")
         awaitPlayer(fixture) { it === player && it.isPlaying }
-        shell("cmd media_session dispatch pause")
+        dispatchNativeSessionCommand("pause")
         awaitPlayer(fixture) { it === player && !it.playWhenReady && !it.isPlaying }
         val pausedAt = read(fixture) { attached(it).contentPosition }
         fullscreen(fixture)
@@ -120,18 +120,15 @@ class PlayerPictureInPictureTest {
         assertTrue("Dismissal must persist the final current position", final.positionMs >= beforeClose - 250)
         assertTrue(final.positionMs < 30_000)
         assertFalse(final.completed)
-        // SystemUI may remove the Activity's task when Close is pressed. Relaunch through
-        // the public Activity path and inspect whichever concrete Activity Android creates.
-        ActivityScenario.launch<Activity>(Intent(context, fixture.type)).use { reopenedScenario ->
-            var current: Activity? = null
-            reopenedScenario.onActivity { current = it }
-            val reopenedFixture = fixture.copy(activity = current!!)
+        // API28 SystemUI preserves the stopped task after Close. Reopen as a user would;
+        // ActivityScenario.launch adds CLEAR_TASK and destroys that preserved task instead.
+        withReopenedActivityAfterNativeClose(fixture) { reopenedFixture ->
             awaitTag("nav_movies")
             compose.onNodeWithTag("player_surface").assertDoesNotExist()
             compose.onNodeWithTag("player_pip").assertDoesNotExist()
             read(fixture) { assertNull("The original player must remain detached", playerView(it)?.player) }
             read(reopenedFixture) { assertNull(playerView(it)?.player) }
-            // A fresh ViewModel starts on Live; select Movies before awaiting its saved card.
+            // A newly created Activity starts on Live; select Movies before awaiting its saved card.
             compose.openDestination("nav_movies", tv = false)
             awaitTag("channel_${fixture.movieId}")
             val reopened = runBlocking { app.progressRecorder.flush().await(); app.libraryStore.read(fixture.target)!!.progress }
@@ -287,6 +284,30 @@ class PlayerPictureInPictureTest {
         await { read(fixture) { !it.isInPictureInPictureMode && it.hasWindowFocus() && (it as LifecycleOwner).lifecycle.currentState == Lifecycle.State.RESUMED } }
     }
 
+    private fun withReopenedActivityAfterNativeClose(fixture: Fixture, block: (Fixture) -> Unit) {
+        var current: Activity? = null
+        try {
+            context.startActivity(Intent(context, fixture.type).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+            await {
+                var ready = false
+                instrumentation.runOnMainSync {
+                    val resumed = androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                        .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)
+                        .singleOrNull { fixture.type.isInstance(it) }
+                    if (resumed != null) current = resumed
+                    ready = resumed?.let { !it.isInPictureInPictureMode && it.hasWindowFocus() } == true
+                }
+                ready
+            }
+            block(fixture.copy(activity = current!!))
+        } finally {
+            // The enclosing scenario owns the original Activity; close any replacement here.
+            current?.takeIf { it !== fixture.activity }?.let { activity ->
+                instrumentation.runOnMainSync { activity.finish() }
+            }
+        }
+    }
+
     private fun awaitPip(fixture: Fixture, expected: Boolean) {
         await { read(fixture) { it.isInPictureInPictureMode == expected } }
         android.util.Log.i("IptvPipProbe", "IPTV_PIP_MODE active=$expected sdk=${android.os.Build.VERSION.SDK_INT}")
@@ -344,6 +365,20 @@ class PlayerPictureInPictureTest {
                 Regex("Default mode:\\s*(allow|ignore|deny|default|foreground)").find(output)?.groupValues?.get(1)
                     ?: error("Cannot determine original default PiP app-op mode")
             } else error("Cannot determine original PiP app-op mode")
+    }
+    private fun dispatchNativeSessionCommand(action: String) {
+        require(action == "play" || action == "pause")
+        val sdk = android.os.Build.VERSION.SDK_INT
+        // MediaSessionService gained its cmd shell handler in Android 11. Older
+        // releases expose the same native media-key dispatch through media_cmd.
+        val cli = if (sdk < 30) "media" else "cmd media_session"
+        val output = shell("$cli dispatch $action")
+        val emptyOutput = output.isBlank()
+        android.util.Log.i("IptvPipProbe", "IPTV_PIP_NATIVE_COMMAND action=$action cli=$cli sdk=$sdk emptyOutput=$emptyOutput")
+        // Do not dump native output: unrelated sessions may contain metadata.
+        // API28 exposes stdout only; the same-player assertion remains the
+        // bounded semantic check for stderr-only errors or an undelivered key.
+        assertTrue("Native MediaSession $action command produced unexpected output (sdk=$sdk)", emptyOutput)
     }
     private fun shell(command: String): String = ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).bufferedReader().use { it.readText() }
 

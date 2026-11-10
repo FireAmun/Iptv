@@ -157,6 +157,10 @@ jobs:
           cmdline-tools-version: '15859902'
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
           log-accepted-android-sdk-licenses: false
+      # Keep Kotlin/APK compilation off the two-CPU runner while the guest boots.
+      # Connected tests reuse this same output tree; no test or image is removed.
+      - name: Build device APKs before guest startup
+        run: bash ./gradlew --no-daemon --max-workers=2 --console=plain :app:assembleDebug :app:assembleDebugAndroidTest
       - name: Run import, playback, language, and remote tests
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         env:

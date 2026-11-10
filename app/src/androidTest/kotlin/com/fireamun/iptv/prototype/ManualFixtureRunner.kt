@@ -19,12 +19,12 @@ class ManualFixtureRunner : AndroidJUnitRunner() {
     private var capacityProbe: String? = null
     private var capacitySize: String? = null
     override fun onCreate(arguments: Bundle?) {
-        if (arguments?.containsKey("diagnosticClasses") == true) {
-            val classes = arguments.getString("diagnosticClasses")
-            require(classes in diagnosticClassLists) { "Unknown diagnostic class scope" }
+        if (arguments?.containsKey("diagnosticScope") == true) {
+            val classes = diagnosticClassScopes[arguments.getString("diagnosticScope")]
+            requireNotNull(classes) { "Unknown diagnostic class scope" }
             require(!arguments.containsKey("class")) { "Conflicting diagnostic class filters" }
-            arguments.remove("diagnosticClasses")
-            arguments.putString("class", requireNotNull(classes).replace(';', ','))
+            arguments.remove("diagnosticScope")
+            arguments.putString("class", classes)
         }
         manual = arguments?.getString("manualFixture") == "true"
         persistenceProbe = arguments?.getString("persistenceProbe")
@@ -60,17 +60,17 @@ class ManualFixtureRunner : AndroidJUnitRunner() {
     }
 }
 
-private val diagnosticClassLists = setOf(
-    "com.fireamun.iptv.prototype.PlayerPictureInPictureTest",
-    "com.fireamun.iptv.prototype.PlayerTracksTest",
-    listOf(
+private val diagnosticClassScopes = mapOf(
+    "pip" to "com.fireamun.iptv.prototype.PlayerPictureInPictureTest",
+    "tracks" to "com.fireamun.iptv.prototype.PlayerTracksTest",
+    "player" to listOf(
         "com.fireamun.iptv.prototype.PlayerTracksTest",
         "com.fireamun.iptv.prototype.PlayerPictureInPictureTest",
         "com.fireamun.iptv.prototype.PlaybackCheckpointTest",
-    ).joinToString(";"),
-    listOf(
+    ).joinToString(","),
+    "forms" to listOf(
         "com.fireamun.iptv.prototype.CategoryPickerFlowTest",
         "com.fireamun.iptv.prototype.UrlVisibilityTest",
         "com.fireamun.iptv.prototype.XtreamFlowTest",
-    ).joinToString(";"),
+    ).joinToString(","),
 )
