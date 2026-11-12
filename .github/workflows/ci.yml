@@ -168,6 +168,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         env:
           IPTV_TEST_SCOPE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.test_scope || 'full' }}
+          IPTV_DEVICE_PROFILE: ${{ matrix.device }}
         with:
           api-level: ${{ matrix.api }}
           target: ${{ matrix.target }}

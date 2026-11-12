@@ -18,6 +18,9 @@ if [[ "$scope" != full ]]; then
   test_args+=("-Pandroid.testInstrumentationRunnerArguments.diagnosticScope=$scope")
 fi
 if [[ "${GITHUB_ACTIONS:-}" == true ]]; then
+  # Prepare the Android 16 guest before installing APKs or starting the
+  # test-phase log stream (which would otherwise disconnect during reboot).
+  python3 ./scripts/prepare-cloud-boot.py || exit $?
   source ./scripts/device-diagnostics.sh || exit $?
   trap 'finish_device_diagnostics "$?"' EXIT
   start_device_diagnostics || exit $?

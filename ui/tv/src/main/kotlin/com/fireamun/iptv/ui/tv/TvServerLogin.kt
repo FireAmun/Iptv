@@ -50,22 +50,24 @@ internal fun TvServerLogin(onSubmit: (String, String, String, String) -> Unit, o
     var password by remember { mutableStateOf("") }
     val first = remember { FocusRequester() }
     var initialFocusAssigned by remember { mutableStateOf(false) }
-    val keyboard = LocalSoftwareKeyboardController.current
-    val focus = LocalFocusManager.current
     val p = cinemaPalette()
     val valid = name.isNotBlank() && server.isNotBlank() && username.isNotEmpty() && password.isNotEmpty()
-    fun clear() { name = ""; server = ""; username = ""; password = ""; keyboard?.hide(); focus.clearFocus() }
-    fun submit() {
-        if (!valid) return
-        val values = listOf(name, server, username, password)
-        clear()
-        onSubmit(values[0], values[1], values[2], values[3])
-    }
-    fun dismiss() { clear(); onDismiss() }
+    fun clearDraft() { name = ""; server = ""; username = ""; password = "" }
+    fun dismiss() { clearDraft(); onDismiss() }
     Dialog(onDismissRequest = ::dismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         val window = LocalWindowInfo.current
+        val keyboard = LocalSoftwareKeyboardController.current
+        val focus = LocalFocusManager.current
+        fun clear() { clearDraft(); keyboard?.hide(); focus.clearFocus() }
+        fun submit() {
+            if (!valid) return
+            val values = listOf(name, server, username, password)
+            clear()
+            onSubmit(values[0], values[1], values[2], values[3])
+        }
+        fun dismissFromDialog() { clear(); onDismiss() }
         var panelBounds by remember { mutableStateOf(Rect.Zero) }
-        val dismissPanel by rememberUpdatedState(::dismiss)
+        val dismissPanel by rememberUpdatedState(::dismissFromDialog)
         BoxWithConstraints(Modifier.fillMaxSize().pointerInput(Unit) {
             detectTapGestures { point -> if (!panelBounds.contains(point)) dismissPanel() }
         }.safeDrawingPadding().imePadding().padding(16.dp), contentAlignment = Alignment.Center) {
@@ -83,7 +85,7 @@ internal fun TvServerLogin(onSubmit: (String, String, String, String) -> Unit, o
                         LoginField(password, { if (it.length <= 512) password = it }, R.string.tv_password, "server_password", KeyboardType.Password, true, onGo = ::submit)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        CinemaButton(onClick = ::dismiss, modifier = Modifier.testTag("login_cancel")) { Text(stringResource(R.string.tv_cancel)) }
+                        CinemaButton(onClick = ::dismissFromDialog, modifier = Modifier.testTag("login_cancel")) { Text(stringResource(R.string.tv_cancel)) }
                         CinemaButton(onClick = ::submit, primary = true, enabled = valid, modifier = Modifier.testTag("submit_login")) { Text(stringResource(R.string.tv_connect)) }
                     }
                 }

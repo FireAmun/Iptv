@@ -139,12 +139,17 @@ class PlayerPictureInPictureTest {
     @Test fun pausedHomeDoesNotEnterPipAndActualStopStartKeepsPauseAndPosition() = movie { fixture ->
         val old = read(fixture) { attached(it).apply { pause() } }
         awaitPlayer(fixture) { !it.playWhenReady }
+        awaitPlaybackThread(fixture)
         val pausedAt = read(fixture) { attached(it).contentPosition }
         home(fixture)
         await { read(fixture) { !it.isInPictureInPictureMode && playerView(it)?.player == null && !(it as LifecycleOwner).lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) } }
         fullscreen(fixture)
         awaitPlayer(fixture) { it !== old && it.playbackState == Player.STATE_READY && !it.playWhenReady && !it.isPlaying }
-        read(fixture) { assertTrue(kotlin.math.abs(attached(it).contentPosition - pausedAt) <= 500) }
+        read(fixture) {
+            val restoredAt = attached(it).contentPosition
+            assertTrue("Paused STOP/START position: before=$pausedAt restored=$restoredAt",
+                kotlin.math.abs(restoredAt - pausedAt) <= 500)
+        }
         awaitTag("playback_status")
     }
 
