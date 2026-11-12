@@ -22,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -91,6 +92,7 @@ class PlayerPictureInPictureTest {
         awaitPlayer(fixture) { it === player && it.isPlaying }
         dispatchNativeSessionCommand("pause")
         awaitPlayer(fixture) { it === player && !it.playWhenReady && !it.isPlaying }
+        awaitPlaybackThread(fixture)
         val pausedAt = read(fixture) { attached(it).contentPosition }
         fullscreen(fixture)
         awaitPlayer(fixture) { it === player && !it.playWhenReady && !it.isPlaying }
@@ -356,6 +358,13 @@ class PlayerPictureInPictureTest {
         // API28 exposes stdout only; the same-player assertion remains the
         // bounded semantic check for stderr-only errors or an undelivered key.
         assertTrue("Native MediaSession $action command produced unexpected output (sdk=$sdk)", emptyOutput)
+    }
+    private fun awaitPlaybackThread(fixture: Fixture) {
+        // Paused flags are masked on main before the engine freezes its position. The
+        // default playback-looper message follows that pause and its posted state ACK.
+        val barrier = read(fixture) { (attached(it) as ExoPlayer).createMessage { _, _ -> }.send() }
+        // Keep both loopers free; the caller's subsequent main-thread read consumes the ACK.
+        assertTrue("Playback thread must acknowledge the pause", barrier.blockUntilDelivered(5_000))
     }
     private fun shell(command: String): String = ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).bufferedReader().use { it.readText() }
 

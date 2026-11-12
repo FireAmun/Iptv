@@ -5,11 +5,15 @@ import android.app.Activity
 import android.content.Intent
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityWindowInfo
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -105,18 +109,27 @@ class CategoryPickerFlowTest {
         val automation = instrumentation.uiAutomation
         val info = automation.serviceInfo
         val originalFlags = info.flags
+        val pickerView = (compose.onNodeWithTag("category_picker").fetchSemanticsNode().root as ViewRootForTest).view
         fun ready(): Boolean {
+            var nativeReady = false
+            instrumentation.runOnMainSync {
+                val input = pickerView.context.getSystemService(InputMethodManager::class.java)
+                val insets = ViewCompat.getRootWindowInsets(pickerView)
+                nativeReady = pickerView.hasWindowFocus() && !input.isAcceptingText &&
+                    insets?.isVisible(WindowInsetsCompat.Type.ime()) == false
+            }
             val windows = automation.windows
-            return windows.any { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused } &&
+            return nativeReady && windows.any { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused } &&
                 windows.none { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
         }
         try {
             info.flags = originalFlags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             automation.serviceInfo = info
-            // Compose focus does not wait for native IME hide/back-callback propagation.
+            // Compose focus and absent accessibility IME windows can precede the queued
+            // native input-session shutdown. Wait for the actual picker root and editor too.
             compose.waitUntil(5000) { ready() }
             automation.waitForIdle(100, 5000)
-            assertTrue("Native app focus and a hidden keyboard are required before dialog Back", ready())
+            assertTrue("Native picker focus, a closed editor and a hidden keyboard are required before dialog Back", ready())
         } finally {
             info.flags = originalFlags
             automation.serviceInfo = info
