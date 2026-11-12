@@ -50,10 +50,10 @@ internal fun CategoryPicker(categories: List<String>, selected: String?, televis
     var query by remember { mutableStateOf("") }
     val shown = remember(categories, query) { categories.filter { it.contains(query.trim(), ignoreCase = true) } }
     val close = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
-    fun dismiss() { keyboard?.hide(); onDismiss() }
-    fun choose(category: String?) { keyboard?.hide(); onSelect(category) }
-    Dialog(onDismissRequest = ::dismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val keyboard = LocalSoftwareKeyboardController.current
+        fun dismiss() { keyboard?.hide(); onDismiss() }
+        fun choose(category: String?) { keyboard?.hide(); onSelect(category) }
         val focusManager = LocalFocusManager.current
         val window = LocalWindowInfo.current
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(16.dp),

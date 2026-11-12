@@ -56,11 +56,11 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
         selectedSettingsSection = key
         scope.launch { list.animateScrollToItem(settingsSections.indexOf(key)) }
     }
-    fun submit() { val submitted = url; url = ""; enteringUrl = false; keyboard?.hide(); onImportUrl(submitted) }
+    fun submit() { val submitted = url; url = ""; enteringUrl = false; onImportUrl(submitted) }
     LaunchedEffect(state.importing, state.error) {
         if (state.importing || state.error != null) list.scrollToItem(0)
     }
-    fun dismissUrl() { enteringUrl = false; url = ""; keyboard?.hide() }
+    fun dismissUrl() { enteringUrl = false; url = "" }
     CinemaTheme {
         val p = cinemaPalette()
         Surface(Modifier.fillMaxSize()) {
@@ -222,12 +222,14 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
             var urlVisible by remember { mutableStateOf(false) }
             val visibilityDescription = stringResource(if (urlVisible) R.string.mobile_hide_url else R.string.mobile_show_url)
             MobileFormDialog(stringResource(R.string.mobile_add_url), ::dismissUrl, actions = {
-                MobileFormActions(stringResource(R.string.mobile_import_url), ::submit, ::dismissUrl, "import_url", url.isNotBlank(), cancelTag = "url_cancel")
+                val dialogKeyboard = LocalSoftwareKeyboardController.current
+                MobileFormActions(stringResource(R.string.mobile_import_url), { dialogKeyboard?.hide(); submit() }, { dialogKeyboard?.hide(); dismissUrl() }, "import_url", url.isNotBlank(), cancelTag = "url_cancel")
             }) {
+                val dialogKeyboard = LocalSoftwareKeyboardController.current
                 MobileFormField(value = url, onValueChange = { if (it.length <= 4096) url = it }, label = stringResource(R.string.mobile_url_label), tag = "source_url",
                     visualTransformation = if (urlVisible) VisualTransformation.None else PasswordVisualTransformation(), uri = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go),
-                    keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank()) submit() }),
+                    keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank()) { dialogKeyboard?.hide(); submit() } }),
                     labelAction = {
                         TextButton(onClick = { urlVisible = !urlVisible }, modifier = Modifier.heightIn(min = 48.dp).testTag("url_visibility")
                             .semantics { contentDescription = visibilityDescription }) {

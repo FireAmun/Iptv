@@ -88,8 +88,8 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
     val entryFocus = remember { FocusRequester() }
     val list = rememberLazyListState()
     val targetId: Int? = null
-    fun submit() { val submitted = url; url = ""; enteringUrl = false; keyboard?.hide(); focusManager.clearFocus(); onImportUrl(submitted) }
-    fun dismissUrl() { enteringUrl = false; url = ""; keyboard?.hide() }
+    fun submit() { val submitted = url; url = ""; enteringUrl = false; onImportUrl(submitted) }
+    fun dismissUrl() { enteringUrl = false; url = "" }
     CinemaTheme {
         val p = cinemaPalette()
         Surface(Modifier.fillMaxSize(), colors = SurfaceDefaults.colors(containerColor = p.background, contentColor = p.text)) {
@@ -185,11 +185,14 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
             Dialog(onDismissRequest = ::dismissUrl, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
                 val dialogWindow = LocalWindowInfo.current
                 val dialogFocusManager = LocalFocusManager.current
+                val dialogKeyboard = LocalSoftwareKeyboardController.current
+                fun submitFromDialog() { dialogKeyboard?.hide(); dialogFocusManager.clearFocus(); submit() }
+                fun dismissFromDialog() { dialogKeyboard?.hide(); dismissUrl() }
                 val relocation = remember { BringIntoViewRequester() }
                 val configuration = LocalConfiguration.current
                 val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
                 var panelBounds by remember { mutableStateOf(Rect.Zero) }
-                val dismissPanel by rememberUpdatedState(::dismissUrl)
+                val dismissPanel by rememberUpdatedState(::dismissFromDialog)
                 LaunchedEffect(inputFocused, imeBottom, configuration.screenHeightDp, configuration.fontScale) {
                     if (inputFocused) { withFrameNanos { }; relocation.bringIntoView() }
                 }
@@ -219,12 +222,12 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                                                 dialogFocusManager.moveFocus(if (event.key == Key.DirectionUp) FocusDirection.Up else FocusDirection.Down)
                                             } else false
                                         }, textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.text, textDirection = TextDirection.Ltr), cursorBrush = SolidColor(p.focus),
-                                    visualTransformation = if (urlVisible) VisualTransformation.None else PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank() && !state.importing) submit() }),
+                                    visualTransformation = if (urlVisible) VisualTransformation.None else PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank() && !state.importing ) submitFromDialog() }),
                                     decorationBox = { inner -> Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).background(p.background, RoundedCornerShape(10.dp)).border(if (inputFocused) 2.dp else 1.dp, if (inputFocused) p.focus else p.outline, RoundedCornerShape(10.dp)).padding(16.dp), contentAlignment = Alignment.CenterStart) { inner() } })
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                CinemaButton(onClick = ::dismissUrl, modifier = Modifier.testTag("url_cancel")) { Text(stringResource(R.string.tv_cancel)) }
-                                CinemaButton(onClick = { submit() }, primary = true, enabled = url.isNotBlank() && !state.importing, modifier = Modifier.testTag("import_url")) { Text(stringResource(R.string.tv_import_url)) }
+                                CinemaButton(onClick = ::dismissFromDialog, modifier = Modifier.testTag("url_cancel")) { Text(stringResource(R.string.tv_cancel)) }
+                                CinemaButton(onClick = { submitFromDialog() }, primary = true, enabled = url.isNotBlank() && !state.importing, modifier = Modifier.testTag("import_url")) { Text(stringResource(R.string.tv_import_url)) }
                             }
                         }
                     }

@@ -83,6 +83,7 @@ class CategoryPickerFlowTest {
             activate("browse_categories", tv)
             compose.onNodeWithTag("category_search").performTextInput("no-synthetic-match")
             compose.onNodeWithTag("category_picker_empty").assertIsDisplayed()
+            if (tv) awaitNativeKeyboardShown()
             compose.onNodeWithTag("category_search").performImeAction()
             if (tv) {
                 compose.onNodeWithTag("category_picker_close").performSemanticsAction(SemanticsActions.RequestFocus).assertIsFocused()
@@ -103,6 +104,34 @@ class CategoryPickerFlowTest {
             compose.onNodeWithTag("category_all").assertIsSelected()
             compose.onNodeWithTag("catalogue_list").performScrollToIndex(0)
             await("channel_0")
+        }
+    }
+    private fun awaitNativeKeyboardShown() {
+        val automation = instrumentation.uiAutomation
+        val info = automation.serviceInfo
+        val originalFlags = info.flags
+        val pickerView = (compose.onNodeWithTag("category_picker").fetchSemanticsNode().root as ViewRootForTest).view
+        fun ready(): Boolean {
+            var nativeReady = false
+            instrumentation.runOnMainSync {
+                val input = pickerView.context.getSystemService(InputMethodManager::class.java)
+                val insets = ViewCompat.getRootWindowInsets(pickerView)
+                nativeReady = pickerView.hasWindowFocus() && input.isAcceptingText &&
+                    insets?.isVisible(WindowInsetsCompat.Type.ime()) == true
+            }
+            return nativeReady && automation.windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+        }
+        try {
+            info.flags = originalFlags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            automation.serviceInfo = info
+            // Synthetic text and empty-result semantics can precede the native IME show.
+            // Observe that transition before hiding it; an initially hidden IME is not a hide ACK.
+            compose.waitUntil(5000) { ready() }
+            automation.waitForIdle(100, 5000)
+            assertTrue("The native picker editor and keyboard must be shown before its IME action", ready())
+        } finally {
+            info.flags = originalFlags
+            automation.serviceInfo = info
         }
     }
     private fun awaitNativeBackReady() {
