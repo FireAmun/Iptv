@@ -3,12 +3,10 @@ package com.fireamun.iptv.prototype
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
-import android.app.AppOpsManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.os.ParcelFileDescriptor
-import android.os.Process
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -148,26 +146,14 @@ class PlayerPictureInPictureTest {
         awaitTag("playback_status")
     }
 
-    @Test fun deniedNativeAppOpHidesMinimizeAndHomeDoesNotEnterPip() {
-        val original = originalPipAppOp()
-        val appOps = context.getSystemService(AppOpsManager::class.java)
-        val originalEffective = appOps.checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, Process.myUid(), context.packageName)
-        try {
-            shell("appops set ${context.packageName} PICTURE_IN_PICTURE deny")
-            assertEquals(AppOpsManager.MODE_ERRORED, context.getSystemService(AppOpsManager::class.java).checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, Process.myUid(), context.packageName))
-            movie { fixture ->
-                compose.onNodeWithTag("player_pip").assertDoesNotExist()
-                home(fixture)
-                await { read(fixture) { !it.isInPictureInPictureMode && playerView(it)?.player == null } }
-                fullscreen(fixture)
-                awaitPlayer(fixture) { it.playbackState == Player.STATE_READY }
-                compose.onNodeWithTag("player_pip").assertDoesNotExist()
-            }
-        } finally {
-            shell("appops set ${context.packageName} PICTURE_IN_PICTURE $original")
-            assertEquals("Restore the original effective PiP app-op mode", originalEffective,
-                appOps.checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, Process.myUid(), context.packageName))
-            assertEquals("Restore the exact original PiP app-op mode", original, originalPipAppOp())
+    @Test fun deniedNativeAppOpHidesMinimizeAndHomeDoesNotEnterPip() = withDeniedNativePipAppOp {
+        movie { fixture ->
+            compose.onNodeWithTag("player_pip").assertDoesNotExist()
+            home(fixture)
+            await { read(fixture) { !it.isInPictureInPictureMode && playerView(it)?.player == null } }
+            fullscreen(fixture)
+            awaitPlayer(fixture) { it.playbackState == Player.STATE_READY }
+            compose.onNodeWithTag("player_pip").assertDoesNotExist()
         }
     }
 
@@ -357,15 +343,6 @@ class PlayerPictureInPictureTest {
         }
     }
 
-    private fun originalPipAppOp(): String {
-        val output = shell("appops get ${context.packageName} PICTURE_IN_PICTURE")
-        return Regex("PICTURE_IN_PICTURE:\\s*(allow|ignore|deny|default|foreground)").find(output)?.groupValues?.get(1)
-            // An absent PiP op defaults to allow; literal MODE_DEFAULT is a distinct native mode.
-            ?: if (output.contains("No operations")) {
-                Regex("Default mode:\\s*(allow|ignore|deny|default|foreground)").find(output)?.groupValues?.get(1)
-                    ?: error("Cannot determine original default PiP app-op mode")
-            } else error("Cannot determine original PiP app-op mode")
-    }
     private fun dispatchNativeSessionCommand(action: String) {
         require(action == "play" || action == "pause")
         val sdk = android.os.Build.VERSION.SDK_INT

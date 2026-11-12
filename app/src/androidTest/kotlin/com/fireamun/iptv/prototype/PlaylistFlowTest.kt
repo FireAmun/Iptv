@@ -38,7 +38,10 @@ class PlaylistFlowTest {
     @get:Rule(order = 2) val compose = createEmptyComposeRule()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
-    @Test fun mobileImportsUrlAndPlaysThenReturnsToItsLibrary() = exerciseUrl(MobileActivity::class.java, false)
+    @Test fun mobileImportsUrlAndPlaysThenReturnsToItsLibrary() = withDeniedNativePipAppOp {
+        // ActivityScenario's opaque stopper Activity must cause STOP, rather than automatic PiP.
+        exerciseUrl(MobileActivity::class.java, false)
+    }
     @Test fun tvImportsUrlAndRemotePlaybackRestoresEntryFocus() = exerciseUrl(TvActivity::class.java, true)
 
     @Test fun pickedFileIsReadThroughItsGrantedContentUri() {

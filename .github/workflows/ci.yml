@@ -121,14 +121,17 @@ jobs:
             api: 28
             target: default
             profile: pixel_2
+            display_options: ''
           - device: phone-api36
             api: 36
             target: google_apis
             profile: pixel_2
+            display_options: '-skin 720x1280'
           - device: tv-api36
             api: 36
             target: android-tv
             profile: tv_1080p
+            display_options: ''
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -170,12 +173,15 @@ jobs:
           target: ${{ matrix.target }}
           arch: x86_64
           profile: ${{ matrix.profile }}
+          avd-name: test
+          emulator-port: 5554
           ram-size: 2048M
           disk-size: 2048M
           disable-animations: true
           # Keep headless software rendering on GLES; cloud emulator context failures
           # have interrupted mandatory post-suite persistence checks.
-          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -noaudio -no-boot-anim -no-snapshot
+          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -noaudio -no-boot-anim -no-snapshot ${{ matrix.display_options }}
+          pre-emulator-launch-script: python3 ./scripts/prepare-cloud-device.py ${{ matrix.device }}
           script: bash ./scripts/device-tests.sh
       - name: Save device test reports
         if: always()
