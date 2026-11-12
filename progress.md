@@ -1,9 +1,9 @@
 # IPTV development progress
 
-Last updated: 12 November 2026 (Asia/Riyadh)
+Last updated: 13 November 2026 (Asia/Riyadh)
 Overall status: 0.10.0/code12 capacity milestone delivered in PR #19; native UI test readiness repairs delivered in PR #20. Synthetic 100k/200k/300k M3U and rich300k Xtream checks passed. Latest main c060a79 passed all five CI jobs, independently verified91 phone/91 TV cases and every persistence/progress probe. Physical-device validation and release gates remain open.
 Current phase: P4 player features in progress: supported audio/subtitle/quality selection and phone PiP. P8 capacity slice delivered; physical/release work and P7 controls remain open.
-Next task: push the reviewed cloud prepared-boot and TV ownership/pause-ordering repairs on the existing player branch, await the exact-head full PR run, and inspect all109x3 native cases plus PiP/completeness/process evidence. Android16 is retained. No local emulator/driver/laptop reboot. Only complete latest-head success permits merge; preserve private owner research.
+Next task: await the reviewed stable-scroll/failure-diagnostics revision full PR CI; require109x3 XML/PiP/completeness/process evidence before merge. If modern preparation fails, inspect retained fresh ANR payload before OS treatment. Preserve Android16, private owner research and all local host/device restrictions.
 
 ## 1. Start here in a new chat
 
@@ -864,3 +864,17 @@ The other paused STOP/START position probe now uses the already source-verified 
 - Added Linux/Actions-only modern-phone preparation before APK installation: finish first-boot SystemUI initialization, reboot the disposable cloud guest exactly once, require a new boot ID and responsive SystemUI/visible HOME with zero second-boot ANRs. Native error windows are rejected before any unlock input. Original bootstrap evidence is retained, and tests execute once. No local AVD, AEHD/GVM/HAXM, host reboot or personal device operation.
 - Corrected TV server-login keyboard/focus ownership inside its Dialog. Added the existing playback-thread acknowledgment before capturing paused STOP/START position; all assertions/bounds remain. These fixes address concrete source defects; actual runtime causality remains to be verified.
 - Independent source reviews passed for both deltas, including a native boot-error-window regression. Local60 repository tests passed;127 current-module JVM cases, app/test APK assembly, lint, repository links, actionlint, shell syntax and whitespace checks passed. Debug APK SHA256:4264e9bad111ed6e94fe64524909362df5b2971469c23cc394b6d33524a37de3. Cloud verification of this revision remains pending; no merge or complete feature claim.
+
+
+### Runtime9 result — 13 November 2026
+
+Full PR run43302156921 at221e014 finished failed; all downloaded artifact head/digests checked. Phone28 completed109 with zero failures/errors/skips. TV completed109 with one Compose uncancelled-request failure in mobile server login; TV server-login and paused STOP/START cases now pass. Modern preparation recorded initial two ANRs, performed exactly one cloud guest reboot, then rejected a second-boot ANR before APK installation/unlock/tests (zero XML, not passing coverage). The first bootstrap stream ends during reboot; offending second-boot payload was not retained. No complete runtime/merge claim.
+
+Source investigation now isolates a concrete scroll-node replacement hazard: IME height crosses a form threshold, relocating the same ScrollState between inner and outer columns while a bring-into-view animation is active. The current failure stack reaches modifier detachment during insets-driven dialog measurement, before submit. A stable scrolling owner is under scoped UI repair; no exception suppression or dependency guessing. Modern investigation must first retain bounded read-only second-boot logs/ANR/window/resource evidence on failure; no additional speculative OS/resource change is justified yet. All host restrictions remain.
+
+
+### Runtime10 source repair and local verification — 13 November 2026
+
+- Mobile shared forms, TV login and TV URL now use one permanent outer scroll owner; no IME-height modifier reparenting or simultaneously shared ScrollState. Header/fields/actions scroll together at normal and short heights. Explicit phone fixture actions scroll into view and still require displayed controls before touch; unchanged native cancellation/draft/submit assertions remain. No version upgrade, copied queue, exception suppression or extra test retry.
+- Added failure-only cloud snapshots for ANR event payload, recent system logcat, lastANR/window and CPU/memory. At most6 read-only commands,5 seconds each, shared30-second budget,256KiB/file. Logs remain disposable synthetic artifacts; original gate reason/exit and one-reboot limit preserved. No additional OS/image/resource change.
+- Existing full221 TV failure is the native RED reproduction. Fresh127 JVM/64 repository tests passed, Android build/lint/app/testAPK succeeded3m27 plus final testAPK19s up-to-date verification; links/actionlint/shell syntax/whitespace passed. Current debug APK SHA256:52728074faf5c020c9289a7869ff5fcf5bb29aea9ae23fe0458133fd40d71cce. Independent source review passed with no blockers and independently21 cloud-helper mocks passed. New native run remains pending; no fix/merge/completion claim.

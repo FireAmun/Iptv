@@ -14,6 +14,9 @@ COMMAND_SECONDS = 10
 PROFILES = ("phone-api28", "phone-api36", "tv-api36")
 BOOT_ID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
 COMPONENT = re.compile(r"[\w.]+/[\w.$]+")
+FAILURE_SECONDS = 30
+FAILURE_COMMAND_SECONDS = 5
+FAILURE_FILE_BYTES = 256 * 1024
 
 
 class Pending(Exception):
@@ -85,6 +88,55 @@ def no_app(deadline):
         raise Pending
     if re.search(r"(?m)^package:com\.fireamun\.iptv\.prototype(?:\.test)?$", packages):
         raise PreparationFailed("app-already-installed")
+
+
+def capture_failure():
+    """Read bounded cloud OS evidence without changing the failed gate result."""
+    start = time.monotonic()
+    deadline = start + FAILURE_SECONDS
+    root = EVIDENCE.parent / "cloud-boot-failure"
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return {"commands": 0, "errors": 1, "truncated": 0}
+    commands = (
+        ("events-anr", ["logcat", "-b", "events", "-d", "-v", "epoch", "am_anr:I", "*:S"], True),
+        ("logcat-tail", ["logcat", "-b", "all", "-d", "-t", "2000", "-v", "threadtime"], True),
+        ("lastanr", ["shell", "dumpsys", "activity", "lastanr"], False),
+        ("window", ["shell", "dumpsys", "window"], False),
+        ("cpuinfo", ["shell", "dumpsys", "cpuinfo"], False),
+        ("memory", ["shell", "cat", "/proc/meminfo", "/proc/stat", "/proc/loadavg", "/proc/uptime"], False),
+    )
+    attempted = errors = truncated = 0
+    for name, args, keep_tail in commands:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        attempted += 1
+        output = b""
+        try:
+            result = subprocess.run(
+                ["adb", "-s", "emulator-5554", *args],
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=False, check=False, timeout=min(FAILURE_COMMAND_SECONDS, remaining),
+            )
+            output = result.stdout or b""
+            errors += bool(result.returncode)
+        except subprocess.TimeoutExpired as error:
+            output = error.stdout or b""
+            errors += 1
+        except (OSError, subprocess.SubprocessError):
+            errors += 1
+        if isinstance(output, str):
+            output = output.encode("utf-8", errors="replace")
+        truncated += len(output) > FAILURE_FILE_BYTES
+        bounded = output[-FAILURE_FILE_BYTES:] if keep_tail else output[:FAILURE_FILE_BYTES]
+        try:
+            (root / (name + ".txt")).write_bytes(bounded)
+        except OSError:
+            errors += 1
+    return {"commands": attempted, "errors": errors, "truncated": truncated,
+            "elapsed_seconds": round(time.monotonic() - start, 3)}
 
 
 def wait_ready(phase, previous_boot=None):
@@ -179,6 +231,11 @@ def main():
         reason = str(error) if isinstance(error, PreparationFailed) else "evidence-or-process-error"
         try:
             record("failed", reason=reason)
+        except OSError:
+            pass
+        diagnostics = capture_failure()
+        try:
+            record("failure-diagnostics", **diagnostics)
         except OSError:
             pass
         print("Cloud boot preparation failed: " + reason, file=sys.stderr)

@@ -301,6 +301,9 @@ class UrlVisibilityTest {
             compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus)
             awaitFocus(tag)
             compose.onNodeWithTag(tag).assertIsDisplayed().performKeyInput { pressKey(Key.DirectionCenter) }
-        } else compose.onNodeWithTag(tag).assertIsDisplayed().performClick()
+        } else {
+            if (tag == "url_cancel" || tag == "import_url") compose.onNodeWithTag(tag).performScrollTo()
+            compose.onNodeWithTag(tag).assertIsDisplayed().performClick()
+        }
     }
 }

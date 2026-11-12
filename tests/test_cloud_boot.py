@@ -56,11 +56,25 @@ class CloudBootPreparation(unittest.TestCase):
         self.window = WINDOW
         self.installed = False
         self.timeout_dump = False
+        self.diagnostic_calls = []
+        self.diagnostic_output = b"fresh cloud failure payload\n"
+        self.diagnostic_timeout = False
+        self.diagnostic_error = False
 
     def adb(self, command, **kwargs):
         self.assertEqual(["adb", "-s", "emulator-5554"], command[:3])
         self.assertGreater(kwargs["timeout"], 0)
         self.assertLessEqual(kwargs["timeout"], 10)
+        if kwargs.get("text") is False:
+            self.assertLessEqual(kwargs["timeout"], 5)
+            self.assertEqual(subprocess.STDOUT, kwargs["stderr"])
+            self.diagnostic_calls.append(command[3:])
+            if self.diagnostic_error:
+                raise OSError("synthetic diagnostic read failure")
+            if self.diagnostic_timeout:
+                self.clock.now += kwargs["timeout"]
+                raise subprocess.TimeoutExpired(command, kwargs["timeout"], output=b"partial synthetic payload\n")
+            return subprocess.CompletedProcess(command, 0, stdout=self.diagnostic_output)
         self.calls.append(command[3:])
         args = command[3:]
         if args == ["reboot"]:
@@ -256,6 +270,58 @@ class CloudBootPreparation(unittest.TestCase):
         with patch.object(self, "adb", side_effect=broken_package_query):
             self.assertEqual(2, self.invoke()[0])
         self.assertEqual(0, self.reboots)
+
+    def test_terminal_anr_preserves_event_payload_with_bounded_readonly_diagnostics(self):
+        self.second_anr = True
+        self.diagnostic_output = b"1700000000.123 I/am_anr(668): [0,1001,com.android.systemui,0,fresh failure]\n"
+        result, out, err = self.invoke()
+        self.assertEqual(2, result)
+        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.unlocks)
+        self.assertEqual(6, len(self.diagnostic_calls))
+        root = self.log.parent / "cloud-boot-failure"
+        self.assertIn(b"com.android.systemui", (root / "events-anr.txt").read_bytes())
+        self.assertEqual({"events-anr.txt", "logcat-tail.txt", "lastanr.txt", "window.txt", "cpuinfo.txt", "memory.txt"},
+                         {p.name for p in root.iterdir()})
+        self.assertIn(["logcat", "-b", "all", "-d", "-t", "2000", "-v", "threadtime"], self.diagnostic_calls)
+        self.assertTrue(all(c[0] == "logcat" or c[:2] == ["shell", "dumpsys"]
+                            or c[:2] == ["shell", "cat"] for c in self.diagnostic_calls))
+        self.assertNotIn("com.android.systemui", out + err)
+        records = [json.loads(line) for line in self.log.read_text().splitlines()]
+        self.assertEqual("second-boot-anr", next(e["reason"] for e in records if e["phase"] == "failed"))
+
+    def test_failure_artifacts_are_byte_bounded_and_keep_recent_logcat_tail(self):
+        self.second_anr = True
+        self.diagnostic_output = b"old" + b"x" * (300 * 1024) + b"recent-event"
+        self.assertEqual(2, self.invoke()[0])
+        root = self.log.parent / "cloud-boot-failure"
+        self.assertTrue(root.is_dir())
+        for p in root.iterdir():
+            self.assertLessEqual(p.stat().st_size, 256 * 1024)
+        self.assertTrue((root / "logcat-tail.txt").read_bytes().endswith(b"recent-event"))
+        self.assertTrue((root / "events-anr.txt").read_bytes().endswith(b"recent-event"))
+
+    def test_diagnostic_timeouts_are_bounded_and_cannot_override_original_failure(self):
+        self.second_anr = True
+        self.diagnostic_timeout = True
+        result, _, err = self.invoke()
+        self.assertEqual(2, result)
+        self.assertIn("second-boot-anr", err)
+        self.assertEqual(30, self.clock.now)
+        self.assertEqual(6, len(self.diagnostic_calls))
+        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.unlocks)
+        self.assertIn(b"partial synthetic payload", (self.log.parent / "cloud-boot-failure/events-anr.txt").read_bytes())
+
+    def test_diagnostic_process_errors_preserve_original_failure(self):
+        self.second_anr = True
+        self.diagnostic_error = True
+        result, out, err = self.invoke()
+        self.assertEqual(2, result)
+        self.assertIn("second-boot-anr", err)
+        self.assertNotIn("synthetic diagnostic read failure", out + err)
+        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.unlocks)
 
 
 if __name__ == "__main__":

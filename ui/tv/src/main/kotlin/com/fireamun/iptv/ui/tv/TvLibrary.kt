@@ -200,13 +200,12 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                 BoxWithConstraints(Modifier.fillMaxSize().pointerInput(Unit) {
                     detectTapGestures { point -> if (!panelBounds.contains(point)) dismissPanel() }
                 }.safeDrawingPadding().imePadding().padding(16.dp), contentAlignment = Alignment.TopCenter) {
-                    val shortWindow = maxHeight < 360.dp * configuration.fontScale
                     val scroll = rememberScrollState()
                     Surface(Modifier.widthIn(max = 600.dp).fillMaxWidth().heightIn(max = minOf(maxHeight, 460.dp))
                         .onGloballyPositioned { panelBounds = it.boundsInRoot() }, shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
-                        Column((if (shortWindow) Modifier.verticalScroll(scroll) else Modifier).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(Modifier.verticalScroll(scroll).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Text(stringResource(R.string.tv_add_url), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Column((if (shortWindow) Modifier else Modifier.weight(1f, fill = false).verticalScroll(scroll)).bringIntoViewRequester(relocation), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(Modifier.bringIntoViewRequester(relocation), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(stringResource(R.string.tv_url_label), Modifier.weight(1f), color = p.muted, style = MaterialTheme.typography.labelMedium)
                                     CinemaButton(onClick = { urlVisible = !urlVisible }, modifier = Modifier.heightIn(min = 48.dp).testTag("url_visibility")

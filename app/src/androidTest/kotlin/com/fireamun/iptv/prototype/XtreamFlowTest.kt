@@ -269,7 +269,11 @@ class XtreamFlowTest {
             compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus)
             awaitFocus(tag)
             compose.onNodeWithTag(tag).performKeyInput { pressKey(Key.DirectionCenter) }
-        } else compose.onNodeWithTag(tag).performClick()
+        } else {
+            // Dialog actions share the stable scroll container with its fields.
+            if (tag == "login_cancel") compose.onNodeWithTag(tag).performScrollTo()
+            compose.onNodeWithTag(tag).assertIsDisplayed().performClick()
+        }
     }
     private fun awaitFocus(tag: String) {
         compose.waitUntil(5000) {

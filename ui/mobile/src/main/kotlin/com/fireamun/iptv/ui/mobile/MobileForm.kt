@@ -47,7 +47,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.fireamun.iptv.core.designsystem.*
 
-/** Pinned actions with a scrollable body; very short windows can scroll the whole dialog. */
+/** A scrollable dialog keeps its title, fields and actions reachable at every window height. */
 @Composable
 internal fun MobileFormDialog(
     title: String,
@@ -73,7 +73,6 @@ internal fun MobileFormDialog(
             compact -> Alignment.BottomCenter
             else -> Alignment.Center
         }) {
-            val shortWindow = maxHeight < 360.dp * configuration.fontScale
             val scroll = rememberScrollState()
             Surface(
                 modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().heightIn(max = maxHeight)
@@ -81,15 +80,14 @@ internal fun MobileFormDialog(
                 color = p.panel, contentColor = p.text, shape = RoundedCornerShape(24.dp),
                 border = BorderStroke(1.dp, p.outline.copy(alpha = .3f)),
             ) {
-                Column((if (shortWindow) Modifier.verticalScroll(scroll).testTag("mobile_form_scroll") else Modifier).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.verticalScroll(scroll).testTag("mobile_form_scroll").padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(title, Modifier.weight(1f), fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
                         IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp).semantics { contentDescription = closeLabel }) {
                             CinemaIcon(CinemaSymbol.CLOSE, tint = p.muted)
                         }
                     }
-                    Column(if (shortWindow) Modifier else Modifier.weight(1f, fill = false).verticalScroll(scroll).testTag("mobile_form_scroll"),
-                        verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
                     actions()
                 }
             }

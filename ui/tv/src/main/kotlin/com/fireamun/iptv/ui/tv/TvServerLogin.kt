@@ -71,13 +71,12 @@ internal fun TvServerLogin(onSubmit: (String, String, String, String) -> Unit, o
         BoxWithConstraints(Modifier.fillMaxSize().pointerInput(Unit) {
             detectTapGestures { point -> if (!panelBounds.contains(point)) dismissPanel() }
         }.safeDrawingPadding().imePadding().padding(16.dp), contentAlignment = Alignment.Center) {
-            val shortWindow = maxHeight < 360.dp * LocalConfiguration.current.fontScale
             val scroll = rememberScrollState()
             Surface(Modifier.widthIn(max = 600.dp).fillMaxWidth().heightIn(max = minOf(maxHeight, 460.dp))
                 .onGloballyPositioned { panelBounds = it.boundsInRoot() }, shape = RoundedCornerShape(20.dp), colors = SurfaceDefaults.colors(containerColor = p.panel)) {
-                Column((if (shortWindow) Modifier.verticalScroll(scroll).testTag("server_login_fields") else Modifier).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.verticalScroll(scroll).testTag("server_login_fields").padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(stringResource(R.string.tv_server_login), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Column(if (shortWindow) Modifier else Modifier.weight(1f, fill = false).verticalScroll(scroll).testTag("server_login_fields"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(stringResource(R.string.tv_login_description), color = p.muted, style = MaterialTheme.typography.bodySmall)
                         LoginField(name, { if (it.length <= 128) name = it }, R.string.tv_playlist_name, "playlist_name", modifier = Modifier.focusRequester(first))
                         LoginField(server, { if (it.length <= 2048) server = it }, R.string.tv_server_url, "server_url", KeyboardType.Uri)
