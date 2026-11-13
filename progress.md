@@ -3,7 +3,7 @@
 Last updated: 13 November 2026 (Asia/Riyadh)
 Overall status: 0.10.0/code12 capacity milestone delivered in PR #19; native UI test readiness repairs delivered in PR #20. Synthetic 100k/200k/300k M3U and rich300k Xtream checks passed. Latest main c060a79 passed all five CI jobs, independently verified91 phone/91 TV cases and every persistence/progress probe. Physical-device validation and release gates remain open.
 Current phase: P4 player features in progress: supported audio/subtitle/quality selection and phone PiP. P8 capacity slice delivered; physical/release work and P7 controls remain open.
-Next task: push reviewed AOSP native-window parser correction, await full exact-head CI, then verify109x3 XML, native phone PiP, prepared boot and process probes before merge. Preserve private owner research and local host/device restrictions.
+Next task: await the reviewed CI-only revision full PR run using one completion watcher. Require actual109x3 native cases, zero failures/errors/skips, positive phone PiP, zero-reboot clean-boot evidence and all process probes. Then exact-head merge and separate main verification. Keep deferred CI pieces for later PRs; player trees remain frozen.
 
 ## 1. Start here in a new chat
 
@@ -894,3 +894,31 @@ Independent read-only review found no concrete dependency blocker to the full AO
 Full43453399564 atc45cc60 failed; all device ZIP head/digests checked. TV109/109 zero failure/error/skip and completeness marker passed, validating stable form scrolling in this run. Phone28 timed out during emulator boot, zero XML. AOSP phone36 had zero recorded ANRs in both boots and reached visible/focused Quickstep HOME, but preparation falsely timed out before app installation because its parser demanded adjacent Surface shown/isOnScreen fields. Native AOSP window dump contains wallpaper metadata between those true fields. This is a concrete diagnostic parser bug, not an app or OS startup failure.
 
 Added a RED regression for separated native wallpaper/visibility fields, then corrected parsing to require both true properties within the same exact focused window block, with unchanged has-surface/ready/matching HOME/focused app gates. Root and independent reviewer replayed the actual cloud dump; wrong HOME and focused-window hidden/offscreen/no-surface/not-ready variants remain rejected even with other visible windows. Independent22 mocks and full65 repository tests passed; actionlint/links/whitespace passed. No Android/APK source change/rebuild, timeout increase, OS threshold relaxation or device test retry. Actual latest-head109x3/PiP/process evidence still required.
+
+
+### Runtime12 result and scope freeze — 13 November 2026
+
+Owner challenged the12-commit PR scope. Root acknowledged mixing feature work, real UI/test bugs and cloud infrastructure repairs, froze further edits/pushes pending exact results/scope explanation, and did not merge. Full43459073915 at4f729f3 finished failed; artifact head/digests checked. TV109/109 zero failure/error/skip, completeness plus source PIDs7326/7368/7405 and progress seed/verify/clear all passed. Both phones produced zero XML and no app test execution. Android build and repository checks passed.
+
+API28 exact fatal source: emulator37.2.13 build16740729 could not create userdata partition (7226.98MB available,7372.80MB required), exited immediately, while runner waited600s. Existing disk-reservation step runs only matrix.api>=36, incorrectly excludingAPI28. This is a confirmed cloud disk setup defect, not a phone test failure; no disk/host changes made locally. Compare logs show same emulator version as previously passingAPI28, so no established engine-version regression.
+
+AOSP36 initial preparation boot again had zero ANRs, responsive SystemUI; extra preparation reboot then recorded fresh SystemUI process-startup ANR before unlock/APK/test. Parser fix cannot be runtime exercised past this ANR gate. PriorAOSP run had healthy initial+second boot but parser false-negative. Mandatory warm reboot was an experiment for Google-image startup, not a product/test requirement; assess reverting it in favor of strict ordinary first-boot health checks on a fresh fullAOSP guest. This must preserve no-ANR/focused-visible-HOME/no-app guarantees and positive native PiP/full109/process coverage. It is not yet implemented or verified.
+
+No active CI watcher, no new commit after4f729f3, no merge, no local SDK/device/AVD/driver/firewall/reboot operation. Current source frozen; next work should have narrow CI-only scope and direct evidence rather than another app workaround. Working tracker retains private owner section; it was not staged/pushed.
+
+
+### Owner scope reset and bounded CI repair — 13 November 2026
+
+Owner explicitly authorized CI fixes only, get the current PR green, no more player changes, preserve banned emulator drivers, and break follow-up work into later PR pieces. Current repair scope is limited to cloud disk cleanup on every matrix profile, replacing failed forced-reboot preparation with strict original fresh-boot health gating, its mocked tests and CI documentation. App/player/UI/ViewModel/data/native instrumentation are frozen at4f729f3. Linux/KVM disposable devices only; no local SDK device, AVD, AEHD/GVM/HAXM, driver/firewall or laptop reboot operations.
+
+#### Deferred pieces after this PR
+
+| Piece | Separate follow-up scope | Acceptance gate |
+| --- | --- | --- |
+| CI-1 | Runner disk preflight after image installation; report fatal emulator startup immediately instead of waiting600s. | Reproduce insufficient disk with a mocked/disposable fixture; fail promptly with useful diagnostics, retain real full suite. |
+| CI-2 | Reproducible emulator/system-image inventory and a small independent cold-boot diagnostic workflow. | Record exact versions/image targets; distinguish OS startup from app failures without skipping native/PiP/progress gates or treating diagnostic runs as merge evidence. |
+| CI-3 | Consolidate artifact verification and diagnostic scope selection in repository tooling. | Head/digest/count/skip checks and positive native PiP proofs automated; targeted diagnostics cannot satisfy full delivery gate. |
+
+These pieces are planned only, not implemented or additional changes to the current player feature. Physical S25/OEM/Google-image compatibility and remaining product/release work stay on the existing open-item list; no player expansion is included in this CI repair.
+
+CI-only patch verification:66 repository tests passed; independent23 mocked health-gate tests and retained AOSP HOME replay passed with zero reboots. Actionlint, documentation links, shell syntax and whitespace passed. Independent review found no blocking issues. Frozen app/core/ui/native-test diff against4f729f3 is empty. Cloud runtime still pending; no native/merge claim.

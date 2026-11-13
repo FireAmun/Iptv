@@ -48,9 +48,9 @@ class CloudBootPreparation(unittest.TestCase):
         self.calls = []
         self.reboots = 0
         self.unlocks = 0
-        self.first_anr = True
-        self.second_anr = False
-        self.ids_change = True
+        self.first_anr = False
+        self.after_unlock_anr = False
+        self.boot_ids = []
         self.empty_id = False
         self.cache = CACHE
         self.window = WINDOW
@@ -84,7 +84,7 @@ class CloudBootPreparation(unittest.TestCase):
             self.unlocks += 1
             output = ""
         elif args == ["shell", "cat", "/proc/sys/kernel/random/boot_id"]:
-            output = "" if self.empty_id else NEW_ID if self.reboots and self.ids_change else OLD_ID
+            output = self.boot_ids.pop(0) if self.boot_ids else "" if self.empty_id else OLD_ID
         elif args == ["shell", "getprop", "sys.boot_completed"]:
             output = "1\n"
         elif args == ["shell", "getprop", "ro.build.version.sdk"]:
@@ -104,7 +104,7 @@ class CloudBootPreparation(unittest.TestCase):
         elif args == ["shell", "dumpsys", "window"]:
             output = self.window
         elif args == ["logcat", "-b", "events", "-d", "-v", "brief", "am_anr:I", "*:S"]:
-            output = "I/am_anr(668): [0,1071,com.android.systemui,0,service]\n" if (self.second_anr if self.reboots else self.first_anr) else ""
+            output = "I/am_anr(668): [0,1071,com.android.systemui,0,service]\n" if self.first_anr or (self.unlocks and self.after_unlock_anr) else ""
         else:
             self.fail(f"unexpected device operation: {args}")
         return subprocess.CompletedProcess(command, 0, stdout=output)
@@ -134,34 +134,18 @@ class CloudBootPreparation(unittest.TestCase):
         self.assertFalse(self.calls)
         self.assertFalse(self.log.exists())
 
-    def test_every_modern_job_reboots_once_then_unlocks_once_and_requires_new_boot(self):
+    def test_clean_boot_never_reboots_and_unlocks_once(self):
         result, out, _ = self.invoke()
         self.assertEqual(0, result)
-        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.reboots)
         self.assertEqual(1, self.unlocks)
         events = [json.loads(line) for line in self.log.read_text().splitlines()]
-        self.assertEqual(1, next(e["anr_count"] for e in events if e["phase"] == "first-ready"))
-        self.assertEqual("prepared", events[-1]["phase"])
-        self.assertTrue(events[-1]["boot_changed"])
+        self.assertEqual(["cold-start", "cold-unlocked", "cold-ready", "prepared"], [e["phase"] for e in events])
+        self.assertTrue(all(e["reboot_count"] == 0 and e["anr_count"] == 0 for e in events))
+        self.assertTrue(events[-2]["systemui_responsive"])
+        self.assertTrue(events[-2]["launcher_ready"])
         self.assertNotIn(OLD_ID, self.log.read_text() + out)
         self.assertNotIn(HOME, self.log.read_text() + out)
-
-    def test_clean_first_boot_still_reboots_exactly_once(self):
-        self.first_anr = False
-        self.assertEqual(0, self.invoke()[0])
-        self.assertEqual(1, self.reboots)
-
-    def test_first_boot_anr_window_does_not_need_dismissal_to_prepare(self):
-        self.window = WINDOW.replace("mCurrentFocus=Window{abc u0 " + FULL_HOME,
-                                     "mCurrentFocus=Window{xyz u0 Application Not Responding: com.android.systemui")
-        original = self.adb
-        def boot_window(command, **kwargs):
-            if self.reboots:
-                self.window = WINDOW
-            return original(command, **kwargs)
-        with patch.object(self, "adb", side_effect=boot_window):
-            self.assertEqual(0, self.invoke()[0])
-        self.assertEqual(1, self.unlocks)
 
     def test_missing_or_false_systemui_marker_never_reboots(self):
         for marker in ("", CACHE.replace("true", "false"), "unrelated boot complete: true"):
@@ -176,33 +160,48 @@ class CloudBootPreparation(unittest.TestCase):
         self.assertEqual(2, self.invoke()[0])
         self.assertEqual(0, self.reboots)
 
-    def test_unchanged_boot_id_fails_after_one_reboot_without_unlock(self):
-        self.ids_change = False
+    def test_initial_anr_fails_before_unlock_without_retry(self):
+        self.first_anr = True
         self.assertEqual(2, self.invoke()[0])
-        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.reboots)
         self.assertEqual(0, self.unlocks)
-        self.assertLessEqual(self.clock.now, 180)
 
-    def test_second_boot_anr_fails_before_unlock_without_retry(self):
-        self.second_anr = True
-        self.assertEqual(2, self.invoke()[0])
-        self.assertEqual(1, self.reboots)
+    def test_boot_identity_change_across_pending_poll_samples_is_terminal(self):
+        self.boot_ids = [OLD_ID, NEW_ID, NEW_ID]
+        original = self.adb
+        def pending_first_sample(command, **kwargs):
+            result = original(command, **kwargs)
+            if command[3:] == ["shell", "getprop", "sys.boot_completed"] and self.clock.now == 0:
+                return subprocess.CompletedProcess(command, 0, stdout="0\n")
+            return result
+        with patch.object(self, "adb", side_effect=pending_first_sample):
+            self.assertEqual(2, self.invoke()[0])
+        self.assertEqual(0, self.reboots)
         self.assertEqual(0, self.unlocks)
+        self.assertIn("boot-changed-during-observation", self.log.read_text())
+
+    def test_boot_identity_change_during_sample_is_terminal(self):
+        self.boot_ids = [OLD_ID, NEW_ID]
+        self.assertEqual(2, self.invoke()[0])
+        self.assertEqual(0, self.reboots)
+        self.assertIn("boot-changed-during-observation", self.log.read_text())
 
     def test_native_error_window_without_anr_event_fails_before_unlock(self):
         for title in ("Application Not Responding: system", "Application Error: system", "System Error", "Factory Error"):
             with self.subTest(title=title):
                 self.reboots = self.unlocks = 0
                 self.clock.now = 0
-                self.second_anr = False
+                self.first_anr = False
                 self.window = f"  mCurrentFocus=Window{{err u0 {title}}}\n"
                 self.assertEqual(2, self.invoke()[0])
-                self.assertEqual(1, self.reboots)
+                self.assertEqual(0, self.reboots)
                 self.assertEqual(0, self.unlocks)
 
     def test_missing_focus_hidden_surface_and_wrong_home_fail_after_one_unlock(self):
         for window in ("", WINDOW.replace("mHasSurface=true", "mHasSurface=false"),
+                       WINDOW.replace("isReadyForDisplay()=true", "isReadyForDisplay()=false"),
                        WINDOW.replace("Surface: shown=true", "Surface: shown=false"),
+                       WINDOW.replace("isOnScreen=true", "isOnScreen=false"),
                        WINDOW.replace("mCurrentFocus=Window{abc u0 " + FULL_HOME,
                                       "mCurrentFocus=Window{other u0 android/com.android.internal.app.ResolverActivity")):
             with self.subTest(window=window):
@@ -210,13 +209,51 @@ class CloudBootPreparation(unittest.TestCase):
                 self.clock.now = 0
                 self.window = window
                 self.assertEqual(2, self.invoke()[0])
-                self.assertEqual(1, self.reboots)
+                self.assertEqual(0, self.reboots)
                 self.assertEqual(1, self.unlocks)
 
     def test_preinstalled_app_is_rejected_without_reboot(self):
         self.installed = True
         self.assertEqual(2, self.invoke()[0])
         self.assertEqual(0, self.reboots)
+
+    def test_app_installed_after_unlock_is_rejected(self):
+        original = self.adb
+        def installed_after_unlock(command, **kwargs):
+            if self.unlocks:
+                self.installed = True
+            return original(command, **kwargs)
+        with patch.object(self, "adb", side_effect=installed_after_unlock):
+            self.assertEqual(2, self.invoke()[0])
+        self.assertEqual(0, self.reboots)
+        self.assertEqual(1, self.unlocks)
+        self.assertIn("app-already-installed", self.log.read_text())
+
+    def test_final_anr_check_follows_final_package_observation(self):
+        original = self.adb
+        def late_anr(command, **kwargs):
+            result = original(command, **kwargs)
+            if self.unlocks and command[3:6] == ["shell", "pm", "list"]:
+                self.first_anr = True
+            return result
+        with patch.object(self, "adb", side_effect=late_anr):
+            self.assertEqual(2, self.invoke()[0])
+        self.assertEqual(0, self.reboots)
+        self.assertEqual(1, self.unlocks)
+        self.assertIn("cold-boot-anr", self.log.read_text())
+
+    def test_wrong_api_is_rejected_before_unlock(self):
+        original = self.adb
+        def wrong_api(command, **kwargs):
+            result = original(command, **kwargs)
+            if command[3:] == ["shell", "getprop", "ro.build.version.sdk"]:
+                return subprocess.CompletedProcess(command, 0, stdout="35\n")
+            return result
+        with patch.object(self, "adb", side_effect=wrong_api):
+            self.assertEqual(2, self.invoke()[0])
+        self.assertEqual(0, self.reboots)
+        self.assertEqual(0, self.unlocks)
+        self.assertIn("unexpected-api", self.log.read_text())
 
     def test_command_timeouts_do_not_escape_the_phase_deadline_or_leak_output(self):
         self.timeout_dump = True
@@ -235,30 +272,13 @@ class CloudBootPreparation(unittest.TestCase):
             return result
         with patch.object(self, "adb", side_effect=timeout_unlock):
             self.assertEqual(2, self.invoke()[0])
-        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.reboots)
         self.assertEqual(1, self.unlocks)
 
-    def test_uncertain_reboot_is_never_reissued(self):
-        original = self.adb
-        def timeout_reboot(command, **kwargs):
-            result = original(command, **kwargs)
-            if command[3:] == ["reboot"]:
-                raise subprocess.TimeoutExpired(command, kwargs["timeout"])
-            return result
-        with patch.object(self, "adb", side_effect=timeout_reboot):
-            self.assertEqual(2, self.invoke()[0])
-        self.assertEqual(1, self.reboots)
-        self.assertEqual(0, self.unlocks)
-
-    def test_second_boot_anr_appearing_after_unlock_is_rejected(self):
-        original = self.adb
-        def anr_after_unlock(command, **kwargs):
-            if self.unlocks:
-                self.second_anr = True
-            return original(command, **kwargs)
-        with patch.object(self, "adb", side_effect=anr_after_unlock):
-            self.assertEqual(2, self.invoke()[0])
-        self.assertEqual(1, self.reboots)
+    def test_anr_appearing_after_unlock_is_rejected(self):
+        self.after_unlock_anr = True
+        self.assertEqual(2, self.invoke()[0])
+        self.assertEqual(0, self.reboots)
         self.assertEqual(1, self.unlocks)
 
     def test_package_query_diagnostic_is_not_accepted_as_app_absence(self):
@@ -280,18 +300,18 @@ class CloudBootPreparation(unittest.TestCase):
             "    isOnScreen=true\n    isVisible=true",
         )
         self.assertEqual(0, self.invoke()[0])
-        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.reboots)
         self.assertEqual(1, self.unlocks)
         self.assertFalse(self.helper.launcher_ready(self.window.replace("isOnScreen=true", "isOnScreen=false"), HOME))
         self.assertFalse(self.helper.launcher_ready(self.window.replace("Surface: shown=true", "Surface: shown=false"), HOME))
         self.assertFalse(self.helper.launcher_ready(self.window, "another.launcher/.Home"))
 
     def test_terminal_anr_preserves_event_payload_with_bounded_readonly_diagnostics(self):
-        self.second_anr = True
+        self.first_anr = True
         self.diagnostic_output = b"1700000000.123 I/am_anr(668): [0,1001,com.android.systemui,0,fresh failure]\n"
         result, out, err = self.invoke()
         self.assertEqual(2, result)
-        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.reboots)
         self.assertEqual(0, self.unlocks)
         self.assertEqual(6, len(self.diagnostic_calls))
         root = self.log.parent / "cloud-boot-failure"
@@ -303,10 +323,10 @@ class CloudBootPreparation(unittest.TestCase):
                             or c[:2] == ["shell", "cat"] for c in self.diagnostic_calls))
         self.assertNotIn("com.android.systemui", out + err)
         records = [json.loads(line) for line in self.log.read_text().splitlines()]
-        self.assertEqual("second-boot-anr", next(e["reason"] for e in records if e["phase"] == "failed"))
+        self.assertEqual("cold-boot-anr", next(e["reason"] for e in records if e["phase"] == "failed"))
 
     def test_failure_artifacts_are_byte_bounded_and_keep_recent_logcat_tail(self):
-        self.second_anr = True
+        self.first_anr = True
         self.diagnostic_output = b"old" + b"x" * (300 * 1024) + b"recent-event"
         self.assertEqual(2, self.invoke()[0])
         root = self.log.parent / "cloud-boot-failure"
@@ -317,25 +337,25 @@ class CloudBootPreparation(unittest.TestCase):
         self.assertTrue((root / "events-anr.txt").read_bytes().endswith(b"recent-event"))
 
     def test_diagnostic_timeouts_are_bounded_and_cannot_override_original_failure(self):
-        self.second_anr = True
+        self.first_anr = True
         self.diagnostic_timeout = True
         result, _, err = self.invoke()
         self.assertEqual(2, result)
-        self.assertIn("second-boot-anr", err)
+        self.assertIn("cold-boot-anr", err)
         self.assertEqual(30, self.clock.now)
         self.assertEqual(6, len(self.diagnostic_calls))
-        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.reboots)
         self.assertEqual(0, self.unlocks)
         self.assertIn(b"partial synthetic payload", (self.log.parent / "cloud-boot-failure/events-anr.txt").read_bytes())
 
     def test_diagnostic_process_errors_preserve_original_failure(self):
-        self.second_anr = True
+        self.first_anr = True
         self.diagnostic_error = True
         result, out, err = self.invoke()
         self.assertEqual(2, result)
-        self.assertIn("second-boot-anr", err)
+        self.assertIn("cold-boot-anr", err)
         self.assertNotIn("synthetic diagnostic read failure", out + err)
-        self.assertEqual(1, self.reboots)
+        self.assertEqual(0, self.reboots)
         self.assertEqual(0, self.unlocks)
 
 

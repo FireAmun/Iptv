@@ -140,17 +140,21 @@ def capture_failure():
             "elapsed_seconds": round(time.monotonic() - start, 3)}
 
 
-def wait_ready(phase, previous_boot=None):
+def wait_ready():
     start = time.monotonic()
     deadline = start + PHASE_SECONDS
     unlocked = False
+    initial_boot = None
     samples = 0
     while time.monotonic() < deadline:
         samples += 1
         try:
             current = adb(deadline, "shell", "cat", "/proc/sys/kernel/random/boot_id")
-            if not BOOT_ID.fullmatch(current) or current == previous_boot:
+            if initial_boot is not None and current != initial_boot:
+                raise PreparationFailed("boot-changed-during-observation")
+            if not BOOT_ID.fullmatch(current):
                 raise Pending
+            initial_boot = current
             sdk = adb(deadline, "shell", "getprop", "ro.build.version.sdk")
             if not sdk:
                 raise Pending
@@ -164,45 +168,44 @@ def wait_ready(phase, previous_boot=None):
                         "com.android.systemui/.SystemUIService", "BootCompleteCacheImpl")
             responsive = bool(re.search(r"(?m)^\s*BootCompleteCache state:\s*\n\s*boot complete: true\s*$", cache))
             count = anr_count(deadline)
-            if previous_boot and count:
-                raise PreparationFailed("second-boot-anr")
+            if count:
+                raise PreparationFailed("cold-boot-anr")
             if not responsive:
                 raise Pending
-            if previous_boot:
-                before_unlock = adb(deadline, "shell", "dumpsys", "window")
-                # A system-server boot error need not emit an am_anr event.
-                # Reject native error windows before sending any unlock input.
-                if re.search(r"Application Not Responding|Application Error|System\s*Error|Factory Error|ty=SYSTEM_ERROR", before_unlock, re.IGNORECASE):
-                    raise PreparationFailed("second-boot-error-window")
-                # Standard one-shot unlock, after SystemUI answers and before
-                # checking launcher focus. Never send input to an ANR dialog.
-                if not unlocked:
-                    unlocked = True
-                    try:
-                        adb(deadline, "shell", "input", "keyevent", "82")
-                    except Pending:
-                        raise PreparationFailed("unlock-command-failed") from None
-                    record("second-unlocked", boot_changed=True)
-                home = adb(deadline, "shell", "cmd", "package", "resolve-activity", "--components",
-                           "-a", "android.intent.action.MAIN", "-c", "android.intent.category.HOME")
-                window = adb(deadline, "shell", "dumpsys", "window")
-                if not launcher_ready(window, home):
-                    raise Pending
-                count = anr_count(deadline)
-                if count:
-                    raise PreparationFailed("second-boot-anr")
-                no_app(deadline)
+            before_unlock = adb(deadline, "shell", "dumpsys", "window")
+            # A system-server boot error need not emit an am_anr event.
+            # Reject native error windows before sending any unlock input.
+            if re.search(r"Application Not Responding|Application Error|System\s*Error|Factory Error|ty=SYSTEM_ERROR", before_unlock, re.IGNORECASE):
+                raise PreparationFailed("cold-boot-error-window")
+            # Standard one-shot unlock, after SystemUI answers and before
+            # checking launcher focus. Never send input to an ANR dialog.
+            if not unlocked:
+                unlocked = True
+                try:
+                    adb(deadline, "shell", "input", "keyevent", "82")
+                except Pending:
+                    raise PreparationFailed("unlock-command-failed") from None
+                record("cold-unlocked", reboot_count=0, anr_count=0)
+            home = adb(deadline, "shell", "cmd", "package", "resolve-activity", "--components",
+                       "-a", "android.intent.action.MAIN", "-c", "android.intent.category.HOME")
+            window = adb(deadline, "shell", "dumpsys", "window")
+            if not launcher_ready(window, home):
+                raise Pending
+            no_app(deadline)
+            count = anr_count(deadline)
+            if count:
+                raise PreparationFailed("cold-boot-anr")
             if adb(deadline, "shell", "cat", "/proc/sys/kernel/random/boot_id") != current:
                 raise PreparationFailed("boot-changed-during-observation")
-            record(phase + "-ready", boot_changed=bool(previous_boot), anr_count=count,
+            record("cold-ready", reboot_count=0, anr_count=count,
                    samples=samples, elapsed_seconds=round(time.monotonic() - start, 3),
-                   systemui_responsive=True, launcher_ready=bool(previous_boot))
+                   systemui_responsive=True, launcher_ready=True)
             return current
         except Pending:
             remaining = deadline - time.monotonic()
             if remaining > 0:
                 time.sleep(min(2, remaining))
-    raise PreparationFailed(phase + "-readiness-deadline")
+    raise PreparationFailed("cold-readiness-deadline")
 
 
 def main():
@@ -218,16 +221,9 @@ def main():
         return 0
     try:
         EVIDENCE.parent.mkdir(parents=True, exist_ok=True)
-        record("first-start")
-        initial = wait_ready("first")
-        record("reboot-requested", reboot_count=1)
-        try:
-            adb(time.monotonic() + COMMAND_SECONDS, "reboot")
-        except Pending:
-            # A timeout may mean the reboot was accepted. Never issue it twice.
-            raise PreparationFailed("reboot-command-failed") from None
-        wait_ready("second", initial)
-        record("prepared", boot_changed=True, reboot_count=1, anr_count=0)
+        record("cold-start", reboot_count=0, anr_count=0)
+        wait_ready()
+        record("prepared", reboot_count=0, anr_count=0)
     except (PreparationFailed, OSError) as error:
         reason = str(error) if isinstance(error, PreparationFailed) else "evidence-or-process-error"
         try:
