@@ -1,6 +1,7 @@
 package com.fireamun.iptv.ui.mobile
 
 import android.view.Gravity
+import android.content.res.Configuration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -60,13 +61,18 @@ internal fun MobileFormDialog(
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         val configuration = LocalConfiguration.current
         val compact = configuration.screenWidthDp < 600
+        val shortLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && configuration.screenHeightDp < 600
         var sheetBounds by remember { mutableStateOf(Rect.Zero) }
         val dismiss by rememberUpdatedState(onDismiss)
         SideEffect { window?.setGravity(Gravity.CENTER) }
         BoxWithConstraints(Modifier.fillMaxSize().pointerInput(Unit) {
             // The wide native window includes transparent sheet margins; dismiss those too.
             detectTapGestures { point -> if (!sheetBounds.contains(point)) dismiss() }
-        }.safeDrawingPadding().imePadding().padding(16.dp), contentAlignment = if (compact) Alignment.BottomCenter else Alignment.Center) {
+        }.safeDrawingPadding().imePadding().padding(16.dp), contentAlignment = when {
+            shortLandscape -> Alignment.TopCenter
+            compact -> Alignment.BottomCenter
+            else -> Alignment.Center
+        }) {
             val shortWindow = maxHeight < 360.dp * configuration.fontScale
             val scroll = rememberScrollState()
             Surface(

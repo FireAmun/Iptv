@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 14 November 2026 (Asia/Riyadh)
-Overall status: Application0.10.0/code12 remains unchanged. CI-only PR22 passed91 phone/91 TV and merged asd52d284, but post-merge TV startup failed twice before any test. A narrowly scoped TV native-startup follow-up is in review; baseline main is not yet green.
-Current phase: CI baseline only: input-service readiness compatibility patch in review; app/player/UI/native tests remain identical to stable0.10.0.
-Next task: Push the reviewed readiness-only revision to existingPR23; require bootstrap self-tests, actual91 native cases/probes per profile and separate exact-head main verification. No native flag experiments/retries, player changes or banned local driver/AVD operations.
+Overall status: Application0.10.0/code12 remains unchanged. PR22 merged; PR23 readiness patch now runs all91 cases on both devices. Phone91 passed; TV90 passed and one existing Arabic URL layout assertion failed. Baseline is not green.
+Current phase: CI baseline plus the owner-approved single MobileForm short-landscape layout correction inPR23. No player feature work.
+Next task: await approved layout-correction PR23 full exact-head run and independently verify91 cases/probes per device plus startup self-tests/service publication. Then exact-head merge and separate main verification. No additional player/UI work, assertions changes or banned local drivers/AVDs.
 
 ## 1. Start here in a new chat
 
@@ -750,3 +750,16 @@ Upstreamissue489/proposal495 explains that boot completion does not imply input-
 Five sandboxed NodeVM self-tests run against the executable module before each cloud guest. They use fake commands/SDK path/timers (no emulator/SDK process), observed RED on original module and GREEN on patched: unpublished->published, failed probe->published, bounded missing-service timeout/no unlock, fatal unlock with no retry, pending boot. Original publisher license/dependencies/SDK installer and both device options are unchanged; patch modifies only matching TS/JS regions and fails closed when incompatible. Existing attempt budget and job25min timeout remain; inherited individual ADB calls have no separate timeout, so this is not claimed as a strict wall-clock boot deadline.
 
 Local23 Python tests,5 Node bootstrap cases, actionlint (including absent generated local-action directory), docs and patch application checks passed; duplicate patch application is rejected. Independent review found no source blockers and verified runtime import/argument scope/dependency/license retention. App/core/UI/native-test trees still matchc060a79. No local device, banned driver, firewall or laptop reboot operation. New latest-head91x2/probes and main remain mandatory.
+
+Reviewed readiness revision2a956d0af0402b79171f768170e466093bae7a4c is pushed toPR23. One completion watcher awaits this full run. Require five fake bootstrap self-tests and actual input publication in each job in addition to real91-case suites and every probe. Source frozen while running.
+
+
+### Real native UI blocker after startup succeeds — 14 November 2026
+
+PR23run43510435425at2a956d0 completed both91-case suites, and both jobs passed five sandboxbootstrap tests and nativeinput-service publication/unlock. Phone91/91 passed; TV90/91 passed. Artifact head/digests verified. Solefailure phoneUrlVisibilityWorksInArabicLightMode: fieldRecty480..604, measured1040x124, nativekeyboardRecty600..1080; final sample had4px overlap after a5-second clearance wait failed. IME visible=true but bottomInsets0 ontheTVwindow. This is an existing short-landscape mobile-form geometry issue, not startup failure or audio/player behavior.
+
+Root prepared a reviewable one-file candidate.tools/ci-baseline/proposed-url-layout-fix.patch, verified it applies but did NOT apply it. It adds short-landscape (<600dp) TopCenter alignment while retaining portrait/taller-window alignment and existing fields/actions/scroll/callbacks. No other archivedPR21 UI fix is proposed. Because owner explicitly limited this task toCI, root requested permission for this single prerequisite inPR23 or a separateUI PR first. Allnativeassertions/casecounts remain unchanged, PR23unmerged; no falsegreen, retries or banned localhost/device operations.
+
+Owner explicitly approved including this one shared short-landscape form fix inPR23 after scope clarification. Applied only the reviewed candidate: Configuration import, landscape+height<600dp predicate and TopCenter branch in MobileFormDialog. Portrait/taller-window placement, content/fields/actions/callbacks and scrolling remain unchanged; the adjustment serves all dialogs using that shared component. Existing native failure is RED evidence; independent proposal review passed and exact candidate applied. No assertion, player/data/ViewModel or other UI change. Build/lint/freshnative91x2 remain required.
+
+Approved layout correction verified locally: fresh full Java21 JVM/build/lint/app/testAPK succeeded2m57,127 JVM cases zero failures/errors/skips;23 repository cases and5 fake bootstrap cases pass. Independent UI proposal review covered exact applied diff. Only production delta vsstablemain is MobileForm.kt; app/core/player/data/native-test sources are otherwise unchanged. Preserve the original clearance assertion and all91 cases; fresh PR+main verification pending.
