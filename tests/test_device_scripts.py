@@ -11,7 +11,7 @@ BASH = "C:/Program Files/Git/bin/bash.exe" if os.name == "nt" else shutil.which(
 
 
 class DeviceScriptGates(unittest.TestCase):
-    def run_script(self, script, mode="success", gradle=0, probe=0):
+    def run_script(self, script, mode="success", gradle=0, probe=0, check=0, capture_gate=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "bin").mkdir()
@@ -31,18 +31,23 @@ if [[ "$STUB_MODE" != missing_progress_marker && "$STUB_MODE" != "missing_progre
 if [[ "$STUB_MODE" == timeout_after_marker && "$7" == seed ]]; then exit 124; fi
 """,
                 "timeout": '#!/usr/bin/env bash\nshift\nexec "$@"\n',
+                "python3": '#!/usr/bin/env bash\ntouch checker-called\nexit "$STUB_CHECK"\n',
             }
             for name, text in commands.items():
                 p = root / "bin" / name
                 p.write_text(text, encoding="utf-8", newline="\n")
                 p.chmod(0o755)
             (root / "gradlew").write_text(f"exit {gradle}\n", encoding="ascii")
-            (root / "scripts" / "persistence-process-test.sh").write_text(f"exit {probe}\n", encoding="ascii")
+            (root / "scripts" / "persistence-process-test.sh").write_text(f"touch probe-called\nexit {probe}\n", encoding="ascii")
             env = os.environ.copy()
             env["PATH"] = str(root / "bin") + os.pathsep + env["PATH"]
             env["STUB_MODE"] = mode
-            return subprocess.run([BASH, str(ROOT / "scripts" / script).replace("\\", "/")], cwd=root,
-                                  env=env, text=True, capture_output=True, timeout=15).returncode
+            env["STUB_CHECK"] = str(check)
+            result = subprocess.run([BASH, str(ROOT / "scripts" / script).replace("\\", "/")], cwd=root,
+                                    env=env, text=True, capture_output=True, timeout=15)
+            if capture_gate:
+                return result.returncode, (root / "checker-called").exists(), (root / "probe-called").exists()
+            return result.returncode
 
     def test_cold_process_success_requires_different_pids(self):
         self.assertEqual(0, self.run_script("persistence-process-test.sh"))
@@ -71,6 +76,12 @@ if [[ "$STUB_MODE" == timeout_after_marker && "$7" == seed ]]; then exit 124; fi
 
     def test_process_probe_failure_is_preserved(self):
         self.assertEqual(9, self.run_script("device-tests.sh", probe=9))
+
+    def test_result_gate_failure_stops_before_process_probes(self):
+        self.assertEqual((2, True, False), self.run_script("device-tests.sh", check=2, capture_gate=True))
+
+    def test_complete_results_run_process_probes(self):
+        self.assertEqual((0, True, True), self.run_script("device-tests.sh", capture_gate=True))
 
 
 if __name__ == "__main__":
