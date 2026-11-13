@@ -179,10 +179,29 @@ class XtreamFlowTest {
                 "server_username" to "fixture-user", "server_password" to password)) {
                 val field = compose.onNodeWithTag(tag)
                 try {
+                    var previousGeometry: List<Any>? = null
                     compose.waitUntil(5000) {
                         compose.mainClock.advanceTimeByFrame()
-                        field.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } &&
-                            field.isDisplayed()
+                        // Native IME layout can change while Compose relocation is paused.
+                        // Keep both moving until a fully visible field stays in place.
+                        try {
+                            instrumentation.uiAutomation.waitForIdle(100, 250)
+                        } catch (_: java.util.concurrent.TimeoutException) {
+                            previousGeometry = null
+                            return@waitUntil false
+                        }
+                        compose.mainClock.advanceTimeByFrame()
+                        val node = field.fetchSemanticsNode()
+                        val bounds = node.boundsInRoot
+                        val viewport = compose.onNodeWithTag(if (tv) "server_login_fields" else "mobile_form_scroll").fetchSemanticsNode()
+                        val scroll = viewport.config[SemanticsProperties.VerticalScrollAxisRange]
+                        val geometry = listOf(bounds, node.positionInRoot, node.size, viewport.boundsInRoot,
+                            scroll.value(), scroll.maxValue())
+                        val ready = node.config.getOrElse(SemanticsProperties.Focused) { false } &&
+                            field.isDisplayed() && bounds.width >= node.size.width - 1f && bounds.height >= node.size.height - 1f
+                        val stable = geometry == previousGeometry
+                        previousGeometry = if (ready) geometry else null
+                        ready && stable
                     }
                     field.assertIsFocused().assertIsDisplayed().performTextInput(value)
                     compose.mainClock.advanceTimeBy(100)

@@ -11,13 +11,22 @@ BASH = "C:/Program Files/Git/bin/bash.exe" if os.name == "nt" else shutil.which(
 
 
 class DeviceScriptGates(unittest.TestCase):
-    def run_script(self, script, mode="success", gradle=0, probe=0, event=None, scope=None, expect_filter=None, capture_args=False, check=0, capture_gate=False):
+    def run_script(self, script, mode="success", gradle=0, probe=0, event=None, scope=None, expect_filter=None, capture_args=False, check=0, capture_gate=False, cloud=False, capture_steps=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "bin").mkdir()
             (root / "scripts").mkdir()
             commands = {
                 "adb": """#!/usr/bin/env bash
+if [[ "$1" == -s && "$2" == emulator-5554 && "$3" == shell && "$4" == settings ]]; then
+  echo "ime-$5" >> steps.txt
+  if [[ "$5" == put && "$STUB_MODE" == ime_write_failure ]]; then exit 7; fi
+  if [[ "$5" == get ]]; then
+    if [[ "$STUB_MODE" == ime_readback_wrong ]]; then echo 0; else echo 1; fi
+    if [[ "$STUB_MODE" == ime_read_failure ]]; then exit 8; fi
+  fi
+  exit 0
+fi
 if [[ "$1" == install || "$1" == pull ]]; then exit 0; fi
 if [[ "$3" == force-stop ]]; then exit 0; fi
 case "$7" in
@@ -31,19 +40,22 @@ if [[ "$STUB_MODE" != missing_progress_marker && "$STUB_MODE" != "missing_progre
 if [[ "$STUB_MODE" == timeout_after_marker && "$7" == seed ]]; then exit 124; fi
 """,
                 "timeout": '#!/usr/bin/env bash\nshift\nexec "$@"\n',
-                "python3": '#!/usr/bin/env bash\nprintf \'%s\\n\' "$@" > checker-args.txt\nexit "$STUB_RESULT"\n',
+                "python3": '#!/usr/bin/env bash\nif [[ "$1" == ./scripts/prepare-cloud-boot.py ]]; then echo boot >> steps.txt; exit 0; fi\nprintf \'%s\\n\' "$@" > checker-args.txt\nexit "$STUB_RESULT"\n',
             }
             for name, text in commands.items():
                 p = root / "bin" / name
                 p.write_text(text, encoding="utf-8", newline="\n")
                 p.chmod(0o755)
-            (root / "gradlew").write_text('''printf '%s\\n' "$@" > gradle-args.txt
+            (root / "gradlew").write_text('''echo gradle >> steps.txt
+printf '%s\\n' "$@" > gradle-args.txt
 filtered=no
 if [[ "$*" == *android.testInstrumentationRunnerArguments.class=* || "$*" == *android.testInstrumentationRunnerArguments.diagnosticClasses=* || "$*" == *android.testInstrumentationRunnerArguments.diagnosticScope=* ]]; then filtered=yes; fi
 if [[ "$EXPECT_FILTER" == yes && "$filtered" != yes ]]; then exit 19; fi
 if [[ "$EXPECT_FILTER" == no && "$filtered" != no ]]; then exit 20; fi
 ''' + f"exit {gradle}\n", encoding="ascii")
             (root / "scripts" / "persistence-process-test.sh").write_text(f"touch probe-called\nexit {probe}\n", encoding="ascii")
+            (root / "scripts" / "device-diagnostics.sh").write_text(
+                'start_device_diagnostics() { echo diagnostics >> steps.txt; }\nfinish_device_diagnostics() { :; }\n', encoding="ascii")
             env = os.environ.copy()
             env["PATH"] = str(root / "bin") + os.pathsep + env["PATH"]
             env["STUB_MODE"] = mode
@@ -53,6 +65,8 @@ if [[ "$EXPECT_FILTER" == no && "$filtered" != no ]]; then exit 20; fi
             # This harness tests suite/probe gates; bounded cloud collection has
             # its own fake-command harness and must never use an inherited CI flag.
             env.pop("GITHUB_ACTIONS", None)
+            if cloud:
+                env["GITHUB_ACTIONS"] = "true"
             env["EXPECT_FILTER"] = expect_filter or ""
             if event is not None:
                 env["GITHUB_EVENT_NAME"] = event
@@ -60,6 +74,9 @@ if [[ "$EXPECT_FILTER" == no && "$filtered" != no ]]; then exit 20; fi
                 env["IPTV_TEST_SCOPE"] = scope
             result = subprocess.run([BASH, str(ROOT / "scripts" / script).replace("\\", "/")], cwd=root,
                                     env=env, text=True, capture_output=True, timeout=15)
+            if capture_steps:
+                steps = root / "steps.txt"
+                return result.returncode, steps.read_text().splitlines() if steps.exists() else []
             if capture_args:
                 return result.returncode, (root / "gradle-args.txt").read_text(encoding="utf-8").splitlines()
             if capture_gate:
@@ -91,6 +108,18 @@ if [[ "$EXPECT_FILTER" == no && "$filtered" != no ]]; then exit 20; fi
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("", result.stderr, "A class-list suffix was interpreted as a shell command")
         return result.stdout.splitlines()
+
+    def test_cloud_keyboard_policy_is_ready_before_installing_or_running_tests(self):
+        code, steps = self.run_script("device-tests.sh", cloud=True, capture_steps=True)
+        self.assertEqual(0, code)
+        self.assertEqual(["boot", "diagnostics", "ime-put", "ime-get", "gradle"], steps)
+
+    def test_cloud_keyboard_policy_failure_never_runs_gradle(self):
+        for mode, expected in (("ime_write_failure", 7), ("ime_read_failure", 8), ("ime_readback_wrong", 2)):
+            with self.subTest(mode=mode):
+                code, steps = self.run_script("device-tests.sh", mode=mode, cloud=True, capture_steps=True)
+                self.assertEqual(expected, code)
+                self.assertNotIn("gradle", steps)
 
     def test_cold_process_success_requires_different_pids(self):
         self.assertEqual(0, self.run_script("persistence-process-test.sh"))

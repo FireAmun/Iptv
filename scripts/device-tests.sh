@@ -18,12 +18,20 @@ if [[ "$scope" != full ]]; then
   test_args+=("-Pandroid.testInstrumentationRunnerArguments.diagnosticScope=$scope")
 fi
 if [[ "${GITHUB_ACTIONS:-}" == true ]]; then
-  # Prepare the Android 16 guest before installing APKs or starting the
-  # test-phase log stream (which would otherwise disconnect during reboot).
+  # Verify the clean Android 16 guest before installing APKs or running tests.
   python3 ./scripts/prepare-cloud-boot.py || exit $?
   source ./scripts/device-diagnostics.sh || exit $?
   trap 'finish_device_diagnostics "$?"' EXIT
   start_device_diagnostics || exit $?
+  # Cloud guests expose a hardware keyboard. Set the software-keyboard policy
+  # before installing/launching the app, rather than resetting it during a form.
+  adb -s emulator-5554 shell settings put secure show_ime_with_hard_keyboard 1 || exit $?
+  iptv_ime_policy="$(adb -s emulator-5554 shell settings get secure show_ime_with_hard_keyboard)" || exit $?
+  if [[ "$iptv_ime_policy" != 1 ]]; then
+    echo 'Cloud software-keyboard policy was not applied.' >&2
+    exit 2
+  fi
+  echo 'IPTV_CLOUD_IME_READY enabled=true'
 fi
 result=0
 bash ./gradlew --no-daemon --console=plain :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.diagnosticTimeoutSeconds=90 "${test_args[@]}" || result=$?

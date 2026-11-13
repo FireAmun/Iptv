@@ -3,7 +3,7 @@
 Last updated: 13 November 2026 (Asia/Riyadh)
 Overall status: 0.10.0/code12 capacity milestone delivered in PR #19; native UI test readiness repairs delivered in PR #20. Synthetic 100k/200k/300k M3U and rich300k Xtream checks passed. Latest main c060a79 passed all five CI jobs, independently verified91 phone/91 TV cases and every persistence/progress probe. Physical-device validation and release gates remain open.
 Current phase: P4 player features in progress: supported audio/subtitle/quality selection and phone PiP. P8 capacity slice delivered; physical/release work and P7 controls remain open.
-Next task: await the reviewed CI-only revision full PR run using one completion watcher. Require actual109x3 native cases, zero failures/errors/skips, positive phone PiP, zero-reboot clean-boot evidence and all process probes. Then exact-head merge and separate main verification. Keep deferred CI pieces for later PRs; player trees remain frozen.
+Next task: await reviewed CI-fixture-only revision full PR CI. Require109 native cases per profile, zero failures/errors/skips, actual phone PiP, clean zero-reboot boot and software-keyboard markers plus every process probe before exact-head merge and separate main verification. No further player/production changes; defer additional pieces to later PRs.
 
 ## 1. Start here in a new chat
 
@@ -922,3 +922,14 @@ Owner explicitly authorized CI fixes only, get the current PR green, no more pla
 These pieces are planned only, not implemented or additional changes to the current player feature. Physical S25/OEM/Google-image compatibility and remaining product/release work stay on the existing open-item list; no player expansion is included in this CI repair.
 
 CI-only patch verification:66 repository tests passed; independent23 mocked health-gate tests and retained AOSP HOME replay passed with zero reboots. Actionlint, documentation links, shell syntax and whitespace passed. Independent review found no blocking issues. Frozen app/core/ui/native-test diff against4f729f3 is empty. Cloud runtime still pending; no native/merge claim.
+
+
+### CI boot repairs verified; fixture-only follow-through — 13 November 2026
+
+Full43466184190 atdaed574 completed all109 native cases on every profile: phone28 allpassed; modern2failures and TV1failure in keyboard/login fixtures. ZIP head/digests checked. Modern strict cold boot was healthy (14.435s readiness, zeroANR, zero reboots, visible/focused HOME). Thus disk/forced-reboot startup failures are repaired in this run; no aggregate pass/merge claim.
+
+Read-only audits isolate missing cloud software-keyboard preconditions and a fixture clock race. Cloud guests expose physical keyboards; category fixture never enabled software IME. Android16 InputMethodService caches that setting and asynchronously resets configuration on change, so readback alone was not a native keyboard acknowledgement; URL first-case relationship remains inferred. Cloud script now sets/verifies the policy before APK installation, fails on write/read/mismatched value and retains all native IME assertions. Fake script tests reproduced4 RED failures, then18 GREEN; full68 repository tests pass.
+
+TV login helper previously stopped pumping its paused Compose clock at a transient partly visible sample while native IME resized. Only readiness inside the same5-second poll now pumps bounded native and Compose work and requires a fully visible field with stable field/viewport/scroll geometry. Original focus/display/text/IME Next-Go/auth/playback assertions remain, with no manual scrolling, refocusing or assertion/action retry. This is an Android-test-harness scheduling change; all production app/core/UI trees are unchanged. Independent fixture review passed; testAPK compilation and fresh full runtime remain required before commit/merge. No personal/local device or driver operation.
+
+Fixture-only final verification: app lint/testAPK build passed2m35;68 repository cases passed; actionlint/links/shell syntax/whitespace and independent review passed. All production trees remain unchanged; native test count still109 and no original assertion removed. New full cloud run is mandatory; no aggregate/native repair claim yet.
