@@ -1,9 +1,9 @@
 # IPTV development progress
 
-Last updated: 13 November 2026 (Asia/Riyadh)
-Overall status: Stable main0.10.0/code12 atc060a79 is intact; PR21 closed unmerged and independently archived. Last known main91 phone/91 TV verification is historical. Fresh CI-baseline verification is in progress; no new player feature is delivered.
-Current phase: CI baseline only, authorized13 November. Audio/subtitles are explicitly a separate future PR after this baseline is green.
-Next task: await codex/ci-baseline full exact-head PR CI through one completion watcher; require91 phone/API28 and91 TV/API36 cases with zero failures/errors/skips, native completeness marker and all cold-process probes. Only then exact-head merge and separate main verification. Audio/subtitles remain a separate later PR; no banned local drivers/AVDs.
+Last updated: 14 November 2026 (Asia/Riyadh)
+Overall status: Application0.10.0/code12 remains unchanged. PR22 merged; PR23 readiness patch now runs all91 cases on both devices. Phone91 passed; TV90 passed and one existing Arabic URL layout assertion failed. Baseline is not green.
+Current phase: CI baseline plus the owner-approved single MobileForm short-landscape layout correction inPR23. No player feature work.
+Next task: await approved layout-correction PR23 full exact-head run and independently verify91 cases/probes per device plus startup self-tests/service publication. Then exact-head merge and separate main verification. No additional player/UI work, assertions changes or banned local drivers/AVDs.
 
 ## 1. Start here in a new chat
 
@@ -717,3 +717,49 @@ Owner authorized CI baseline only, get it green before a separate audio/subtitle
 Scoped repairs: reserve cloud disk for both device jobs (API28 previously exited fatally whenuserdata lacked space), compile app/test APKs before guest startup, and reject missing/partial/failed/skipped/duplicate/inconsistent native XML before process probes. Six synthetic XML regressions and two fake-command ordering/failure regressions were added test-first; initial native-gate module import RED and two expected script-gate RED failures were recorded. Full23 repository tests pass. Actionlint/shell syntax and frozen app/core/ui/native-test source checks pass. Source review/full latest-head cloud91x2/probes remain pending. No app reconstruction or local device/driver/firewall/reboot operation. Private owner research and PR21 recovery archive remain preserved.
 
 CI-baseline pre-push verification: independent review found no critical/important blockers;23 repository tests passed independently and atroot. Archived native XML was replayed only to confirm parser format compatibility, never as current-head evidence. App/core/ui/native-test trees match stable main exactly. Actionlint, shell syntax, documentation links and public staged whitespace checks pass. Fresh cloud91x2 and persistence results remain mandatory; no baseline-green claim yet.
+
+PR22 https://github.com/FireAmun/Iptv/pull/22 is open at ec009625b9626a4ff15f404114298d92bada3b0c. A single native completion watcher owns this exact-head full baseline run; source is frozen pending results. No audio/subtitle or archived feature work is included.
+
+
+CI-baseline PR22 verified and merged: run43486000799 at ec009625b9626a4ff15f404114298d92bada3b0c had allfive checks successful. Downloaded artifact head/digests,91 unique native cases per profile, zero failures/errors/skips and identical registered case IDs were independently verified. Phone source PIDs10375/10416/10453; TV6364/6405/6441; each emitted progress seed/verify/clear and final cold-process success.
+
+Squash merge d52d2847b657c9c31d86aa31e028d6ac5a304351 is confirmed, local main synced FF-only. Its full tree equals tested PRhead; app/core/UI/native tests remain identical tostablec060a79. CI work branch deleted locally and remote absence confirmed. PR21 featurebranch/archive remain intact. Private working tracker/research preserved. One native watcher now awaits separate main verification; no aggregate-main green claim yet.
+
+Post-merge main43490039519 atd52d284 first attempt: repository/build/phone passed; phone91-case completeness marker observed. TV pinned emulator runner failed adb shell input keyevent82 exit255 immediately after sys.boot_completed1, before device-tests.sh/app tests; no TV artifact/XML exists. Initial logs/jobs are preserved under ignored .tools/ci-baseline/main-d52d284/attempt1-boot-failure. One failed-job-only rerun at the same unchanged SHA was started; source/tests/assertions are unchanged, successful jobs are retained, no failed native case is retried. Native completion watcher awaits this sole infrastructure rerun. Do not silently repeat if it fails again or call initial main green.
+
+
+### TV startup follow-up after post-merge infrastructure failure — 13 November 2026
+
+Main43490039519 failedTV atsys.boot_completed1 -> adb shell input keyevent82 exit255 before device-tests.sh on both initial and sole failed-job rerun. NoTVXML/artifact; phone91 suite passed. Initial/rerun logs preserved. No further reruns were requested. Native source/test/app behavior is unchanged and is not implicated by a failed pre-test unlock.
+
+Pinned action waits only for boot property, then unlocks. AOSP adb defaults to255 when shell transport closes without exit packet; current silent failure supplies no input-service exception, so the exact mechanism remains unproven. Upstream issue489/PR495 covers input-service registration but its unmerged fork was not adopted. Native -delay-adb gates the emulator guest pipe until its cold-boot completion message, not a later input-service health check. A TV-only configuration experiment uses that SDK option and Info-level native logcat-output in an existing artifact directory to retain pre-script startup evidence. Same pinned action/images/resources/rendering/timeouts, normal fatal unlock,91 cases and every probe; no wrapper/custom launcher, ignored command or assertion retry.
+
+Local23 repository tests, actionlint, links and scoped whitespace passed; app/core/UI/native-test diff againststablec060a79 is empty. Actual new cloud validation and independent source review remain pending. Do not claim the startup option is a proven repair before those results.
+
+TV startup configuration review passed with no blockers; reviewer confirmed literal logcat filter/absolute-path argument transport, prelaunch directory creation, artifact capture and unchanged phone/app/native-source scope.23 tests/actionlint/docs passed. Latest-head cloud evidence remains pending; no repair claim.
+
+PR23 https://github.com/FireAmun/Iptv/pull/23 opened at9d53c1dbff6aba285e779eb2b538a132a3ca6609, one three-file CI-only commit. Native completion watcher now awaits full91x2/probes and nonempty TV startup-log evidence; no further source edits while running.
+
+
+### Input-service readiness compatibility — 14 November 2026
+
+PR23 run43504374156 at9d53c1d stillfailedTVunlock255beforetests; nativeTVbootlog artifact was empty, zeroXML. Phone jobpassed91 marker. The -delay-adb/native-log experiment did not establish a repair and is removed. No rerun was requested.
+
+Upstreamissue489/proposal495 explains that boot completion does not imply input-service publication. The unmerged fork also alters SDK installation; it was not adopted. Instead the original action revisiona421e43855164a8197daf9d8d40fe71c6996bb0d is checked out immutably and only source/executable emulator-manager receive a small marked compatibility patch: after bootproperty1, a successful read-only service check input with exact found response is required before exiting the existing polling loop. Failed probes remain boot polling; the original unlock executes once and still fails the job on error. Exact silent255 transport mechanism remains unproven; new actual cloud results are required.
+
+Five sandboxed NodeVM self-tests run against the executable module before each cloud guest. They use fake commands/SDK path/timers (no emulator/SDK process), observed RED on original module and GREEN on patched: unpublished->published, failed probe->published, bounded missing-service timeout/no unlock, fatal unlock with no retry, pending boot. Original publisher license/dependencies/SDK installer and both device options are unchanged; patch modifies only matching TS/JS regions and fails closed when incompatible. Existing attempt budget and job25min timeout remain; inherited individual ADB calls have no separate timeout, so this is not claimed as a strict wall-clock boot deadline.
+
+Local23 Python tests,5 Node bootstrap cases, actionlint (including absent generated local-action directory), docs and patch application checks passed; duplicate patch application is rejected. Independent review found no source blockers and verified runtime import/argument scope/dependency/license retention. App/core/UI/native-test trees still matchc060a79. No local device, banned driver, firewall or laptop reboot operation. New latest-head91x2/probes and main remain mandatory.
+
+Reviewed readiness revision2a956d0af0402b79171f768170e466093bae7a4c is pushed toPR23. One completion watcher awaits this full run. Require five fake bootstrap self-tests and actual input publication in each job in addition to real91-case suites and every probe. Source frozen while running.
+
+
+### Real native UI blocker after startup succeeds — 14 November 2026
+
+PR23run43510435425at2a956d0 completed both91-case suites, and both jobs passed five sandboxbootstrap tests and nativeinput-service publication/unlock. Phone91/91 passed; TV90/91 passed. Artifact head/digests verified. Solefailure phoneUrlVisibilityWorksInArabicLightMode: fieldRecty480..604, measured1040x124, nativekeyboardRecty600..1080; final sample had4px overlap after a5-second clearance wait failed. IME visible=true but bottomInsets0 ontheTVwindow. This is an existing short-landscape mobile-form geometry issue, not startup failure or audio/player behavior.
+
+Root prepared a reviewable one-file candidate.tools/ci-baseline/proposed-url-layout-fix.patch, verified it applies but did NOT apply it. It adds short-landscape (<600dp) TopCenter alignment while retaining portrait/taller-window alignment and existing fields/actions/scroll/callbacks. No other archivedPR21 UI fix is proposed. Because owner explicitly limited this task toCI, root requested permission for this single prerequisite inPR23 or a separateUI PR first. Allnativeassertions/casecounts remain unchanged, PR23unmerged; no falsegreen, retries or banned localhost/device operations.
+
+Owner explicitly approved including this one shared short-landscape form fix inPR23 after scope clarification. Applied only the reviewed candidate: Configuration import, landscape+height<600dp predicate and TopCenter branch in MobileFormDialog. Portrait/taller-window placement, content/fields/actions/callbacks and scrolling remain unchanged; the adjustment serves all dialogs using that shared component. Existing native failure is RED evidence; independent proposal review passed and exact candidate applied. No assertion, player/data/ViewModel or other UI change. Build/lint/freshnative91x2 remain required.
+
+Approved layout correction verified locally: fresh full Java21 JVM/build/lint/app/testAPK succeeded2m57,127 JVM cases zero failures/errors/skips;23 repository cases and5 fake bootstrap cases pass. Independent UI proposal review covered exact applied diff. Only production delta vsstablemain is MobileForm.kt; app/core/player/data/native-test sources are otherwise unchanged. Preserve the original clearance assertion and all91 cases; fresh PR+main verification pending.

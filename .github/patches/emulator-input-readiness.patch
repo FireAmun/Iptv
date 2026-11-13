@@ -1,0 +1,46 @@
+diff --git a/lib/emulator-manager.js b/lib/emulator-manager.js
+index e878461..8c09e53 100644
+--- a/lib/emulator-manager.js
++++ b/lib/emulator-manager.js
+@@ -158,6 +158,18 @@ async function waitForDevice(port, emulatorBootTimeout) {
+                 },
+             });
+             if (result.trim() === '1') {
++                // Project CI compatibility patch: require input before the one-shot unlock.
++                let inputStatus = '';
++                await exec.exec(`adb -s emulator-${port} shell service check input`, [], {
++                    listeners: {
++                        stdout: (chunk) => {
++                            inputStatus += chunk.toString();
++                        },
++                    },
++                });
++                if (!/^Service input:\s+found\s*$/m.test(inputStatus)) {
++                    throw new Error('Input service is not published yet.');
++                }
+                 console.log('Emulator booted.');
+                 booted = true;
+                 break;
+diff --git a/src/emulator-manager.ts b/src/emulator-manager.ts
+index d10943d..07bd6a2 100644
+--- a/src/emulator-manager.ts
++++ b/src/emulator-manager.ts
+@@ -153,6 +153,18 @@ async function waitForDevice(port: number, emulatorBootTimeout: number): Promise
+         },
+       });
+       if (result.trim() === '1') {
++        // Project CI compatibility patch: require input before the one-shot unlock.
++        let inputStatus = '';
++        await exec.exec(`adb -s emulator-${port} shell service check input`, [], {
++          listeners: {
++            stdout: (chunk: Buffer) => {
++              inputStatus += chunk.toString();
++            },
++          },
++        });
++        if (!/^Service input:\s+found\s*$/m.test(inputStatus)) {
++          throw new Error('Input service is not published yet.');
++        }
+         console.log('Emulator booted.');
+         booted = true;
+         break;
