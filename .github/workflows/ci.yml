@@ -124,7 +124,8 @@ jobs:
             display_options: ''
           - device: phone-api36
             api: 36
-            target: google_apis
+            # Full AOSP phone image: retain native SystemUI/PiP without unused Google services.
+            target: default
             profile: pixel_2
             display_options: '-skin 720x1280'
           - device: tv-api36
