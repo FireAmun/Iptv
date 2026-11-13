@@ -1,9 +1,9 @@
 # IPTV development progress
 
-Last updated: 9 November 2026 (Asia/Riyadh)  
-Overall status: candidate 0.10.0/code12 passed synthetic 100k/200k/300k import, refresh, state, recovery and TV UI checks; source reviews and local JVM/build/lint passed. The final local TV suite was interrupted at 65/91 with no final success; its persistence probe did not run. Local emulator testing is now prohibited without new owner authorization under the 6 November host policy. [PR #19](https://github.com/FireAmun/Iptv/pull/19) merged as1b09fc4 after complete91/91 phone/TV suites and all process probes; post-merge main CI failed one existing category-dialog test due to native IME/Back ordering; test-only synchronization repair is open as [PR #20](https://github.com/FireAmun/Iptv/pull/20), head d278062; its TV run passed category cancellation but failed two other existing UI journeys. Focused diagnosis resumed9 November.
-Current phase: P8 large-playlist capacity/performance measurement; P3/P4 features remain in progress. Continue Watching is delivered. P7 release controls remain open.
-Next task: deliver test-only native IME/Back synchronization on codex/tv-picker-back-synchronization through its own reviewed PR, complete91-case phone/TV cloud suites/probes and separate main verification. Capacity PR delivery, FF sync and branch deletion are confirmed; do not claim main green. Do not launch or recreate any removed AVD, use AEHD/GVM/HAXM, or run fixtures on personal devices. Current WHPX capability verification does not authorize a new guest. Preserve owner research and investigation evidence; use one background CI completion watcher.
+Last updated: 13 November 2026 (Asia/Riyadh)
+Overall status: Stable main0.10.0/code12 atc060a79 is intact; PR21 closed unmerged and independently archived. Last known main91 phone/91 TV verification is historical. Fresh CI-baseline verification is in progress; no new player feature is delivered.
+Current phase: CI baseline only, authorized13 November. Audio/subtitles are explicitly a separate future PR after this baseline is green.
+Next task: await codex/ci-baseline full exact-head PR CI through one completion watcher; require91 phone/API28 and91 TV/API36 cases with zero failures/errors/skips, native completeness marker and all cold-process probes. Only then exact-head merge and separate main verification. Audio/subtitles remain a separate later PR; no banned local drivers/AVDs.
 
 ## 1. Start here in a new chat
 
@@ -692,3 +692,28 @@ Focused independent source/log reviews identify missing native-readiness precond
 ### PR20 ordering corrections locally verified — 9 November 2026
 
 Both independent focused source reviews passed. Final safe Java21 build/lint/app/test-APK run after the diagnostics addition passed;127 JVM XML cases, zero failures/errors/skips. Repository15 tests, docs and whitespace passed. Only two existing test journeys and public tracker change in this follow-up; same production0.10.0/code12. Updated-head full91-case phone/TV cloud suites and every process marker still gate merge; separate main verification follows. No test retry, assertion removal, timeout increase, local device or host action.
+
+
+## PR21 recovery and stable-main return — 13 November 2026
+
+Owner explicitly approved closing PR21 unmerged and returning the workspace to stable main after preservation. PR21 is closed, never merged. Current branchmain/HEADc060a79aa64ab41118c5c4efe254ed1e582de95d is synced fast-forward-only withorigin/main. Feature branchcodex/player-controls-pip atddd9ce1b735194e24bf0753bd0fdedef20804d1d is kept locally/remotely. No source rewrite/reset/force-push or branch deletion.
+
+Verified recovery package: D:/Side_p/iptv-recovery/pr21-2026-11-13-ddd9ce1. It contains standalone Git history (independent bare restore/fsck passed), both source ZIPs, full binary diff and15 individual patches, owned HLS assets, candidate debug/test APKs, reviews and downloaded CI evidence, original public/working trackers, reference audit, rebuild proposal and SHA256 manifest. Private owner research stays in the local private subdirectory and its original untracked location; never publish it. Ephemeral artifact download-link JSON is omitted; actual ZIPs and metadata/digests are retained. Historical branch-only tracker/doc links remain inside the archive/source snapshot, not the stable working tracker.
+
+Final run43473043911 atddd9ce1: repository/build passed, modern cold-boot ANR and TV pretestADB255 failed; remaining phone28 job cancelled during handoff. Zero complete latest-head XML, no latest-head passing native/merge claim. Prior43466184190 completed109 cases per profile (phone28 zero failures, modern2IME failures, TV1loginfixture failure). Positive historical track/PiP/checkpoint evidence is inventoried separately and is not release approval. Latest CI-only fixture changes compiled/linted and passed68 repository cases but remain incompletely runtime verified.
+
+Read-only old FlutterAmarTv audit atC:/Users/User/Desktop/side_p/Iptv found audio/subtitle menus, Off/preferences, resume/start-over and next-episode patterns. No PiP/real quality chooser found in audited scope. Its stop-on-background/global preferences differ from native PiP/request-scoped policy. Reuse behavior patterns while retaining current typed IDs, supported-track/stale-action checks and checkpoint ordering. Old reference project was not modified.
+
+Proposed separate PRs: (1) qualify CI baseline/disk/boot/IME only, including explicit Android16 evidence; (2) audio/subtitles; (3) actual quality choices; (4) manual phone PiP/native controls/close+saved progress; (5) Home/automatic PiP. UI bugs require reproduction onstable main and their own small fix; do not import every workaround. Physical S25/OEM/release checks remain open. No app reconstruction or new CI run was started during return.
+
+No local emulator/AVD, AEHD/GVM/HAXM, driver/firewall, laptop reboot or personal-device operation was performed. Existing SDK/build tools/keys and investigation evidence remain intact. Last known stable-main91phone/91TV evidence is historical; no fresh runtime qualification was claimed today.
+
+
+
+## Fresh stable-main CI baseline — 13 November 2026
+
+Owner authorized CI baseline only, get it green before a separate audio/subtitle PR, and reiterated the banned local emulator-driver restriction. New branchcodex/ci-baseline starts atstablec060a79, with existing API28 phone/API36 TV matrix and91 native tests each. No new modern-phone profile, feature filter, player/production/UI/native-test modification, forced reboot or archived PR21 experiment is included. Modern phone/PiP qualification remains separate work before its later feature PR.
+
+Scoped repairs: reserve cloud disk for both device jobs (API28 previously exited fatally whenuserdata lacked space), compile app/test APKs before guest startup, and reject missing/partial/failed/skipped/duplicate/inconsistent native XML before process probes. Six synthetic XML regressions and two fake-command ordering/failure regressions were added test-first; initial native-gate module import RED and two expected script-gate RED failures were recorded. Full23 repository tests pass. Actionlint/shell syntax and frozen app/core/ui/native-test source checks pass. Source review/full latest-head cloud91x2/probes remain pending. No app reconstruction or local device/driver/firewall/reboot operation. Private owner research and PR21 recovery archive remain preserved.
+
+CI-baseline pre-push verification: independent review found no critical/important blockers;23 repository tests passed independently and atroot. Archived native XML was replayed only to confirm parser format compatibility, never as current-head evidence. App/core/ui/native-test trees match stable main exactly. Actionlint, shell syntax, documentation links and public staged whitespace checks pass. Fresh cloud91x2 and persistence results remain mandatory; no baseline-green claim yet.
