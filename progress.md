@@ -1,9 +1,9 @@
 # IPTV development progress
 
-Last updated: 13 November 2026 (Asia/Riyadh)
+Last updated: 14 November 2026 (Asia/Riyadh)
 Overall status: Application0.10.0/code12 remains unchanged. CI-only PR22 passed91 phone/91 TV and merged asd52d284, but post-merge TV startup failed twice before any test. A narrowly scoped TV native-startup follow-up is in review; baseline main is not yet green.
-Current phase: CI baseline only: investigate/fix TV cloud startup. Audio/subtitle and other player work remain deferred.
-Next task: Review/push codex/ci-tv-adb-startup native TV delayed-ADB/log capture experiment; require complete latest-head91x2/probes before merge and separate main verification. No more blind infrastructure reruns, app/native-test changes, driver/AVD/host operations or player feature work.
+Current phase: CI baseline only: input-service readiness compatibility patch in review; app/player/UI/native tests remain identical to stable0.10.0.
+Next task: Push the reviewed readiness-only revision to existingPR23; require bootstrap self-tests, actual91 native cases/probes per profile and separate exact-head main verification. No native flag experiments/retries, player changes or banned local driver/AVD operations.
 
 ## 1. Start here in a new chat
 
@@ -737,3 +737,16 @@ Pinned action waits only for boot property, then unlocks. AOSP adb defaults to25
 Local23 repository tests, actionlint, links and scoped whitespace passed; app/core/UI/native-test diff againststablec060a79 is empty. Actual new cloud validation and independent source review remain pending. Do not claim the startup option is a proven repair before those results.
 
 TV startup configuration review passed with no blockers; reviewer confirmed literal logcat filter/absolute-path argument transport, prelaunch directory creation, artifact capture and unchanged phone/app/native-source scope.23 tests/actionlint/docs passed. Latest-head cloud evidence remains pending; no repair claim.
+
+PR23 https://github.com/FireAmun/Iptv/pull/23 opened at9d53c1dbff6aba285e779eb2b538a132a3ca6609, one three-file CI-only commit. Native completion watcher now awaits full91x2/probes and nonempty TV startup-log evidence; no further source edits while running.
+
+
+### Input-service readiness compatibility — 14 November 2026
+
+PR23 run43504374156 at9d53c1d stillfailedTVunlock255beforetests; nativeTVbootlog artifact was empty, zeroXML. Phone jobpassed91 marker. The -delay-adb/native-log experiment did not establish a repair and is removed. No rerun was requested.
+
+Upstreamissue489/proposal495 explains that boot completion does not imply input-service publication. The unmerged fork also alters SDK installation; it was not adopted. Instead the original action revisiona421e43855164a8197daf9d8d40fe71c6996bb0d is checked out immutably and only source/executable emulator-manager receive a small marked compatibility patch: after bootproperty1, a successful read-only service check input with exact found response is required before exiting the existing polling loop. Failed probes remain boot polling; the original unlock executes once and still fails the job on error. Exact silent255 transport mechanism remains unproven; new actual cloud results are required.
+
+Five sandboxed NodeVM self-tests run against the executable module before each cloud guest. They use fake commands/SDK path/timers (no emulator/SDK process), observed RED on original module and GREEN on patched: unpublished->published, failed probe->published, bounded missing-service timeout/no unlock, fatal unlock with no retry, pending boot. Original publisher license/dependencies/SDK installer and both device options are unchanged; patch modifies only matching TS/JS regions and fails closed when incompatible. Existing attempt budget and job25min timeout remain; inherited individual ADB calls have no separate timeout, so this is not claimed as a strict wall-clock boot deadline.
+
+Local23 Python tests,5 Node bootstrap cases, actionlint (including absent generated local-action directory), docs and patch application checks passed; duplicate patch application is rejected. Independent review found no source blockers and verified runtime import/argument scope/dependency/license retention. App/core/UI/native-test trees still matchc060a79. No local device, banned driver, firewall or laptop reboot operation. New latest-head91x2/probes and main remain mandatory.

@@ -112,12 +112,10 @@ jobs:
             api: 28
             target: default
             profile: pixel_2
-            boot_options: ''
           - device: tv-api36
             api: 36
             target: android-tv
             profile: tv_1080p
-            boot_options: '-delay-adb'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -147,8 +145,21 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - name: Build device APKs before guest startup
         run: bash ./gradlew --no-daemon --max-workers=2 --console=plain :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Check out the pinned emulator runner
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ReactiveCircus/android-emulator-runner
+          ref: a421e43855164a8197daf9d8d40fe71c6996bb0d
+          path: .tools/ci-baseline/emulator-runner-source
+          persist-credentials: false
+      - name: Apply and test input-readiness compatibility patch
+        run: |
+          test "$(git -C .tools/ci-baseline/emulator-runner-source rev-parse HEAD)" = a421e43855164a8197daf9d8d40fe71c6996bb0d
+          git -C .tools/ci-baseline/emulator-runner-source apply --check "$GITHUB_WORKSPACE/.github/patches/emulator-input-readiness.patch"
+          git -C .tools/ci-baseline/emulator-runner-source apply "$GITHUB_WORKSPACE/.github/patches/emulator-input-readiness.patch"
+          node tests/emulator-bootstrap.test.cjs .tools/ci-baseline/emulator-runner-source/lib/emulator-manager.js
       - name: Run import, playback, language, and remote tests
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        uses: ./.tools/ci-baseline/emulator-runner-source
         with:
           api-level: ${{ matrix.api }}
           target: ${{ matrix.target }}
@@ -159,10 +170,7 @@ jobs:
           disable-animations: true
           # Keep headless software rendering on GLES; cloud emulator context failures
           # have interrupted mandatory post-suite persistence checks.
-          emulator-options: >-
-            -no-window -gpu swiftshader -feature -Vulkan -noaudio -no-boot-anim -no-snapshot ${{ matrix.boot_options }}
-            ${{ matrix.device == 'tv-api36' && format('-logcat *:I -logcat-output {0}/app/build/reports/device-previews/tv-boot.log', github.workspace) || '' }}
-          pre-emulator-launch-script: mkdir -p app/build/reports/device-previews
+          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -noaudio -no-boot-anim -no-snapshot
           script: bash ./scripts/device-tests.sh
       - name: Save device test reports
         if: always()
