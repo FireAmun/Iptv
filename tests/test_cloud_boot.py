@@ -271,6 +271,21 @@ class CloudBootPreparation(unittest.TestCase):
             self.assertEqual(2, self.invoke()[0])
         self.assertEqual(0, self.reboots)
 
+    def test_launcher_visibility_accepts_wallpaper_metadata_between_native_fields(self):
+        # Full AOSP API36 prints wallpaper attributes between these properties.
+        self.window = WINDOW.replace(
+            "Surface: shown=true    isOnScreen=true",
+            "Surface: shown=true    mWallpaperX=0.0 mWallpaperY=0.5\n"
+            "    mWallpaperXStep=0.333 mWallpaperYStep=1.0\n"
+            "    isOnScreen=true\n    isVisible=true",
+        )
+        self.assertEqual(0, self.invoke()[0])
+        self.assertEqual(1, self.reboots)
+        self.assertEqual(1, self.unlocks)
+        self.assertFalse(self.helper.launcher_ready(self.window.replace("isOnScreen=true", "isOnScreen=false"), HOME))
+        self.assertFalse(self.helper.launcher_ready(self.window.replace("Surface: shown=true", "Surface: shown=false"), HOME))
+        self.assertFalse(self.helper.launcher_ready(self.window, "another.launcher/.Home"))
+
     def test_terminal_anr_preserves_event_payload_with_bounded_readonly_diagnostics(self):
         self.second_anr = True
         self.diagnostic_output = b"1700000000.123 I/am_anr(668): [0,1001,com.android.systemui,0,fresh failure]\n"

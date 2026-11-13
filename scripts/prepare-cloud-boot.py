@@ -74,7 +74,8 @@ def launcher_ready(window, home):
         + r" u0 " + re.escape(focus[2]) + r"\}:\n(.*?)(?=^  Window #|\Z)", window,
     )
     return bool(block and "mHasSurface=true isReadyForDisplay()=true" in block[1]
-                and re.search(r"Surface: shown=true\s+isOnScreen=true", block[1]))
+                and re.search(r"(?m)^\s*Surface: shown=true\b", block[1])
+                and re.search(r"\bisOnScreen=true\b", block[1]))
 
 
 def anr_count(deadline):

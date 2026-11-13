@@ -3,7 +3,7 @@
 Last updated: 13 November 2026 (Asia/Riyadh)
 Overall status: 0.10.0/code12 capacity milestone delivered in PR #19; native UI test readiness repairs delivered in PR #20. Synthetic 100k/200k/300k M3U and rich300k Xtream checks passed. Latest main c060a79 passed all five CI jobs, independently verified91 phone/91 TV cases and every persistence/progress probe. Physical-device validation and release gates remain open.
 Current phase: P4 player features in progress: supported audio/subtitle/quality selection and phone PiP. P8 capacity slice delivered; physical/release work and P7 controls remain open.
-Next task: review/push the same-API full AOSP image experiment, await its complete exact-head cloud run, and inspect actual native109x3/PiP/boot/process evidence. No merge while any check is missing/failing. Preserve private owner research and local host/device restrictions.
+Next task: push reviewed AOSP native-window parser correction, await full exact-head CI, then verify109x3 XML, native phone PiP, prepared boot and process probes before merge. Preserve private owner research and local host/device restrictions.
 
 ## 1. Start here in a new chat
 
@@ -887,3 +887,10 @@ Full43309091086 at972900a failed; downloaded artifact head/digests match. Phone2
 Next controlled experiment changes only modern phone image target google_apis to the official full AOSP default Android16/x86_64 image. Google SDK metadata confirms availability. No mandatory Google services dependency exists in the current app; no API downgrade, ATD reduced image, resource/display/boot-safety/assertion/test-count change. Removing bundled Google apps may reduce initialization work, but their unique causality is unproven. Actual109-case native/PiP/completeness/process evidence and separate main verification are still mandatory; unsupported PiP cannot count as success. Google/OEM hardware and future Play Billing checks stay open. Local banned-driver/AVD/host restrictions preserved.
 
 Independent read-only review found no concrete dependency blocker to the full AOSP substitution, with explicit Google-image coverage limitation and actual PiP proof requirement. Fresh actionlint, documentation links and whitespace passed; Android source/APKs are unchanged from verified runtime10, so no redundant local rebuild. Full native verification remains pending.
+
+
+### Runtime11 AOSP result and readiness parser repair — 13 November 2026
+
+Full43453399564 atc45cc60 failed; all device ZIP head/digests checked. TV109/109 zero failure/error/skip and completeness marker passed, validating stable form scrolling in this run. Phone28 timed out during emulator boot, zero XML. AOSP phone36 had zero recorded ANRs in both boots and reached visible/focused Quickstep HOME, but preparation falsely timed out before app installation because its parser demanded adjacent Surface shown/isOnScreen fields. Native AOSP window dump contains wallpaper metadata between those true fields. This is a concrete diagnostic parser bug, not an app or OS startup failure.
+
+Added a RED regression for separated native wallpaper/visibility fields, then corrected parsing to require both true properties within the same exact focused window block, with unchanged has-surface/ready/matching HOME/focused app gates. Root and independent reviewer replayed the actual cloud dump; wrong HOME and focused-window hidden/offscreen/no-surface/not-ready variants remain rejected even with other visible windows. Independent22 mocks and full65 repository tests passed; actionlint/links/whitespace passed. No Android/APK source change/rebuild, timeout increase, OS threshold relaxation or device test retry. Actual latest-head109x3/PiP/process evidence still required.
