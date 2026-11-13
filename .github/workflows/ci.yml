@@ -112,10 +112,12 @@ jobs:
             api: 28
             target: default
             profile: pixel_2
+            boot_options: ''
           - device: tv-api36
             api: 36
             target: android-tv
             profile: tv_1080p
+            boot_options: '-delay-adb'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -157,7 +159,10 @@ jobs:
           disable-animations: true
           # Keep headless software rendering on GLES; cloud emulator context failures
           # have interrupted mandatory post-suite persistence checks.
-          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -noaudio -no-boot-anim -no-snapshot
+          emulator-options: >-
+            -no-window -gpu swiftshader -feature -Vulkan -noaudio -no-boot-anim -no-snapshot ${{ matrix.boot_options }}
+            ${{ matrix.device == 'tv-api36' && format('-logcat *:I -logcat-output {0}/app/build/reports/device-previews/tv-boot.log', github.workspace) || '' }}
+          pre-emulator-launch-script: mkdir -p app/build/reports/device-previews
           script: bash ./scripts/device-tests.sh
       - name: Save device test reports
         if: always()
