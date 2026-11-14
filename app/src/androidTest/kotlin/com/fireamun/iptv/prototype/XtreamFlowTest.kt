@@ -177,20 +177,36 @@ class XtreamFlowTest {
             for ((tag, value) in listOf("playlist_name" to "Fixture playlist", "server_url" to server,
                 "server_username" to "fixture-user", "server_password" to password)) {
                 val field = compose.onNodeWithTag(tag)
+                var previous: Pair<androidx.compose.ui.geometry.Rect, Float?>? = null
+                var settledSamples = 0
+                val deadline = android.os.SystemClock.uptimeMillis() + 5000
                 try {
                     compose.waitUntil(5000) {
                         compose.mainClock.advanceTimeByFrame()
-                        field.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } &&
-                            field.isDisplayed()
+                        // A visible frame can precede the next native IME/bring-into-view layout.
+                        // Sample both clocks without retrying assertions or the text-input action.
+                        val remaining = deadline - android.os.SystemClock.uptimeMillis()
+                        if (remaining <= 100) return@waitUntil false
+                        instrumentation.uiAutomation.waitForIdle(100, remaining)
+                        val node = field.fetchSemanticsNode()
+                        val scroll = compose.onAllNodesWithTag("mobile_form_scroll").fetchSemanticsNodes()
+                            .singleOrNull()?.config?.let {
+                                if (it.contains(SemanticsProperties.VerticalScrollAxisRange)) it[SemanticsProperties.VerticalScrollAxisRange] else null
+                            }
+                        val geometry = node.boundsInWindow to scroll?.value?.invoke()
+                        val ready = node.config.getOrElse(SemanticsProperties.Focused) { false } && field.isDisplayed()
+                        settledSamples = if (!ready) 0 else if (geometry == previous) settledSamples + 1 else 1
+                        previous = geometry
+                        settledSamples >= 3
                     }
-                } catch (failure: ComposeTimeoutException) {
+                    field.assertIsFocused().assertIsDisplayed().performTextInput(value)
+                } catch (failure: Throwable) {
                     runCatching {
                         loginDiagnostics(tag)
                         captureSyntheticPreview(instrumentation, if (tv) "tv-login-timeout" else "phone-login-timeout")
                     }
                     throw failure
                 }
-                field.assertIsFocused().assertIsDisplayed().performTextInput(value)
                 compose.mainClock.advanceTimeBy(100)
                 field.performImeAction()
                 compose.mainClock.advanceTimeBy(100)
