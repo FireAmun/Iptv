@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 14 November 2026 (Asia/Riyadh)
-Overall status: CI baseline delivered on mainb9130236bbddfa2b8cd3172cf0cbbd0e3f028c30 (application0.10.0/code12). PR22/23 merged; final main passed allfive checks with91 phone/91 TV cases, zero failures/errors/skips and all process probes. Only approved short-landscape form alignment changed in production; no player features added. Physical/release gates remain open.
-Current phase: Audio/subtitle-only slice implemented on `codex/audio-subtitles`; local checks and independent review complete, cloud native validation pending. Quality/PiP remain deferred.
-Next task: Finish the audio/subtitle PR through exact-head cloud CI: require all five checks, 101 native cases per profile with zero failures/errors/skips, and every persistence/progress probe. Then merge, fast-forward main and verify its separate run. Keep quality/PiP out; preserve private research and banned local emulator-driver/AVD restrictions.
+Overall status: Audio/subtitle slice merged through PR24 onto main `b32dd8d4fc69bb138350c3fa193ebe4957685561` (application0.10.0/code12). PR CI passed allfive checks first attempt, with101 native cases per device and all process probes. The separate main run failed one baseline login-test visibility assertion; its isolated test-only readiness fix is in review. Quality/PiP and physical/release gates remain open.
+Current phase: Audio/subtitle PR24 merged and its new tests pass on PR/main. Post-merge main validation exposed one existing login-test visibility race; a separate test-only CI follow-up is in progress. Quality/PiP remain deferred.
+Next task: Finish the test-only login readiness PR from mainb32dd8d: require full101-case phone/TV results and all probes, exact-head merge, then a separate green main run. Do not change player/form behavior or weaken assertions. Preserve private research and banned local emulator-driver/AVD restrictions.
 
 ## 1. Start here in a new chat
 
@@ -788,4 +788,19 @@ Maintenance/openlimits: compatibilitypatch shouldbe retired onlyafter reviewing/
 - Reused only owned single-video HLS media and relevant recovery code. No quality chooser, PiP, media-session changes, SDK/driver/AVD operations or CI infrastructure changes. Only native completeness count changes from91 to101 for ten new cases; all baseline native source files remain unchanged.
 - Local evidence: 127 JVM tests, zero failures/errors/skips; full lint/debug app and test APK builds successful; 23 repository tests and local-link checker passed. New native tests were written/compiled before implementation, but no runtime RED claim is made: local device testing remains prohibited. Actual new runtime behavior awaits cloud CI.
 - Independent Sol review found no production blocker. Strengthened tests after feedback to require actual Arabic audio output counter/time advancement, paused intent/video-override isolation, directional TV focus traversal and explicit/restored English-dark/Arabic-light appearance. Corrected the subtitle Off-row traversal offset before delivery.
-- Cloud native evidence and PR/main delivery remain pending. Physical S25/OEM codecs, accessibility/endurance and release gates remain open.
+- Open [PR24](https://github.com/FireAmun/Iptv/pull/24), one commit `18b1fd31caae31261fc177dd28ac6223de66924e`. Exact-head cloud CI watcher is active in `.tools/audio-subtitles/pr-18b1fd3`; native evidence and PR/main delivery remain pending. Physical S25/OEM codecs, accessibility/endurance and release gates remain open.
+
+### PR24 delivery evidence
+
+- [PR24](https://github.com/FireAmun/Iptv/pull/24) passed in one commit `18b1fd31caae31261fc177dd28ac6223de66924e`, [CI43601737350](https://github.com/FireAmun/Iptv/actions/runs/43601737350), allfive checks green on the first attempt.
+- Both report archives independently downloaded and SHA256/head verified. PhoneAPI28 artifact14117805603, digest `c0b7b8e9cbbd0897bd8dda585b1e49a91baef91c51f44bf1a63fbffadaa2fa37`; TVAPI36 artifact14117004900, digest `61df2e4c1dae4a1bc488e49915b9756abe8fbcfe5c39e192d6d09a213974e9af`. Each has101 unique native cases, zero failures/errors/skips, identical case sets; all91 baseline identities preserved plus the ten audio/subtitle cases. Actual rendered-caption previews inspected.
+- All bootstrap/readiness and source/progress probes passed: phonePIDs11978/12021/12057, TV6972/7014/7050, progressseed/verify/clear. Evidence in `.tools/audio-subtitles/pr-18b1fd3/verification.json` and corresponding exact-head archives/logs.
+- Squash merged with expected-head guard to `b32dd8d4fc69bb138350c3fa193ebe4957685561`; merge confirmed, local main fast-forwarded, merged tree equals reviewed feature tree. GitHub removed remote work branch automatically; verified absent, then deleted local `codex/audio-subtitles`. Retained PR21/recovery work remains intact.
+- Working owner tracker restored byte-for-byte after the main switch; private backend research unchanged and excluded from the PR. Main watcher active in `.tools/audio-subtitles/main-b32dd8d` (post-merge results pending).
+
+## Main login-test readiness follow-up — 14 November 2026
+
+- Separate main [run43604413114](https://github.com/FireAmun/Iptv/actions/runs/43604413114) at `b32dd8d4fc69bb138350c3fa193ebe4957685561` completed red: repository/build/TV passed; phone XML contains101 cases with exactly one failure, zero errors/skips. Allten audio/subtitle cases passed on both profiles. The failed case is the pre-existing `XtreamFlowTest.mobileServerLoginLoadsCataloguesAndSeriesPlayback`, final password-field displayed assertion at line193. Main is not claimed green.
+- The original helper accepted one focused/displayed sample, then its final focused assertion passed while displayed failed. Native input starts and separate post-frame bring-into-view support a transient readiness race; no failed geometry was captured, so the exact IME/scroll sequence remains inferred. Original failed logs/XML preserved in `.tools/audio-subtitles/main-b32dd8d`, not retried away.
+- New `codex/ci-login-readiness` branch changes only the existing test helper: within the same five-second deadline, pump Compose and native UI idle and require three stable focused/displayed field-bounds/scroll-position samples. Keep one final focused/displayed assertion and one text entry; diagnose/rethrow any failure. No forced scroll, test retry/filter/count reduction, production/form/player or CI-infrastructure changes.
+- Independent Sol review: no actionable blocker; existing gate is strengthened. Local test APK build/lint, 23 repository tests and link checks passed. Full cloud PR/main verification pending. Quality/PiP remain out of scope.
