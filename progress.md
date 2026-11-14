@@ -1,9 +1,9 @@
 # IPTV development progress
 
 Last updated: 14 November 2026 (Asia/Riyadh)
-Overall status: Application0.10.0/code12 remains unchanged. PR22 merged; PR23 readiness patch now runs all91 cases on both devices. Phone91 passed; TV90 passed and one existing Arabic URL layout assertion failed. Baseline is not green.
-Current phase: CI baseline plus the owner-approved single MobileForm short-landscape layout correction inPR23. No player feature work.
-Next task: await approved layout-correction PR23 full exact-head run and independently verify91 cases/probes per device plus startup self-tests/service publication. Then exact-head merge and separate main verification. No additional player/UI work, assertions changes or banned local drivers/AVDs.
+Overall status: CI baseline delivered on mainb9130236bbddfa2b8cd3172cf0cbbd0e3f028c30 (application0.10.0/code12). PR22/23 merged; final main passed allfive checks with91 phone/91 TV cases, zero failures/errors/skips and all process probes. Only approved short-landscape form alignment changed in production; no player features added. Physical/release gates remain open.
+Current phase: Audio/subtitle-only slice implemented on `codex/audio-subtitles`; local checks and independent review complete, cloud native validation pending. Quality/PiP remain deferred.
+Next task: Finish the audio/subtitle PR through exact-head cloud CI: require all five checks, 101 native cases per profile with zero failures/errors/skips, and every persistence/progress probe. Then merge, fast-forward main and verify its separate run. Keep quality/PiP out; preserve private research and banned local emulator-driver/AVD restrictions.
 
 ## 1. Start here in a new chat
 
@@ -763,3 +763,29 @@ Root prepared a reviewable one-file candidate.tools/ci-baseline/proposed-url-lay
 Owner explicitly approved including this one shared short-landscape form fix inPR23 after scope clarification. Applied only the reviewed candidate: Configuration import, landscape+height<600dp predicate and TopCenter branch in MobileFormDialog. Portrait/taller-window placement, content/fields/actions/callbacks and scrolling remain unchanged; the adjustment serves all dialogs using that shared component. Existing native failure is RED evidence; independent proposal review passed and exact candidate applied. No assertion, player/data/ViewModel or other UI change. Build/lint/freshnative91x2 remain required.
 
 Approved layout correction verified locally: fresh full Java21 JVM/build/lint/app/testAPK succeeded2m57,127 JVM cases zero failures/errors/skips;23 repository cases and5 fake bootstrap cases pass. Independent UI proposal review covered exact applied diff. Only production delta vsstablemain is MobileForm.kt; app/core/player/data/native-test sources are otherwise unchanged. Preserve the original clearance assertion and all91 cases; fresh PR+main verification pending.
+
+
+PR23 run43515386835 at493e587e807f3b62025fb78c0c639e4e1256b7b8 passed allfive jobs. Artifact head/SHA256, identical91 registered cases per profile, zero failure/error/skip, five bootstrap tests and real published input per job verified independently. PhonePIDs10409/10451/10488; TV6316/6359/6396; both seed/verify/clear+finalcoldprocesspassed. Original Arabic URL clearance assertion passed without alteration.
+
+PR23 exact-head squash merge b9130236bbddfa2b8cd3172cf0cbbd0e3f028c30 confirmed; localmain syncedFF, wholecommittedtree equals testedhead. Only productiondelta vsstablec060a79 is approvedMobileForm.kt alignment. CIworkbranch removedlocally/remoteabsenceconfirmed, PR21branch/archivepreserved, privatefilespreserved. One watcherawaitsseparatefinalmainrun; no finalmain-greenclaim yet.
+
+
+## CI baseline delivered — 14 November 2026
+
+Finalmainrun43518998298 atb9130236bbddfa2b8cd3172cf0cbbd0e3f028c30 passed repository checks, Android JVM/build/lint, phone/API28, TV/API36 andaggregateCI on its first attempt. Downloaded ZIP head/SHA256 and actualXML independently verified91 unique identical registered cases per profile, zero failures/errors/skips. Both jobs passed5 sandboxbootstrap cases and observed actual input-service publication before unlock. Phone source PIDs9866/9906/9943; TV6435/6483/6520; both had progress seed/verify/clear and finalcoldprocesssuccess. Verification JSON/logs/ZIPs retained under ignored.tools/ci-baseline/main-b913023.
+
+Delivered CI changes: diskreservationforbothprofiles, APK compilation beforeguestboot, strict91-case XMLgate beforeprocessprobes, original immutableactionrevision with small source/runtime input-readiness patch and five fail-closed simulated bootstrap cases. Same images/resources/rendering/joblimits/nativeassertions. The owner-approved single MobileForm short-landscape TopCenter correction is the only productiondelta vsstablec060a79; originalArabicURL clearanceassertion nowpasses. No audio/subtitle/quality/PiP implementation was started or restored.
+
+PR22 https://github.com/FireAmun/Iptv/pull/22 andPR23 https://github.com/FireAmun/Iptv/pull/23 are squash-merged; eachpassed its own exact-head fullmatrix beforemerge. Localmain syncedFF tofinalmerge; mergedCIbranches removedlocally/remoteabsenceconfirmed. PR21 remainsclosedunmerged, its featurebranchandverified565-file recoverypackage retained. Privateownerresearch/trackersection hashpreserved. No localAVD/emulator/AEHD/GVM/HAXM/driver/firewall/reboot/personaldevice operation.
+
+Maintenance/openlimits: compatibilitypatch shouldbe retired onlyafter reviewing/updating to an upstreamrevisionwithequivalentreadinessandpassingnativegates. The inheritedbootlimit counts pollingattempts ratherthan strictper-commandwalltime; unchanged25-minutejoblimit stillapplies. These cloudphoneAPI28/TVAPI36 results do notreplacephysicalS25/OEM/modern-phone/codec/endurance/releasechecks. Do notproclaim100% infrastructure reliability orPlayrelease readiness.
+
+## Audio/subtitle reconstruction — 14 November 2026
+
+- Owner authorized one small new PR from verified main `b9130236bbddfa2b8cd3172cf0cbbd0e3f028c30`. [Bounded design/verification plan](docs/development/audio-subtitles.md).
+- Added two Cinema menus: Audio Auto/supported tracks; Subtitles Auto/Off/supported tracks. English/Arabic, light/dark tokens, selected-state, empty messaging and TV focus restoration. Existing native transport/speed controls remain available.
+- Selection changes only one track type without replacing the media, seeking or changing play intent. Stale player/group actions are rejected. Preferences stay in the current in-memory playback request, including real STOP/START; no global storage or data/ViewModel changes.
+- Reused only owned single-video HLS media and relevant recovery code. No quality chooser, PiP, media-session changes, SDK/driver/AVD operations or CI infrastructure changes. Only native completeness count changes from91 to101 for ten new cases; all baseline native source files remain unchanged.
+- Local evidence: 127 JVM tests, zero failures/errors/skips; full lint/debug app and test APK builds successful; 23 repository tests and local-link checker passed. New native tests were written/compiled before implementation, but no runtime RED claim is made: local device testing remains prohibited. Actual new runtime behavior awaits cloud CI.
+- Independent Sol review found no production blocker. Strengthened tests after feedback to require actual Arabic audio output counter/time advancement, paused intent/video-override isolation, directional TV focus traversal and explicit/restored English-dark/Arabic-light appearance. Corrected the subtitle Off-row traversal offset before delivery.
+- Cloud native evidence and PR/main delivery remain pending. Physical S25/OEM codecs, accessibility/endurance and release gates remain open.

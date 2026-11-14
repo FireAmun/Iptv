@@ -9,6 +9,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
@@ -31,6 +32,7 @@ internal class LifecyclePlayerSession(
     private val onCheckpoint: (String, PlaybackCheckpoint) -> Unit,
     private val onStatus: (PlaybackStatus) -> Unit,
     private val onDisposed: () -> Unit,
+    private val onPlayerChanged: (Player?) -> Unit,
 ) : DefaultLifecycleObserver {
     private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
@@ -40,6 +42,8 @@ internal class LifecyclePlayerSession(
     private var prepared = false
     private var checkedTimeline = false
     private var lastEligibleCheckpoint: PlaybackCheckpoint? = null
+    // In-memory preferences belong to this request only, never the next programme.
+    private var trackParameters: TrackSelectionParameters? = null
     private var closed = false
     private val poll = object : Runnable {
         override fun run() {
@@ -71,7 +75,9 @@ internal class LifecyclePlayerSession(
         val sources = DefaultMediaSourceFactory(PlaybackDataSourceFactory(allowCleartext = request.address.isCleartext))
         val active = ExoPlayer.Builder(context).setMediaSourceFactory(sources)
             .setSeekBackIncrementMs(30_000).setSeekForwardIncrementMs(30_000).build()
+        trackParameters?.let { active.trackSelectionParameters = it }
         player = active
+        onPlayerChanged(active)
         active.setAudioAttributes(AudioAttributes.DEFAULT, true)
         active.setHandleAudioBecomingNoisy(true)
         val observer = object : Player.Listener {
@@ -149,7 +155,9 @@ internal class LifecyclePlayerSession(
         handler.removeCallbacks(poll)
         val old = player ?: return
         checkpoint(old, old.playbackState == Player.STATE_ENDED)
+        trackParameters = old.trackSelectionParameters
         player = null
+        onPlayerChanged(null)
         view?.player = null
         listener?.let(old::removeListener)
         listener = null

@@ -1,3 +1,11 @@
 <resources>
     <string name="playback_error">تعذّر تشغيل العنصر. تحقّق من المصدر أو أعد المحاولة.</string>
+    <string name="player_audio">الصوت</string>
+    <string name="player_subtitles">الترجمة</string>
+    <string name="player_track_auto">تلقائي</string>
+    <string name="player_track_off">إيقاف</string>
+    <string name="player_track_close">إغلاق</string>
+    <string name="player_tracks_unavailable">لا توجد مسارات مدعومة لهذا البث.</string>
+    <string name="player_track_number">المسار %1$d</string>
+    <string name="player_track_distinct">%1$s · المسار %2$d</string>
 </resources>
