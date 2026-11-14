@@ -182,7 +182,9 @@ class XtreamFlowTest {
                 val deadline = android.os.SystemClock.uptimeMillis() + 5000
                 try {
                     compose.waitUntil(5000) {
-                        compose.mainClock.advanceTimeByFrame()
+                        // Native waiting does not advance paused Compose scroll animations.
+                        // Three stable samples must cover both native and virtual settling time.
+                        compose.mainClock.advanceTimeBy(100)
                         // A visible frame can precede the next native IME/bring-into-view layout.
                         // Sample both clocks without retrying assertions or the text-input action.
                         val remaining = deadline - android.os.SystemClock.uptimeMillis()
