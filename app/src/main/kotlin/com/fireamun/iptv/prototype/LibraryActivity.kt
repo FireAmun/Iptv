@@ -94,6 +94,7 @@ abstract class LibraryActivity : AppCompatActivity() {
                         { status = it },
                         { library.playbackDisposed(active.sessionId) },
                         modifier,
+                        television = television,
                     ) }
                     BackHandler { library.closePlayback() }
                     if (television) TvPlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface)

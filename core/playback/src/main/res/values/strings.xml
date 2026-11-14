@@ -1,3 +1,11 @@
 <resources>
     <string name="playback_error">Unable to play this entry. Check your source or retry.</string>
+    <string name="player_audio">Audio</string>
+    <string name="player_subtitles">Subtitles</string>
+    <string name="player_track_auto">Auto</string>
+    <string name="player_track_off">Off</string>
+    <string name="player_track_close">Close</string>
+    <string name="player_tracks_unavailable">No supported tracks are available for this stream.</string>
+    <string name="player_track_number">Track %1$d</string>
+    <string name="player_track_distinct">%1$s · Track %2$d</string>
 </resources>
