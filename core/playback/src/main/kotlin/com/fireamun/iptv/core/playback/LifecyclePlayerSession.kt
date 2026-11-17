@@ -14,6 +14,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.fireamun.iptv.core.model.ContentKind
@@ -73,7 +74,8 @@ internal class LifecyclePlayerSession(
         // Nested network exceptions may contain credentials; never enable provider logs.
         Log.setLogLevel(Log.LOG_LEVEL_OFF)
         val sources = DefaultMediaSourceFactory(PlaybackDataSourceFactory(allowCleartext = request.address.isCleartext))
-        val active = ExoPlayer.Builder(context).setMediaSourceFactory(sources)
+        val renderers = DefaultRenderersFactory(context).setMediaCodecSelector(playbackCodecSelector())
+        val active = ExoPlayer.Builder(context, renderers).setMediaSourceFactory(sources)
             .setSeekBackIncrementMs(30_000).setSeekForwardIncrementMs(30_000).build()
         trackParameters?.let { active.trackSelectionParameters = it }
         player = active

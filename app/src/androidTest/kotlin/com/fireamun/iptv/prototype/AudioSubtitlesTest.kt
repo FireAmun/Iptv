@@ -113,6 +113,7 @@ class AudioSubtitlesTest {
                 throw failure
             }
             qualityState(scenario, chosen, audio, text, "decoded")
+            captureSyntheticPreview(instrumentation, "quality-${if (tv) "tv" else "phone"}-${chosen.format.height}-decoded")
             read(scenario) { it.pause(); it.seekTo(6_000) }
             awaitPlayer(scenario) { it.playbackState == Player.STATE_READY && it.contentPosition in 5_500..7_000 }
         }
