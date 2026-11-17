@@ -41,6 +41,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.DefaultTrackNameProvider
 import com.fireamun.iptv.core.designsystem.cinemaFont
 import com.fireamun.iptv.core.designsystem.cinemaPalette
+import java.util.Locale
 
 @OptIn(UnstableApi::class)
 private data class TrackChoice(val group: TrackGroup, val index: Int, val format: Format)
@@ -92,7 +93,12 @@ private fun PlayerTrackControlsContent(
     val parentWindow = LocalWindowInfo.current
     val audioFocus = remember { FocusRequester() }
     val textFocus = remember { FocusRequester() }
-    fun origin(type: Int) = if (type == C.TRACK_TYPE_AUDIO) audioFocus else textFocus
+    val videoFocus = remember { FocusRequester() }
+    fun origin(type: Int) = when (type) {
+        C.TRACK_TYPE_AUDIO -> audioFocus
+        C.TRACK_TYPE_TEXT -> textFocus
+        else -> videoFocus
+    }
     fun dismiss() {
         restoreType = requestedType
         requestedType = null
@@ -131,6 +137,9 @@ private fun PlayerTrackControlsContent(
         }
         TrackButton(stringResource(R.string.player_subtitles), Modifier.focusRequester(textFocus).testTag("player_subtitles"), snapshot?.canSelect == true) {
             requestedType = C.TRACK_TYPE_TEXT
+        }
+        TrackButton(stringResource(R.string.player_quality), Modifier.focusRequester(videoFocus).testTag("player_quality"), snapshot?.canSelect == true) {
+            requestedType = C.TRACK_TYPE_VIDEO
         }
     }
     val type = requestedType
@@ -184,8 +193,11 @@ private fun TrackDialog(
     val names = remember(resources, configuration) { DefaultTrackNameProvider(resources) }
     val options = supportedChoices(snapshot.tracks, type)
     val labels = options.mapIndexed { index, choice ->
-        val name = names.getTrackName(choice.format).safeTrackLabel()
-        if (name.isBlank()) stringResource(R.string.player_track_number, index + 1) else name
+        if (type == C.TRACK_TYPE_VIDEO) qualityLabel(choice.format, index, configuration.locales[0])
+        else {
+            val name = names.getTrackName(choice.format).safeTrackLabel()
+            if (name.isBlank()) stringResource(R.string.player_track_number, index + 1) else name
+        }
     }
     val disabled = type in snapshot.parameters.disabledTrackTypes
     val overrides = snapshot.parameters.overrides.values.filter { it.type == type }
@@ -196,7 +208,8 @@ private fun TrackDialog(
     val initialFocus = remember { FocusRequester() }
     val title = stringResource(when (type) {
         C.TRACK_TYPE_AUDIO -> R.string.player_audio
-        else -> R.string.player_subtitles
+        C.TRACK_TYPE_TEXT -> R.string.player_subtitles
+        else -> R.string.player_quality
     })
     Dialog(onDismissRequest = onDismiss) {
         val window = LocalWindowInfo.current
@@ -208,6 +221,8 @@ private fun TrackDialog(
                 Text(title, style = MaterialTheme.typography.titleLarge, fontFamily = cinemaFont(), fontWeight = FontWeight.Bold)
                 if (options.isEmpty()) {
                     Text(stringResource(R.string.player_tracks_unavailable), color = p.muted, fontFamily = cinemaFont())
+                } else if (type == C.TRACK_TYPE_VIDEO && options.size == 1) {
+                    Text(stringResource(R.string.player_single_quality), Modifier.testTag("track_single_quality"), color = p.muted, fontFamily = cinemaFont())
                 }
                 Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).selectableGroup(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -260,3 +275,12 @@ private fun TrackRow(label: String, selected: Boolean, modifier: Modifier, onCli
 }
 
 private fun String.safeTrackLabel() = filterNot { it.isISOControl() }.take(120).trim()
+
+@OptIn(UnstableApi::class)
+@Composable
+private fun qualityLabel(format: Format, index: Int, locale: Locale): String {
+    val resolution = if (format.width > 0 && format.height > 0) "${format.width} × ${format.height}"
+        else stringResource(R.string.player_track_number, index + 1)
+    val bitrate = format.bitrate.takeIf { it > 0 } ?: return resolution
+    return stringResource(R.string.player_video_bitrate, resolution, String.format(locale, "%.2f", bitrate / 1_000_000.0))
+}

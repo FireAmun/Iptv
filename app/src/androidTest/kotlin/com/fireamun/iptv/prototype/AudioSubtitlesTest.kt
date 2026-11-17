@@ -129,6 +129,7 @@ class AudioSubtitlesTest {
         compose.onNodeWithTag("track_option_0").assertTextContains("${only.format.width} × ${only.format.height}", substring = true)
         compose.onNodeWithTag("track_option_1").assertDoesNotExist()
         compose.onNodeWithTag("track_off").assertDoesNotExist()
+        captureSyntheticPreview(instrumentation, "quality-${if (tv) "tv" else "phone"}-single-ar")
         activate("track_option_0", tv)
         awaitPlayer(scenario) { selected(it, only) }
         open("player_quality", tv)
