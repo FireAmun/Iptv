@@ -68,8 +68,108 @@ class AudioSubtitlesTest {
     @Test fun tvStopStartPreservesChoicesAndDismissesDialog() = staleDialog(TvActivity::class.java, true)
     @Test fun phoneOldDialogActionsCannotChangeNewGroupsInSamePlayer() = changedGroups(MobileActivity::class.java, false)
     @Test fun tvOldDialogActionsCannotChangeNewGroupsInSamePlayer() = changedGroups(TvActivity::class.java, true)
+    @Test fun phoneSelectsSuppliedQualityAndAutoPreservesPlayback() = quality(MobileActivity::class.java, false)
+    @Test fun tvSelectsSuppliedQualityAndAutoPreservesPlayback() = quality(TvActivity::class.java, true)
+    @Test fun phoneSingleQualityIsHonestInArabicLightMode() = singleQuality(MobileActivity::class.java, false)
+    @Test fun tvSingleQualityIsHonestInArabicLightMode() = singleQuality(TvActivity::class.java, true)
 
     private data class Choice(val group: TrackGroup, val index: Int, val format: Format)
+
+    private fun quality(activity: Class<out Activity>, tv: Boolean) = playback(activity, tv, quality = true) { scenario ->
+        val identity = read(scenario) { it }
+        val item = read(scenario) { it.currentMediaItem }
+        val audio = choose(scenario, "player_audio", C.TRACK_TYPE_AUDIO, 1, tv)
+        val text = choose(scenario, "player_subtitles", C.TRACK_TYPE_TEXT, 0, tv)
+        awaitPlayer(scenario) { it.currentCues.cues.any { cue -> cue.text.toString() == "Synthetic English subtitle" } }
+        val formats = read(scenario) { choices(it, C.TRACK_TYPE_VIDEO) }
+        assertEquals(setOf(180, 360), formats.map { it.format.height }.toSet())
+        if (tv) {
+            compose.onNodeWithTag("player_subtitles").performKeyInput { pressKey(Key.DirectionRight) }
+            awaitFocused("player_quality", dialog = false)
+        }
+        for (index in formats.indices) {
+            // Return to Auto so each TV menu opens at the same native focus origin.
+            if (index > 0) { open("player_quality", tv); activate("track_auto", tv) }
+            val chosen = choose(scenario, "player_quality", C.TRACK_TYPE_VIDEO, index, tv)
+            read(scenario) {
+                assertSame(identity, it)
+                assertSame(item, it.currentMediaItem)
+                assertFalse("Quality selection must preserve paused intent", it.playWhenReady)
+                assertTrue(it.contentPosition in 5_500..7_000)
+                it.play()
+            }
+            qualityState(scenario, chosen, audio, text, "requested")
+            try {
+                awaitPlayer(scenario) {
+                    val exo = it as ExoPlayer
+                    selected(it, chosen) && exo.videoFormat?.height == chosen.format.height &&
+                        it.videoSize.height == chosen.format.height &&
+                        (exo.videoDecoderCounters?.renderedOutputBufferCount ?: 0) > 0 && it.contentPosition > 6_250 &&
+                        selected(it, audio) && selected(it, text)
+                }
+            } catch (failure: ComposeTimeoutException) {
+                runCatching { qualityState(scenario, chosen, audio, text, "timeout") }
+                runCatching { captureSyntheticPreview(instrumentation, "quality-${if (tv) "tv" else "phone"}-output-timeout") }
+                throw failure
+            }
+            qualityState(scenario, chosen, audio, text, "decoded")
+            captureSyntheticPreview(instrumentation, "quality-${if (tv) "tv" else "phone"}-${chosen.format.height}-decoded")
+            read(scenario) { it.pause(); it.seekTo(6_000) }
+            awaitPlayer(scenario) { it.playbackState == Player.STATE_READY && it.contentPosition in 5_500..7_000 }
+        }
+        open("player_quality", tv)
+        compose.onNodeWithTag("track_option_1").assertIsSelected()
+        captureSyntheticPreview(instrumentation, "quality-${if (tv) "tv" else "phone"}-owned-menu")
+        activate("track_auto", tv)
+        awaitPlayer(scenario) { !hasOverride(it, C.TRACK_TYPE_VIDEO) && selected(it, audio) && selected(it, text) }
+        open("player_quality", tv)
+        compose.onNodeWithTag("track_auto").assertIsSelected()
+        cancel("player_quality", tv)
+        read(scenario) { assertSame(identity, it); assertSame(item, it.currentMediaItem); assertFalse(it.playWhenReady); assertTrue(it.contentPosition in 5_500..7_000) }
+        assertTrue(subtitlePixels(scenario) > 0)
+    }
+
+    /** Fixed fixture dimensions/counters only; no source URL, labels, IDs or raw exceptions. */
+    private fun qualityState(scenario: ActivityScenario<Activity>, video: Choice, audio: Choice, text: Choice, phase: String) = read(scenario) {
+        val exo = it as ExoPlayer
+        val counters = exo.videoDecoderCounters
+        counters?.ensureUpdated()
+        println("IPTV_QUALITY_STATE phase=$phase target=${video.index}:${video.format.width}x${video.format.height} " +
+            "selected=${selected(it, video)} format=${exo.videoFormat?.width}x${exo.videoFormat?.height} " +
+            "output=${it.videoSize.width}x${it.videoSize.height} frames=${counters?.renderedOutputBufferCount} " +
+            "position=${it.contentPosition} buffered=${it.bufferedPosition} duration=${it.duration} " +
+            "play=${it.playWhenReady} playing=${it.isPlaying} suppression=${it.playbackSuppressionReason} " +
+            "state=${it.playbackState} error=${it.playerError?.errorCode} audio=${selected(it, audio)} text=${selected(it, text)} cues=${it.currentCues.cues.size}")
+    }
+
+    private fun singleQuality(activity: Class<out Activity>, tv: Boolean) = playback(activity, tv, single = true, arabic = true) { scenario ->
+        compose.onNodeWithTag("player_quality").assertTextEquals("الجودة")
+        val only = read(scenario) { choices(it, C.TRACK_TYPE_VIDEO).single() }
+        open("player_quality", tv)
+        compose.onNodeWithTag("track_auto").assertTextContains("تلقائي", substring = true)
+        compose.onNodeWithTag("track_single_quality").assertExists()
+        compose.onNodeWithTag("track_option_0").assertTextContains("${only.format.width} × ${only.format.height}", substring = true)
+        compose.onNodeWithTag("track_option_1").assertDoesNotExist()
+        compose.onNodeWithTag("track_off").assertDoesNotExist()
+        captureSyntheticPreview(instrumentation, "quality-${if (tv) "tv" else "phone"}-single-ar")
+        activate("track_option_0", tv)
+        awaitPlayer(scenario) { selected(it, only) }
+        open("player_quality", tv)
+        compose.onNodeWithTag("track_option_0").assertIsSelected()
+        val staleAuto = compose.onNodeWithTag("track_auto").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        read(scenario) {
+            val uri = it.currentMediaItem!!.localConfiguration!!.uri.buildUpon().path("/master.m3u8").build()
+            it.setMediaItem(MediaItem.fromUri(uri)); it.prepare()
+        }
+        awaitPlayer(scenario) { it.playbackState == Player.STATE_READY && choices(it, C.TRACK_TYPE_TEXT).isNotEmpty() }
+        awaitGone("player_track_dialog")
+        read(scenario) {
+            val video = choices(it, C.TRACK_TYPE_VIDEO).single()
+            it.trackSelectionParameters = it.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(video.group, video.index)).build()
+        }
+        instrumentation.runOnMainSync { staleAuto() }
+        read(scenario) { assertTrue("Obsolete quality Auto must not clear new-group selection", hasOverride(it, C.TRACK_TYPE_VIDEO)) }
+    }
 
     private fun audio(activity: Class<out Activity>, tv: Boolean) = playback(activity, tv) { scenario ->
         val identity = read(scenario) { it }
@@ -199,7 +299,7 @@ class AudioSubtitlesTest {
         cancel("player_audio", tv)
     }
 
-    private fun playback(activity: Class<out Activity>, tv: Boolean, single: Boolean = false, arabic: Boolean = false, block: (ActivityScenario<Activity>) -> Unit) {
+    private fun playback(activity: Class<out Activity>, tv: Boolean, single: Boolean = false, arabic: Boolean = false, quality: Boolean = false, block: (ActivityScenario<Activity>) -> Unit) {
         instrumentation.runOnMainSync { Appearance.setDark(instrumentation.targetContext, !arabic) }
         if (arabic) instrumentation.runOnMainSync {
             if (android.os.Build.VERSION.SDK_INT >= 33) instrumentation.targetContext.getSystemService(android.app.LocaleManager::class.java).applicationLocales = android.os.LocaleList.forLanguageTags("ar")
@@ -236,7 +336,7 @@ class AudioSubtitlesTest {
             val movieId = runBlocking {
                 val saved = app.libraryStore.save(SourceSpec.file(), listOf(PlaylistEntry(
                     Channel(0, "Owned track fixture", "Synthetic", ContentKind.MOVIE),
-                    MediaAddress.parse(server.url(if (single) "/single.mp4" else "/master.m3u8").toString()))))
+                    MediaAddress.parse(server.url(if (single) "/single.mp4" else if (quality) "/quality-master.m3u8" else "/master.m3u8").toString()))))
                 saved.entries.single().channel.id
             }
             ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, activity)).use { scenario ->
@@ -348,7 +448,7 @@ class AudioSubtitlesTest {
 
     /** Only fixture tags and native focus flags; never dump semantics, titles or media URLs. */
     private fun recordFocusFailure(tag: String, dialog: Boolean) {
-        val knownTags = listOf("nav_movies", "detail_play", "player_audio", "player_subtitles",
+        val knownTags = listOf("nav_movies", "detail_play", "player_audio", "player_subtitles", "player_quality",
             "track_auto", "track_off", "track_option_0", "track_option_1")
         val safeTag = tag.takeIf { it in knownTags || it.matches(Regex("channel_[0-9]+")) } ?: "unknown"
         runCatching {

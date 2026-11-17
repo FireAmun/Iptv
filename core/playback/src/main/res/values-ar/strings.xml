@@ -8,4 +8,7 @@
     <string name="player_tracks_unavailable">لا توجد مسارات مدعومة لهذا البث.</string>
     <string name="player_track_number">المسار %1$d</string>
     <string name="player_track_distinct">%1$s · المسار %2$d</string>
+    <string name="player_quality">الجودة</string>
+    <string name="player_single_quality">تتوفر جودة واحدة فقط لهذا البث.</string>
+    <string name="player_video_bitrate">%1$s · %2$s ميغابت/ث</string>
 </resources>
