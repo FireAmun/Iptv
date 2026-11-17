@@ -4,7 +4,7 @@ set -u
 result=0
 bash ./gradlew --no-daemon --console=plain :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.diagnosticTimeoutSeconds=90 || result=$?
 if [[ "$result" -eq 0 ]]; then
-  python3 scripts/check_device_results.py --expected-tests 101 --results-dir app/build/outputs/androidTest-results/connected/debug || result=$?
+  python3 scripts/check_device_results.py --expected-tests 105 --results-dir app/build/outputs/androidTest-results/connected/debug || result=$?
 fi
 if [[ "$result" -eq 0 ]]; then
   bash ./scripts/persistence-process-test.sh || result=$?
