@@ -98,13 +98,21 @@ class AudioSubtitlesTest {
                 assertTrue(it.contentPosition in 5_500..7_000)
                 it.play()
             }
-            awaitPlayer(scenario) {
-                val exo = it as ExoPlayer
-                selected(it, chosen) && exo.videoFormat?.height == chosen.format.height &&
-                    it.videoSize.height == chosen.format.height &&
-                    (exo.videoDecoderCounters?.renderedOutputBufferCount ?: 0) > 0 && it.contentPosition > 6_250 &&
-                    selected(it, audio) && selected(it, text)
+            qualityState(scenario, chosen, audio, text, "requested")
+            try {
+                awaitPlayer(scenario) {
+                    val exo = it as ExoPlayer
+                    selected(it, chosen) && exo.videoFormat?.height == chosen.format.height &&
+                        it.videoSize.height == chosen.format.height &&
+                        (exo.videoDecoderCounters?.renderedOutputBufferCount ?: 0) > 0 && it.contentPosition > 6_250 &&
+                        selected(it, audio) && selected(it, text)
+                }
+            } catch (failure: ComposeTimeoutException) {
+                runCatching { qualityState(scenario, chosen, audio, text, "timeout") }
+                runCatching { captureSyntheticPreview(instrumentation, "quality-${if (tv) "tv" else "phone"}-output-timeout") }
+                throw failure
             }
+            qualityState(scenario, chosen, audio, text, "decoded")
             read(scenario) { it.pause(); it.seekTo(6_000) }
             awaitPlayer(scenario) { it.playbackState == Player.STATE_READY && it.contentPosition in 5_500..7_000 }
         }
@@ -118,6 +126,19 @@ class AudioSubtitlesTest {
         cancel("player_quality", tv)
         read(scenario) { assertSame(identity, it); assertSame(item, it.currentMediaItem); assertFalse(it.playWhenReady); assertTrue(it.contentPosition in 5_500..7_000) }
         assertTrue(subtitlePixels(scenario) > 0)
+    }
+
+    /** Fixed fixture dimensions/counters only; no source URL, labels, IDs or raw exceptions. */
+    private fun qualityState(scenario: ActivityScenario<Activity>, video: Choice, audio: Choice, text: Choice, phase: String) = read(scenario) {
+        val exo = it as ExoPlayer
+        val counters = exo.videoDecoderCounters
+        counters?.ensureUpdated()
+        println("IPTV_QUALITY_STATE phase=$phase target=${video.index}:${video.format.width}x${video.format.height} " +
+            "selected=${selected(it, video)} format=${exo.videoFormat?.width}x${exo.videoFormat?.height} " +
+            "output=${it.videoSize.width}x${it.videoSize.height} frames=${counters?.renderedOutputBufferCount} " +
+            "position=${it.contentPosition} buffered=${it.bufferedPosition} duration=${it.duration} " +
+            "play=${it.playWhenReady} playing=${it.isPlaying} suppression=${it.playbackSuppressionReason} " +
+            "state=${it.playbackState} error=${it.playerError?.errorCode} audio=${selected(it, audio)} text=${selected(it, text)} cues=${it.currentCues.cues.size}")
     }
 
     private fun singleQuality(activity: Class<out Activity>, tv: Boolean) = playback(activity, tv, single = true, arabic = true) { scenario ->
