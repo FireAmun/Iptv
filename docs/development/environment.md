@@ -44,4 +44,4 @@ SDK Manager 22 needs a correct SDK root/layout for image discovery. The later cl
 
 Compose/TV and entry-point libraries resolve through Gradle. Media3 1.11.1, OkHttp 5.3.2 and Coroutines 1.10.2 are included. Room and other architecture packages will be added when their capabilities are implemented; no standalone framework installation or hosted backend is required.
 
-Prototype baseline: minSdk 28, compile/target 36, temporary ID `com.fireamun.iptv.prototype`. Release identity and supported hardware remain open. Keep local SDK paths in ignored machine configuration.
+Baseline: minSdk 28, compile/target 36, Play application ID `com.fireamun.amariptv` (earlier builds used `com.fireamun.iptv.prototype`). Supported hardware remains open. Keep local SDK paths in ignored machine configuration.

@@ -62,7 +62,7 @@ apk_paths = {'app': root / 'app/build/outputs/apk/debug/app-debug.apk',
 apk_hashes = {}
 for kind, apk in apk_paths.items():
     local_digest = sha256(apk)
-    package = 'com.fireamun.iptv.prototype' + ('.test' if kind == 'test' else '')
+    package = 'com.fireamun.amariptv' + ('.test' if kind == 'test' else '')
     installed = subprocess.check_output(base + ['shell', 'pm', 'path', package], text=True).strip().splitlines()
     require(len(installed) == 1 and installed[0].startswith('package:'), 'Expected one installed APK per package')
     installed_path = installed[0].removeprefix('package:')
@@ -78,15 +78,15 @@ provenance = {'head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=
               'sourceManifestSha256': sha256(source_manifest), 'apkSha256': apk_hashes}
 result_path.write_text(json.dumps({'status': 'running', 'mode': args.mode, 'size': args.size,
                                    'provenance': provenance}, indent=2) + '\n', encoding='utf-8')
-subprocess.run(base + ['shell', 'am', 'force-stop', 'com.fireamun.iptv.prototype'], check=True)
+subprocess.run(base + ['shell', 'am', 'force-stop', 'com.fireamun.amariptv'], check=True)
 command = base + ['shell', 'am', 'instrument', '-w', '-r', '-e', 'capacityProbe', args.mode,
                   '-e', 'capacitySize', str(args.size),
-                  'com.fireamun.iptv.prototype.test/com.fireamun.iptv.prototype.ManualFixtureRunner']
+                  'com.fireamun.amariptv.test/com.fireamun.iptv.prototype.ManualFixtureRunner']
 try:
     with args.output.open('w', encoding='utf-8') as out:
         run = subprocess.run(command, stdout=out, stderr=subprocess.STDOUT, timeout=args.timeout)
 except subprocess.TimeoutExpired:
-    subprocess.run(base + ['shell', 'am', 'force-stop', 'com.fireamun.iptv.prototype'], check=True)
+    subprocess.run(base + ['shell', 'am', 'force-stop', 'com.fireamun.amariptv'], check=True)
     raise SystemExit('Capacity probe timed out; raw output retained')
 raw = args.output.read_text(encoding='utf-8')
 events = [json.loads(m.group(1)) for m in re.finditer(r'IPTV_CAPACITY (\{[^\n]+\})', raw)]

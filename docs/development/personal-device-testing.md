@@ -23,8 +23,10 @@ Set-Location D:\Side_p\iptv
 $iptvAdb = Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
 & $iptvAdb devices -l
 & $iptvAdb -d install -r .\app\build\outputs\apk\debug\app-debug.apk
-& $iptvAdb -d shell am start -n com.fireamun.iptv.prototype/.MobileActivity
+& $iptvAdb -d shell am start -n com.fireamun.amariptv/com.fireamun.iptv.prototype.MobileActivity
 ```
+
+From version 0.11.0 the application ID is `com.fireamun.amariptv`, so the new build installs next to an older `com.fireamun.iptv.prototype` installation instead of updating it. The old installation keeps its own sources and progress; add your source again in the new app. Remove the old app manually only when you no longer need its data.
 
 `-d` selects the connected physical Android device rather than the emulator. Use this shortcut only with one physical Android device attached; use `-s SERIAL` for an explicitly selected device otherwise. `install -r` updates without intentionally clearing the existing app data. No rebuild is needed to try this existing APK.
 
@@ -50,7 +52,7 @@ Once a TV is connected to ADB, replace `TV_SERIAL` with its entry from `adb devi
 
 ```powershell
 & $iptvAdb -s TV_SERIAL install -r .\app\build\outputs\apk\debug\app-debug.apk
-& $iptvAdb -s TV_SERIAL shell am start -n com.fireamun.iptv.prototype/.TvActivity
+& $iptvAdb -s TV_SERIAL shell am start -n com.fireamun.amariptv/com.fireamun.iptv.prototype.TvActivity
 ```
 
 With the real remote, test every destination, category movement, focus visibility, selection, Back from playback/episodes, login fields, source switching and light/Arabic mode. A successful phone run or cloud emulator run does not prove that TV's codec or remote compatibility. The current UI audit does not require another local emulator, host firewall changes, driver changes or a host reboot.

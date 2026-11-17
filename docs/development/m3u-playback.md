@@ -30,13 +30,13 @@ The test APK contains a separate instrumentation mode that serves only the [self
 ```powershell
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb shell am instrument -w -e manualFixture true com.fireamun.iptv.prototype.test/com.fireamun.iptv.prototype.ManualFixtureRunner
+adb shell am instrument -w -e manualFixture true com.fireamun.amariptv.test/com.fireamun.iptv.prototype.ManualFixtureRunner
 ```
 
 While the runner remains active, use another shell to launch `.MobileActivity` or `.TvActivity` and enter `http://127.0.0.1:8765/playlist.m3u`. Exercise the real URL field, HTTP confirmation, list, player and Back controls. A test M3U file pushed to Downloads can use `http://127.0.0.1:8765/clip.mp4` to exercise the real system picker. The `/missing` path returns HTTP 404 for failure/retry checks. End the fixture host with:
 
 ```powershell
-adb shell run-as com.fireamun.iptv.prototype touch cache/manual-qa-stop
+adb shell run-as com.fireamun.amariptv touch cache/manual-qa-stop
 ```
 
 It also expires after ten minutes. The fixture provider and runner exist in the instrumentation APK only. Gradle's connected-test runner uninstalls tested APKs afterward; reinstall before independent manual use.
