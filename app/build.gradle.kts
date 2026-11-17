@@ -18,18 +18,45 @@ val posthogHost = providers.gradleProperty("POSTHOG_HOST").orNull
     ?: posthogProperties.getProperty("POSTHOG_HOST")
 val safePosthogHost = posthogHost?.trim()?.takeIf { it in setOf("https://us.i.posthog.com", "https://eu.i.posthog.com") }
 
+// Upload-key signing comes only from the ignored keystore.properties or AMAR_UPLOAD_* variables.
+// Without them, release outputs are built unsigned so CI can still verify the release configuration.
+val uploadProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+fun uploadValue(key: String): String? =
+    providers.environmentVariable("AMAR_UPLOAD_$key").orNull ?: uploadProperties.getProperty(key)
+val uploadStoreFile = uploadValue("STORE_FILE")?.let(rootProject::file)?.also {
+    require(it.isFile) { "Upload keystore STORE_FILE does not exist; fix keystore.properties or AMAR_UPLOAD_STORE_FILE" }
+}
+
 android {
+    // Kotlin package/namespace stays stable; Play identity is the application ID below.
     namespace = "com.fireamun.iptv.prototype"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.fireamun.iptv.prototype"
+        applicationId = "com.fireamun.amariptv"
         minSdk = 28
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.10.0"
+        versionCode = 13
+        versionName = "0.11.0"
         testInstrumentationRunner = "com.fireamun.iptv.prototype.ManualFixtureRunner"
         buildConfigField("String", "POSTHOG_API_KEY", safePosthogProjectToken?.let { "\"$it\"" } ?: "null")
         buildConfigField("String", "POSTHOG_HOST", safePosthogHost?.let { "\"$it\"" } ?: "null")
+    }
+    signingConfigs {
+        if (uploadStoreFile != null) create("upload") {
+            storeFile = uploadStoreFile
+            storePassword = uploadValue("STORE_PASSWORD")
+            keyAlias = uploadValue("KEY_ALIAS")
+            keyPassword = uploadValue("KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("upload")
+        }
     }
     buildFeatures {
         compose = true

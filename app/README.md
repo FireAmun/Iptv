@@ -1,6 +1,6 @@
 # Android application
 
-Gradle module: `:app`, temporary application ID `com.fireamun.iptv.prototype`.
+Gradle module: `:app`, Play application ID `com.fireamun.amariptv` (Kotlin namespace `com.fireamun.iptv.prototype`). See [application identity and release signing](../docs/development/first-build.md#application-identity).
 
 Own the Android manifest, mobile/TV entry activities, Hilt composition, worker registration, and build/release configuration. Prefer one application identity across phone/tablet and TV.
 

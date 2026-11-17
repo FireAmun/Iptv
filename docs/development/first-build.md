@@ -14,7 +14,32 @@ $env:JAVA_HOME = 'C:/Program Files/Java/jdk-21'
 
 Other machines should set `JAVA_HOME` and `ANDROID_HOME` to their own installations, or set `sdk.dir` in ignored `local.properties`. Use `bash ./gradlew` on Linux/macOS. Do not commit local SDK paths.
 
-APK: `app/build/outputs/apk/debug/app-debug.apk`. CI publishes `iptv-debug` for seven days. It is debug-signed, uses temporary ID `com.fireamun.iptv.prototype`, and is not a Play release. Prototype minSdk 28 is a test baseline, not a final support policy. Compile/target SDK is 36 and bytecode target is JVM 17.
+APK: `app/build/outputs/apk/debug/app-debug.apk`. CI publishes `iptv-debug` for seven days. It is debug-signed and is not a Play release. Minimum SDK 28 is a test baseline, not a final support policy. Compile/target SDK is 36 and bytecode target is JVM 17.
+
+## Application identity
+
+Version 0.11.0 uses the permanent Play application ID `com.fireamun.amariptv`. The Kotlin namespace and activity classes remain `com.fireamun.iptv.prototype.*`; Play uses only the application ID. Earlier builds used `com.fireamun.iptv.prototype`, so a new build installs as a separate app. Existing prototype installs keep their own data and are not migrated or removed automatically.
+
+## Release bundle and upload key
+
+`:app:bundleRelease` writes `app/build/outputs/bundle/release/app-release.aab`. Release builds are non-debuggable and not minified. CI builds the bundle unsigned and runs `scripts/check_native_alignment.py` on it: every packaged native library needs a 64-bit ABI and 16 KB-aligned loadable segments, as Google Play requires for TV and Android 15+ devices.
+
+To sign a bundle for Play upload, the owner creates the upload key on their own machine. Never commit the key, its passwords or `keystore.properties`; all are ignored by Git. Back up the key file and passwords somewhere safe outside the repository; Play App Signing keeps the separate app-signing key.
+
+```powershell
+keytool -genkeypair -v -storetype PKCS12 -keystore C:/path/outside/repo/amar-upload.jks -alias amar-upload -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Then create ignored `keystore.properties` in the project root, or set the matching `AMAR_UPLOAD_*` environment variables:
+
+```properties
+STORE_FILE=C:/path/outside/repo/amar-upload.jks
+STORE_PASSWORD=...
+KEY_ALIAS=amar-upload
+KEY_PASSWORD=...
+```
+
+With these present, `./gradlew.bat :app:bundleRelease` signs the bundle with the upload key. Without them it builds an unsigned bundle.
 
 ## Current host restriction — 6 November 2026
 
