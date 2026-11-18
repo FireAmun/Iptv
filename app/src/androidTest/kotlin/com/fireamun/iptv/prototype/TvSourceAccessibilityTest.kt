@@ -40,6 +40,9 @@ class TvSourceAccessibilityTest {
         compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("manage_sources"))
         activate("manage_sources")
         compose.waitUntil(5000) { compose.onAllNodesWithTag("source_manager").fetchSemanticsNodes().isNotEmpty() }
+        // The dialog assigns its initial focus once its window is focused; act only after that, as a remote user would.
+        // Requesting focus earlier races that assignment on slow devices and the dialog moves focus back to the pick row.
+        compose.waitUntil(5000) { focused("source_pick_0") }
         compose.onNodeWithTag("source_manager").performScrollToNode(hasTestTag("source_remove_0"))
         activate("source_remove_0")
         compose.waitUntil(5000) { compose.onAllNodesWithTag("remove_cancel").fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } } }
@@ -49,9 +52,11 @@ class TvSourceAccessibilityTest {
         compose.onNodeWithTag("remove_confirm").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
         compose.runOnIdle { assertEquals("fixture-source", removed.get()) }
     }
+    private fun focused(tag: String) =
+        compose.onAllNodesWithTag(tag).fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } }
     private fun activate(tag: String) {
         compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus)
-        compose.waitUntil(5000) { compose.onNodeWithTag(tag).fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
+        compose.waitUntil(5000) { focused(tag) }
         compose.onNodeWithTag(tag).performKeyInput { pressKey(Key.DirectionCenter) }
     }
 }
