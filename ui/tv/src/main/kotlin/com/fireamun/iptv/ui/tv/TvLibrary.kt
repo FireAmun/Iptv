@@ -75,12 +75,14 @@ internal fun CinemaButton(onClick: () -> Unit, modifier: Modifier = Modifier, en
 }
 
 @Composable
-fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit, onRefreshSource: () -> Unit, onRemoveSource: () -> Unit, onSelectSource: (String) -> Unit, onRenameSource: (String, String) -> Unit, onRemoveSourceById: (String) -> Unit) {
+fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit, onRefreshSource: () -> Unit, onRemoveSource: () -> Unit, onSelectSource: (String) -> Unit, onRenameSource: (String, String) -> Unit, onRemoveSourceById: (String) -> Unit,
+    analyticsEnabled: Boolean = false, onAnalyticsChange: (Boolean) -> Unit = {}, appVersion: String = "") {
     var url by remember { mutableStateOf("") }
     var enteringUrl by remember { mutableStateOf(false) }
     var enteringLogin by remember { mutableStateOf(false) }
     var confirmingRemoval by remember { mutableStateOf(false) }
     var managingSources by remember { mutableStateOf(false) }
+    var reading by remember { mutableStateOf<LegalDocument?>(null) }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val window = LocalWindowInfo.current
@@ -152,8 +154,10 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                         SourceActions(state.importing || state.storageBlocked, { enteringLogin = true }, { enteringUrl = true }, { url = ""; keyboard?.hide(); onImportFile() })
                     }
                 }
+                item(key = "about") { TvAboutSection(analyticsEnabled, onAnalyticsChange, appVersion) { reading = it } }
             }
         }
+        reading?.let { TvLegalDocument(it) { reading = null } }
         if (managingSources) TvSources(state, { managingSources = false }, onSelectSource, onRenameSource, onRemoveSourceById)
         if (enteringLogin) TvServerLogin(onDismiss = { enteringLogin = false }, onSubmit = { name, server, username, password -> enteringLogin = false; onServerLogin(name, server, username, password) })
         if (confirmingRemoval) {
