@@ -22,7 +22,10 @@ class IptvApplication : Application() {
         // Monitoring is optional; configuration or SDK failure must not block playback.
         runCatching {
             postHogConfiguration(BuildConfig.POSTHOG_API_KEY, BuildConfig.POSTHOG_HOST)?.let {
+                // Nothing is captured before the Terms are accepted or after the user turns statistics off.
+                it.optOut = !LegalConsent.analyticsAllowed(this)
                 PostHogAndroid.setup(this, it)
+                LegalConsent.applyAnalytics(this)
             }
         }
     }

@@ -68,7 +68,10 @@ class PersistenceFlowTest {
                     if (tv) awaitFocus("language_switch")
                 }
                 compose.openDestination("nav_settings", tv)
-                compose.onNodeWithTag("refresh_source").performScrollTo()
+                // The phone settings list is lazy: after the language switch it can restore a position where the
+                // library card is not composed, so scroll the list to it rather than expecting the node to exist.
+                if (tv) compose.onNodeWithTag("refresh_source").performScrollTo()
+                else compose.onNodeWithTag("library_list").performScrollToNode(hasTestTag("refresh_source"))
                 compose.waitForIdle()
                 captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-saved-${if (iteration == 0) "dark-en" else "light-ar"}")
             }

@@ -23,8 +23,10 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.PlaybackStatus
 import com.fireamun.iptv.core.playback.PlaybackSurface
+import com.fireamun.iptv.ui.mobile.MobileLegalGate
 import com.fireamun.iptv.ui.mobile.MobilePlayback
 import com.fireamun.iptv.ui.mobile.MobileWelcome
+import com.fireamun.iptv.ui.tv.TvLegalGate
 import com.fireamun.iptv.ui.tv.TvPlayback
 import com.fireamun.iptv.ui.tv.TvWelcome
 import java.io.IOException
@@ -74,6 +76,8 @@ abstract class LibraryActivity : AppCompatActivity() {
             // A recreated activity has already consumed this launch, even if rotated mid-intro.
             var introFinished by remember { mutableStateOf(savedInstanceState != null) }
             val showStartup = !introFinished || state.restoring
+            var termsAccepted by remember { mutableStateOf(LegalConsent.termsAccepted(this)) }
+            var analyticsEnabled by remember { mutableStateOf(LegalConsent.analyticsEnabled(this)) }
             SideEffect {
                 WindowCompat.getInsetsController(window, window.decorView).apply {
                     isAppearanceLightStatusBars = if (showStartup) true else !dark
@@ -83,6 +87,11 @@ abstract class LibraryActivity : AppCompatActivity() {
             val active = request
             if (showStartup) {
                 AmarStartupScreen(onIntroFinished = { introFinished = true })
+            } else if (!termsAccepted) {
+                // Shown once per Terms version, before any source can be added or played.
+                val accept: (Boolean) -> Unit = { analytics -> LegalConsent.accept(this, analytics); analyticsEnabled = analytics; termsAccepted = true }
+                if (television) TvLegalGate(accept, ::finish) { toggleAppLanguage() }
+                else MobileLegalGate(accept, ::finish) { toggleAppLanguage() }
             } else if (active != null) {
                 key(active.sessionId) {
                     var status by remember { mutableStateOf(PlaybackStatus.PREPARING) }
@@ -101,14 +110,17 @@ abstract class LibraryActivity : AppCompatActivity() {
                     else MobilePlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface)
                 }
             } else {
+                val onAnalytics: (Boolean) -> Unit = { LegalConsent.setAnalytics(this, it); analyticsEnabled = it }
                 BackHandler(enabled = state.canGoBack) { library.backToCatalog() }
                 BackHandler(enabled = state.tab == com.fireamun.iptv.core.model.LibraryTab.SEARCH && !state.canGoBack) { library.closeSearch() }
                 browserState.SaveableStateProvider("browser") {
                     LibraryBrowser(state, catalogue, television, (application as IptvApplication).artworkLoader,
                         library::selectTab, library::search, library::selectCategory, library::selectChannel, library::toggleFavourite, library::backToCatalog, library::closeSearch,
                         watch, library::playRecent) {
-                        if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
-                        else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource)
+                        if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource,
+                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME)
+                        else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource,
+                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME)
                     }
                 }
             }

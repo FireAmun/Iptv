@@ -29,7 +29,11 @@ class ManualFixtureRunner : AndroidJUnitRunner() {
         if (manual) serveFixture()
         else if (persistenceProbe != null) persistenceProcessProbe(persistenceProbe!!)
         else if (capacityProbe != null) catalogueCapacityProbe(capacityProbe!!, capacitySize)
-        else super.onStart()
+        else {
+            // Instrumented flows start behind an accepted first-launch agreement; LegalGateTest resets it to test the gate itself.
+            LegalConsent.accept(targetContext, analytics = false)
+            super.onStart()
+        }
     }
     private fun serveFixture() {
         val stop = File(targetContext.cacheDir, "manual-qa-stop")
