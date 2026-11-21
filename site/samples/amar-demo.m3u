@@ -1,0 +1,12 @@
+#EXTM3U
+# Amar Iptv sample playlist: a few openly licensed films and public test streams for trying the app.
+# Amar Iptv provides no channels or content; this file only points at public demonstration streams.
+# Big Buck Bunny and Tears of Steel: (c) Blender Foundation, https://www.blender.org/about/projects/
+# Licensed under Creative Commons Attribution 3.0, https://creativecommons.org/licenses/by/3.0/
+# The streams are hosted by Mux and Unified Streaming as public test streams and may change or stop.
+#EXTINF:-1 group-title="Open movies",Big Buck Bunny (Blender Foundation, CC BY 3.0)
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+#EXTINF:-1 group-title="Open movies",Tears of Steel (Blender Foundation, CC BY 3.0)
+https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8
+#EXTINF:-1 group-title="Live test streams",Unified Streaming live test
+https://demo.unified-streaming.com/k8s/live/stable/live.isml/.m3u8

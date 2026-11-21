@@ -120,6 +120,21 @@ class BuildSiteTest(unittest.TestCase):
         for path in ("privacy/index.html", "ar/privacy/index.html"):
             self.assertTrue((self.out / path).is_file(), path)
 
+    def test_sample_playlist_is_published_with_credits_and_secure_streams(self):
+        text = (self.out / "samples" / "amar-demo.m3u").read_text(encoding="utf-8")
+        lines = text.splitlines()
+        self.assertEqual("#EXTM3U", lines[0])
+        self.assertIn("Blender Foundation", text)
+        self.assertIn("creativecommons.org/licenses/by/3.0", text)
+        entries = [line for line in lines if line.startswith("#EXTINF:")]
+        streams = [line for line in lines if line and not line.startswith("#")]
+        self.assertTrue(entries)
+        self.assertEqual(len(entries), len(streams))
+        for entry in entries:
+            self.assertIn('group-title="', entry)
+        for stream in streams:
+            self.assertTrue(stream.startswith("https://"), stream)
+
     def test_parser_matches_the_app_rules(self):
         blocks = build_site.parse_markdown("# Title\n\nOne\ntwo\n\n## Part\n- item\nAfter")
         self.assertEqual([("h1", "Title"), ("p", "One two"), ("h2", "Part"), ("li", "item"), ("p", "After")], blocks)
