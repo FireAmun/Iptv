@@ -10,6 +10,7 @@ Arabic and English IPTV player for Android phones, tablets, and Android TV/Googl
 - [Project instructions](AGENTS.md)
 - [GitHub delivery and CI](docs/development/github-workflow.md)
 - [PostHog setup and captured data](docs/development/posthog.md)
+- [Website (download and legal pages) and releases](docs/development/releases.md): <https://fireamun.github.io/Iptv/>
 - [Cinema design and app previews](docs/design/README.md)
 
 ## Directory layout

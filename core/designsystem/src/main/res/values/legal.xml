@@ -19,6 +19,7 @@
     <string name="legal_about_title">Legal &amp; About</string>
     <string name="legal_version">Version %1$s</string>
     <string name="legal_contact">Support: %1$s</string>
+    <string name="legal_privacy_online">Privacy Policy online: %1$s</string>
     <string name="legal_close">Close</string>
     <string name="legal_scroll_hint">Use up and down to read. Press Back to close.</string>
 </resources>

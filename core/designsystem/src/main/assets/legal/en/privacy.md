@@ -50,6 +50,10 @@ We do not sell, rent or share information for advertising. Usage statistics are 
 - Turn usage statistics off in Settings, under Legal & About.
 - Statistics are anonymous, so we usually cannot link them to you. You can still email us with any question or deletion request.
 
+## This website
+
+The website where the app download and these documents are published is hosted by GitHub Pages. GitHub receives visitors' IP addresses and request details under its own privacy statement. The download page asks GitHub for the latest version details directly from your browser. The website uses no cookies, analytics or advertising.
+
 ## Children
 
 The app is not directed at children under 13.

@@ -142,5 +142,7 @@ class PersistenceFlowTest {
             node.assertIsDisplayed().performClick()
         }
     }
-    private fun awaitFocus(tag: String) { compose.waitUntil(5000) { compose.onNodeWithTag(tag).fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } } }
+    // After a dialog closes, TvWelcome scrolls back to the header before focusing it; until then a lazy item can be
+    // composed but not placed, so treat a missing node as "not focused yet" instead of failing at once.
+    private fun awaitFocus(tag: String) { compose.waitUntil(5000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } } } }
 }

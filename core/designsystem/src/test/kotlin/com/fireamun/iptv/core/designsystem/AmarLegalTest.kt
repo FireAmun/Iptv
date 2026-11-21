@@ -33,6 +33,11 @@ class AmarLegalTest {
         }
     }
 
+    @Test fun privacyAddressPointsAtThePublishedLanguagePage() {
+        assertEquals("https://fireamun.github.io/Iptv/privacy/", AmarLegal.privacyPolicyUrl(arabic = false))
+        assertEquals("https://fireamun.github.io/Iptv/ar/privacy/", AmarLegal.privacyPolicyUrl(arabic = true))
+    }
+
     @Test fun noticesShipEveryReferencedLicenseText() {
         for (path in listOf("legal/en/notices.md", "licenses/Apache-2.0.txt", "licenses/Manrope-OFL.txt", "licenses/Cairo-OFL.txt"))
             assertTrue(path, File(assets, path).readText().isNotBlank())

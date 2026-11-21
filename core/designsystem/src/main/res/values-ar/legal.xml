@@ -19,6 +19,7 @@
     <string name="legal_about_title">القانونية وحول التطبيق</string>
     <string name="legal_version">الإصدار %1$s</string>
     <string name="legal_contact">الدعم: %1$s</string>
+    <string name="legal_privacy_online">سياسة الخصوصية على الويب: %1$s</string>
     <string name="legal_close">إغلاق</string>
     <string name="legal_scroll_hint">استخدم السهمين للأعلى وللأسفل للقراءة، واضغط رجوع للإغلاق.</string>
 </resources>

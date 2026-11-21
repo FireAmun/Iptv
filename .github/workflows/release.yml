@@ -1,0 +1,128 @@
+name: Release
+
+# Pushing a version tag such as v0.12.0 (matching versionName, on a commit already in main)
+# builds a signed APK and AAB and publishes the APK as a GitHub Release. The website's
+# download button always points at the latest release's amar-iptv.apk.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Signed release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check the tag matches the app version and main
+        run: |
+          version=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' app/build.gradle.kts)
+          if [[ -z "$version" || "v$version" != "$TAG" ]]; then
+            echo "::error::Tag $TAG does not match versionName \"$version\" in app/build.gradle.kts."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $TAG is not on main. Release only commits that passed CI on main."
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Check signing secrets
+        env:
+          KEYSTORE: ${{ secrets.AMAR_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.AMAR_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.AMAR_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.AMAR_UPLOAD_KEY_PASSWORD }}
+        run: |
+          missing=()
+          [[ -n "$KEYSTORE" ]] || missing+=(AMAR_UPLOAD_KEYSTORE_BASE64)
+          [[ -n "$STORE_PASSWORD" ]] || missing+=(AMAR_UPLOAD_STORE_PASSWORD)
+          [[ -n "$KEY_ALIAS" ]] || missing+=(AMAR_UPLOAD_KEY_ALIAS)
+          [[ -n "$KEY_PASSWORD" ]] || missing+=(AMAR_UPLOAD_KEY_PASSWORD)
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing repository secrets: ${missing[*]}. See docs/development/releases.md."
+            exit 1
+          fi
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          cmdline-tools-version: '15859902'
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Restore the signing key
+        env:
+          KEYSTORE: ${{ secrets.AMAR_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          umask 077
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/amar-upload.jks"
+      - name: Build signed APK and AAB
+        env:
+          AMAR_UPLOAD_STORE_PASSWORD: ${{ secrets.AMAR_UPLOAD_STORE_PASSWORD }}
+          AMAR_UPLOAD_KEY_ALIAS: ${{ secrets.AMAR_UPLOAD_KEY_ALIAS }}
+          AMAR_UPLOAD_KEY_PASSWORD: ${{ secrets.AMAR_UPLOAD_KEY_PASSWORD }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          # The app needs both values; the Privacy Policy names US servers, so US is the default.
+          POSTHOG_HOST: ${{ vars.POSTHOG_HOST || 'https://us.i.posthog.com' }}
+        run: |
+          export AMAR_UPLOAD_STORE_FILE="$RUNNER_TEMP/amar-upload.jks"
+          bash ./gradlew --no-daemon --console=plain :app:assembleRelease :app:bundleRelease
+      - name: Check release bundle native libraries
+        run: python3 scripts/check_native_alignment.py app/build/outputs/bundle/release/app-release.aab
+      - name: Verify signatures
+        env:
+          EXPECTED_CERT_SHA256: ${{ vars.AMAR_SIGNING_CERT_SHA256 }}
+        run: |
+          apk=app/build/outputs/apk/release/app-release.apk
+          test -f "$apk" || { echo "::error::Signed APK missing; the build produced an unsigned release."; exit 1; }
+          certs=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk")
+          echo "$certs" | grep -E 'Signer #1 certificate (DN|SHA-256)'
+          actual=$(echo "$certs" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr -d ':' | tr 'A-F' 'a-f')
+          expected=$(echo "$EXPECTED_CERT_SHA256" | tr -d ': ' | tr 'A-F' 'a-f')
+          if [[ -n "$expected" && "$actual" != "$expected" ]]; then
+            echo "::error::APK signed with an unexpected certificate ($actual)."
+            exit 1
+          fi
+          bundle=$(jarsigner -verify app/build/outputs/bundle/release/app-release.aab)
+          grep -q 'jar verified' <<< "$bundle" || { echo "::error::The AAB is not signed."; exit 1; }
+      - name: Prepare release files
+        run: |
+          mkdir -p "$RUNNER_TEMP/dist"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/dist/amar-iptv.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/dist/amar-iptv-$VERSION.aab"
+          (cd "$RUNNER_TEMP/dist" && sha256sum amar-iptv.apk > amar-iptv.apk.sha256 && cat amar-iptv.apk.sha256)
+      - name: Save the Play upload bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: play-bundle-${{ github.ref_name }}
+          path: ${{ runner.temp }}/dist/amar-iptv-*.aab
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" "$RUNNER_TEMP/dist/amar-iptv.apk" "$RUNNER_TEMP/dist/amar-iptv.apk.sha256" \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "Amar Iptv $VERSION"
+      - name: Remove the signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/amar-upload.jks"
