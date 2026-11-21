@@ -177,30 +177,17 @@ class XtreamFlowTest {
             for ((tag, value) in listOf("playlist_name" to "Fixture playlist", "server_url" to server,
                 "server_username" to "fixture-user", "server_password" to password)) {
                 val field = compose.onNodeWithTag(tag)
-                var previous: Pair<androidx.compose.ui.geometry.Rect, Float?>? = null
-                var settledSamples = 0
-                val deadline = android.os.SystemClock.uptimeMillis() + 5000
+                val deadline = android.os.SystemClock.uptimeMillis() + 10_000
                 try {
-                    compose.waitUntil(5000) {
-                        // Native waiting does not advance paused Compose scroll animations.
-                        // Three stable samples must cover both native and virtual settling time.
-                        compose.mainClock.advanceTimeBy(100)
-                        // A visible frame can precede the next native IME/bring-into-view layout.
-                        // Sample both clocks without retrying assertions or the text-input action.
-                        val remaining = deadline - android.os.SystemClock.uptimeMillis()
-                        if (remaining <= 100) return@waitUntil false
-                        instrumentation.uiAutomation.waitForIdle(100, remaining)
-                        val node = field.fetchSemanticsNode()
-                        val scroll = compose.onAllNodesWithTag("mobile_form_scroll").fetchSemanticsNodes()
-                            .singleOrNull()?.config?.let {
-                                if (it.contains(SemanticsProperties.VerticalScrollAxisRange)) it[SemanticsProperties.VerticalScrollAxisRange] else null
-                            }
-                        val geometry = node.boundsInWindow to scroll?.value?.invoke()
-                        val ready = node.config.getOrElse(SemanticsProperties.Focused) { false } && field.isDisplayed()
-                        settledSamples = if (!ready) 0 else if (geometry == previous) settledSamples + 1 else 1
-                        previous = geometry
-                        settledSamples >= 3
-                    }
+                    // A native IME change can land after the field settled, for example the TV keyboard switching
+                    // to its password layout: the dialog shrinks and the field leaves the viewport before the paused
+                    // virtual clock runs the effect that scrolls it back. Settle again on both clocks, at most three
+                    // times; the assertion below still fails if the field never returns into view.
+                    var rounds = 0
+                    do {
+                        awaitFieldSettled(field, deadline)
+                        rounds++
+                    } while (rounds < 3 && !(field.fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } && field.isDisplayed()))
                     field.assertIsFocused().assertIsDisplayed().performTextInput(value)
                 } catch (failure: Throwable) {
                     runCatching {
@@ -216,6 +203,31 @@ class XtreamFlowTest {
                 instrumentation.uiAutomation.waitForIdle(100, 5000)
             }
         } finally { compose.mainClock.autoAdvance = autoAdvance }
+    }
+    private fun awaitFieldSettled(field: SemanticsNodeInteraction, deadline: Long) {
+        var previous: Pair<androidx.compose.ui.geometry.Rect, List<Float>>? = null
+        var settledSamples = 0
+        compose.waitUntil((deadline - android.os.SystemClock.uptimeMillis()).coerceAtLeast(1)) {
+            // Native waiting does not advance paused Compose scroll animations.
+            // Three stable samples must cover both native and virtual settling time.
+            compose.mainClock.advanceTimeBy(100)
+            // A visible frame can precede the next native IME/bring-into-view layout.
+            // Sample both clocks without retrying assertions or the text-input action.
+            val remaining = deadline - android.os.SystemClock.uptimeMillis()
+            if (remaining <= 100) return@waitUntil false
+            instrumentation.uiAutomation.waitForIdle(100, remaining)
+            val node = field.fetchSemanticsNode()
+            val scrolls = listOf("mobile_form_scroll", "server_login_fields").mapNotNull { tag ->
+                compose.onAllNodesWithTag(tag).fetchSemanticsNodes().singleOrNull()?.config?.let {
+                    if (it.contains(SemanticsProperties.VerticalScrollAxisRange)) it[SemanticsProperties.VerticalScrollAxisRange].value() else null
+                }
+            }
+            val geometry = node.boundsInWindow to scrolls
+            val ready = node.config.getOrElse(SemanticsProperties.Focused) { false } && field.isDisplayed()
+            settledSamples = if (!ready) 0 else if (geometry == previous) settledSamples + 1 else 1
+            previous = geometry
+            settledSamples >= 3
+        }
     }
     private fun loginDiagnostics(expected: String) {
         // Only geometry/known tags from synthetic fixtures; never dump text/semantics trees.
