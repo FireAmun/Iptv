@@ -28,7 +28,7 @@ Play's current default ([Use Play App Signing](https://support.google.com/google
   > 1. Open the app, tick the agreement box and tap "Agree and continue".
   > 2. On Settings, tap "Add M3U URL", enter https://fireamun.github.io/Iptv/samples/amar-demo.m3u and tap "Load playlist".
   > 3. Live TV now lists Big Buck Bunny, Tears of Steel (Blender Foundation, CC BY 3.0) and a live test stream. Tap one to play.
-  > On Android TV, the same steps work with the remote; "Add M3U URL" is on the Settings screen.
+  > On Android TV, use the remote: on Settings, under "Add a source", choose "M3U URL", enter the same address and choose "Load playlist".
 
   Before each submission, open the playlist in the app once; the streams are third-party public test streams and can stop.
 - Ads: the app contains no ads.
