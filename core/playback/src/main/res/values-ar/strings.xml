@@ -11,4 +11,5 @@
     <string name="player_quality">الجودة</string>
     <string name="player_single_quality">تتوفر جودة واحدة فقط لهذا البث.</string>
     <string name="player_video_bitrate">%1$s · %2$s ميغابت/ث</string>
+    <string name="player_minimize">تصغير</string>
 </resources>

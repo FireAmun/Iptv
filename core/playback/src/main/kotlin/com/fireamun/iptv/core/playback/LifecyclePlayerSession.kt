@@ -7,6 +7,7 @@ import androidx.annotation.OptIn
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.TrackSelectionParameters
@@ -34,6 +35,8 @@ internal class LifecyclePlayerSession(
     private val onStatus: (PlaybackStatus) -> Unit,
     private val onDisposed: () -> Unit,
     private val onPlayerChanged: (Player?) -> Unit,
+    private val onPresentation: (PlaybackPresentation) -> Unit = {},
+    private val onCommands: (PlaybackCommands?) -> Unit = {},
 ) : DefaultLifecycleObserver {
     private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
@@ -45,6 +48,9 @@ internal class LifecyclePlayerSession(
     private var lastEligibleCheckpoint: PlaybackCheckpoint? = null
     // In-memory preferences belong to this request only, never the next programme.
     private var trackParameters: TrackSelectionParameters? = null
+    // Pause intent survives a real STOP/START of the same request, like the track choices above.
+    private var playbackIntent = true
+    private var controlsVisible = true
     private var closed = false
     private val poll = object : Runnable {
         override fun run() {
@@ -60,8 +66,32 @@ internal class LifecyclePlayerSession(
         view?.player = null
         view = target
         target.player = player
-        target.showController()
-        target.requestFocus()
+        showControls(target)
+    }
+
+    /** Picture-in-picture hides the native controller; the same view and player stay attached. */
+    fun setControlsVisible(visible: Boolean) {
+        if (controlsVisible == visible) return
+        controlsVisible = visible
+        view?.let(::showControls)
+    }
+
+    private fun showControls(target: PlayerView) {
+        target.useController = controlsVisible
+        if (controlsVisible) { target.showController(); target.requestFocus() } else target.hideController()
+    }
+
+    private fun present(active: ExoPlayer) {
+        if (closed || player !== active) return
+        val size = active.videoSize
+        val ratio = if (size.width > 0 && size.height > 0)
+            (size.width * size.pixelWidthHeightRatio / size.height).takeIf { it.isFinite() && it > 0 } ?: (16f / 9f)
+        else 16f / 9f
+        val available = active.playerError == null && active.currentTracks.isTypeSupported(C.TRACK_TYPE_VIDEO) &&
+            active.playbackState in setOf(Player.STATE_READY, Player.STATE_BUFFERING)
+        onPresentation(PlaybackPresentation(available,
+            active.playWhenReady && active.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE,
+            active.isPlaying, ratio))
     }
 
     override fun onStart(owner: LifecycleOwner) {
@@ -80,10 +110,16 @@ internal class LifecyclePlayerSession(
         trackParameters?.let { active.trackSelectionParameters = it }
         player = active
         onPlayerChanged(active)
+        onCommands(PlaybackCommands(
+            { if (!closed && player === active) active.play() },
+            { if (!closed && player === active) active.pause() },
+            { close() },
+        ))
         active.setAudioAttributes(AudioAttributes.DEFAULT, true)
         active.setHandleAudioBecomingNoisy(true)
         val observer = object : Player.Listener {
             private fun current() = !closed && player === active
+            override fun onEvents(player: Player, events: Player.Events) { if (current()) present(active) }
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (!current()) return
                 when (playbackState) {
@@ -128,13 +164,13 @@ internal class LifecyclePlayerSession(
         listener = observer
         active.addListener(observer)
         onStatus(PlaybackStatus.PREPARING)
-        view?.apply { player = active; showController(); requestFocus() }
+        view?.let { it.player = active; showControls(it) }
         val item = MediaItem.fromUri(request.address.reveal())
         if (request.kind in setOf(ContentKind.MOVIE, ContentKind.EPISODE))
             active.setMediaItem(item, resumeOffset(start.positionMs, null))
         else active.setMediaItem(item)
         active.prepare()
-        active.playWhenReady = true
+        active.playWhenReady = playbackIntent
     }
 
     override fun onStop(owner: LifecycleOwner) { release() }
@@ -158,8 +194,11 @@ internal class LifecyclePlayerSession(
         val old = player ?: return
         checkpoint(old, old.playbackState == Player.STATE_ENDED)
         trackParameters = old.trackSelectionParameters
+        playbackIntent = old.playWhenReady
         player = null
         onPlayerChanged(null)
+        onPresentation(PlaybackPresentation())
+        onCommands(null)
         view?.player = null
         listener?.let(old::removeListener)
         listener = null

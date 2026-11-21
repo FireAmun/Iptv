@@ -71,10 +71,11 @@ internal fun PlayerTrackControls(
     player: Player?,
     television: Boolean,
     modifier: Modifier = Modifier,
+    onMinimize: (() -> Unit)? = null,
 ) {
     val latestPlayer by rememberUpdatedState(player)
     key(player) {
-        PlayerTrackControlsContent(player, { latestPlayer === player }, television, modifier)
+        PlayerTrackControlsContent(player, { latestPlayer === player }, television, modifier, onMinimize)
     }
 }
 
@@ -85,6 +86,7 @@ private fun PlayerTrackControlsContent(
     isCurrent: () -> Boolean,
     television: Boolean,
     modifier: Modifier,
+    onMinimize: (() -> Unit)?,
 ) {
     var snapshot by remember(player) { mutableStateOf(player?.trackSnapshot()) }
     var attached by remember { mutableStateOf(false) }
@@ -140,6 +142,9 @@ private fun PlayerTrackControlsContent(
         }
         TrackButton(stringResource(R.string.player_quality), Modifier.focusRequester(videoFocus).testTag("player_quality"), snapshot?.canSelect == true) {
             requestedType = C.TRACK_TYPE_VIDEO
+        }
+        if (!television && onMinimize != null) {
+            TrackButton(stringResource(R.string.player_minimize), Modifier.testTag("player_pip"), true, onMinimize)
         }
     }
     val type = requestedType

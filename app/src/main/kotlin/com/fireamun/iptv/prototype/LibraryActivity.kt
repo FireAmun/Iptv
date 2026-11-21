@@ -23,6 +23,8 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.PlaybackStatus
 import com.fireamun.iptv.core.playback.PlaybackSurface
+import com.fireamun.iptv.core.playback.PlaybackCommands
+import com.fireamun.iptv.core.playback.PlaybackPresentation
 import com.fireamun.iptv.ui.mobile.MobileLegalGate
 import com.fireamun.iptv.ui.mobile.MobilePlayback
 import com.fireamun.iptv.ui.mobile.MobileWelcome
@@ -34,6 +36,36 @@ import kotlinx.coroutines.CancellationException
 
 abstract class LibraryActivity : AppCompatActivity() {
     protected abstract val television: Boolean
+    protected open val pictureInPictureActive: Boolean get() = false
+    protected open val pictureInPictureSupported: Boolean get() = false
+    protected open fun requestPictureInPicture() {}
+    protected open fun updatePlayerPresentation(presentation: PlaybackPresentation) {}
+    protected open fun updatePlayerCommands(commands: PlaybackCommands?) {}
+    protected open fun updatePlayerBounds(bounds: android.graphics.Rect) {}
+    private var playerOwnerSessionId: String? = null
+    private var playerOwnerClose: (() -> Unit)? = null
+    protected fun closePlaybackFromPictureInPicture() {
+        // ON_STOP may release Media3 before Activity.onStop (API29+ pre-stop callback).
+        // Keep the concrete owner close until disposal, even after active commands disappear.
+        val close = playerOwnerClose
+        library.closePlayback()
+        close?.invoke()
+    }
+    private fun acceptPlayerCommands(sessionId: String, commands: PlaybackCommands?) {
+        if (commands != null) {
+            playerOwnerSessionId = sessionId
+            playerOwnerClose = commands.close
+        }
+        if (playerOwnerSessionId == sessionId) updatePlayerCommands(commands)
+    }
+    private fun playerOwnerDisposed(sessionId: String) {
+        if (playerOwnerSessionId == sessionId) {
+            playerOwnerSessionId = null
+            playerOwnerClose = null
+            updatePlayerCommands(null)
+        }
+        library.playbackDisposed(sessionId)
+    }
     private var refreshingFile = false
     private val library by lazy {
         ViewModelProvider(this, object : ViewModelProvider.Factory {
@@ -95,19 +127,25 @@ abstract class LibraryActivity : AppCompatActivity() {
             } else if (active != null) {
                 key(active.sessionId) {
                     var status by remember { mutableStateOf(PlaybackStatus.PREPARING) }
+                    var presentation by remember { mutableStateOf(PlaybackPresentation()) }
                     val title = state.selectedTitle ?: getString(R.string.player_title)
                     val surface: @Composable (Modifier) -> Unit = { modifier -> PlaybackSurface(
                         active,
                         { library.startPlaybackInstance(active.sessionId) },
                         { instanceId, checkpoint -> library.playbackCheckpoint(active.sessionId, instanceId, checkpoint) },
                         { status = it },
-                        { library.playbackDisposed(active.sessionId) },
+                        { playerOwnerDisposed(active.sessionId) },
                         modifier,
                         television = television,
+                        inPictureInPicture = pictureInPictureActive,
+                        onMinimize = if (!television && pictureInPictureSupported && presentation.canEnter) ({ requestPictureInPicture() }) else null,
+                        onPresentation = { presentation = it; updatePlayerPresentation(it) },
+                        onCommands = { acceptPlayerCommands(active.sessionId, it) },
+                        onVideoBounds = ::updatePlayerBounds,
                     ) }
-                    BackHandler { library.closePlayback() }
+                    BackHandler(enabled = !pictureInPictureActive) { library.closePlayback() }
                     if (television) TvPlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface)
-                    else MobilePlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface)
+                    else MobilePlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface, hideChrome = pictureInPictureActive)
                 }
             } else {
                 val onAnalytics: (Boolean) -> Unit = { LegalConsent.setAnalytics(this, it); analyticsEnabled = it }
@@ -124,7 +162,7 @@ abstract class LibraryActivity : AppCompatActivity() {
                     }
                 }
             }
-            if (!showStartup) ProgressOverlays(watch, television, library::continuePlayback, library::startPlaybackOver, library::cancelResumeChoice, library::dismissProgressError)
+            if (!showStartup && !pictureInPictureActive) ProgressOverlays(watch, television, library::continuePlayback, library::startPlaybackOver, library::cancelResumeChoice, library::dismissProgressError)
         }
     }
     override fun onSaveInstanceState(outState: Bundle) {

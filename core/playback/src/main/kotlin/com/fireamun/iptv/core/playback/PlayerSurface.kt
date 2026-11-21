@@ -8,6 +8,7 @@ import androidx.media3.common.Player
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.util.UnstableApi
@@ -30,6 +31,11 @@ fun PlaybackSurface(
     onDisposed: () -> Unit,
     modifier: Modifier = Modifier,
     television: Boolean = false,
+    inPictureInPicture: Boolean = false,
+    onMinimize: (() -> Unit)? = null,
+    onPresentation: (PlaybackPresentation) -> Unit = {},
+    onCommands: (PlaybackCommands?) -> Unit = {},
+    onVideoBounds: (android.graphics.Rect) -> Unit = {},
 ) {
     key(request.sessionId) {
         val context = LocalContext.current
@@ -38,15 +44,27 @@ fun PlaybackSurface(
         val latestCheckpoint by rememberUpdatedState(onCheckpoint)
         val latestStatus by rememberUpdatedState(onStatus)
         val latestDisposed by rememberUpdatedState(onDisposed)
+        val latestPresentation by rememberUpdatedState(onPresentation)
+        val latestCommands by rememberUpdatedState(onCommands)
+        val latestBounds by rememberUpdatedState(onVideoBounds)
         var activePlayer by remember { mutableStateOf<Player?>(null) }
+        var playerView by remember { mutableStateOf<PlayerView?>(null) }
         val session = remember {
             LifecyclePlayerSession(context.applicationContext, request,
                 { latestStart() }, { id, value -> latestCheckpoint(id, value) },
-                { latestStatus(it) }, { latestDisposed() }, { activePlayer = it })
+                { latestStatus(it) }, { latestDisposed() }, { activePlayer = it },
+                { latestPresentation(it) }, { latestCommands(it) })
         }
         Column(modifier) {
-        AndroidView(modifier = Modifier.weight(1f).fillMaxWidth().testTag("player_surface"), factory = { viewContext ->
+        AndroidView(modifier = Modifier.weight(1f).fillMaxWidth().testTag("player_surface").onGloballyPositioned {
+            // Source bounds let the system animate from the video into the PiP window.
+            playerView?.let { view ->
+                val bounds = android.graphics.Rect()
+                if (view.getGlobalVisibleRect(bounds)) latestBounds(bounds)
+            }
+        }, factory = { viewContext ->
             PlayerView(viewContext).apply {
+                playerView = this
                 setBackgroundColor(android.graphics.Color.BLACK)
                 setShutterBackgroundColor(android.graphics.Color.BLACK)
                 findViewById<DefaultTimeBar>(androidx.media3.ui.R.id.exo_progress)?.apply {
@@ -55,15 +73,16 @@ fun PlaybackSurface(
                     setBufferedColor(Cinema.Sand.toArgb())
                 }
                 keepScreenOn = true
-                useController = true
+                useController = !inPictureInPicture
                 setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                 setErrorMessageProvider { android.util.Pair.create(0, viewContext.getString(R.string.playback_error)) }
+                session.setControlsVisible(!inPictureInPicture)
                 session.attach(this)
             }
-        }, update = { session.attach(it) }, onRelease = { session.close() })
-        PlayerTrackControls(activePlayer, television,
+        }, update = { session.setControlsVisible(!inPictureInPicture); session.attach(it) }, onRelease = { session.close() })
+        if (!inPictureInPicture) PlayerTrackControls(activePlayer, television,
             Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
-                .padding(horizontal = 8.dp, vertical = 4.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp), onMinimize = onMinimize)
         }
         DisposableEffect(session, lifecycle) {
             lifecycle.addObserver(session)
