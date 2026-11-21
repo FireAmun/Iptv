@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.*
+import com.fireamun.iptv.core.designsystem.bringIntoViewAfterFrame
 import com.fireamun.iptv.core.designsystem.cinemaPalette
 
 @Composable
@@ -107,10 +108,7 @@ private fun LoginField(value: String, onChange: (String) -> Unit, label: Int, ta
     val configuration = LocalConfiguration.current
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     LaunchedEffect(focused, imeBottom, configuration.screenHeightDp, configuration.fontScale) {
-        if (focused) {
-            withFrameNanos { }
-            relocation.bringIntoView()
-        }
+        if (focused) relocation.bringIntoViewAfterFrame()
     }
     Column(Modifier.bringIntoViewRequester(relocation), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(label), color = p.muted, style = MaterialTheme.typography.labelMedium)

@@ -195,7 +195,7 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                 var panelBounds by remember { mutableStateOf(Rect.Zero) }
                 val dismissPanel by rememberUpdatedState(::dismissUrl)
                 LaunchedEffect(inputFocused, imeBottom, configuration.screenHeightDp, configuration.fontScale) {
-                    if (inputFocused) { withFrameNanos { }; relocation.bringIntoView() }
+                    if (inputFocused) relocation.bringIntoViewAfterFrame()
                 }
                 // TV IMEs can remain visible while reporting a zero bottom inset; keep the field above them.
                 BoxWithConstraints(Modifier.fillMaxSize().pointerInput(Unit) {
