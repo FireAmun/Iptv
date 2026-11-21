@@ -22,7 +22,15 @@ Play's current default ([Use Play App Signing](https://support.google.com/google
 ## Privacy policy and app access
 
 - Privacy policy URL: `https://fireamun.github.io/Iptv/privacy/` (Arabic: `/Iptv/ar/privacy/`). The app links it under Settings › Legal & About.
-- App access: the app has no Amar account, but it shows no content until the user adds a playlist, file or server login. Reviewers need working instructions and a lawful test source. **Needs work:** publish a small sample playlist of openly licensed test streams (for example on the website) and give its address plus step-by-step instructions in this section. Never give reviewers private provider logins.
+- App access: the app has no Amar account, but it shows no content until the user adds a playlist, file or server login. Reviewers get the public sample playlist `https://fireamun.github.io/Iptv/samples/amar-demo.m3u` (built from `site/samples/`): two Blender Foundation films under CC BY 3.0 and one public live test stream. Never give reviewers private provider logins. In **App content › App access**, choose "All or some functionality is restricted" and add one instruction set, with no username or password:
+
+  > Amar Iptv is a media player and ships no content. To test it with lawful sample streams:
+  > 1. Open the app, tick the agreement box and tap "Agree and continue".
+  > 2. On Settings, tap "Add M3U URL", enter https://fireamun.github.io/Iptv/samples/amar-demo.m3u and tap "Load playlist".
+  > 3. Live TV now lists Big Buck Bunny, Tears of Steel (Blender Foundation, CC BY 3.0) and a live test stream. Tap one to play.
+  > On Android TV, use the remote: on Settings, under "Add a source", choose "M3U URL", enter the same address and choose "Load playlist".
+
+  Before each submission, open the playlist in the app once; the streams are third-party public test streams and can stop.
 - Ads: the app contains no ads.
 
 ## Data safety answers

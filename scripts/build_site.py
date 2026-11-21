@@ -412,6 +412,8 @@ def build(out):
             raise SystemExit(f"{out} is not empty and was not made by this script; choose another folder")
         shutil.rmtree(out)
     shutil.copytree(SITE / "assets", out / "assets")
+    # Openly licensed sample playlist for reviewers and new users (credits are inside the file).
+    shutil.copytree(SITE / "samples", out / "samples")
     (out / MARKER).write_text("Built by scripts/build_site.py; safe to delete.\n", encoding="utf-8")
     (out / "assets" / "fonts").mkdir()
     for font in ("manrope.ttf", "cairo.ttf"):
