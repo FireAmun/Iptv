@@ -108,5 +108,7 @@ class MultiSourceFlowTest {
             node.performKeyInput { pressKey(Key.DirectionCenter) }
         } else node.assertIsDisplayed().performClick()
     }
-    private fun awaitFocus(tag: String) { compose.waitUntil(5000) { compose.onNodeWithTag(tag).fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } } }
+    // TV Settings dialogs return focus after scrolling back to the header; a lazy item can be composed but not placed
+    // meanwhile, so a missing node means "not focused yet".
+    private fun awaitFocus(tag: String) { compose.waitUntil(5000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().any { it.config.getOrElse(SemanticsProperties.Focused) { false } } } }
 }
