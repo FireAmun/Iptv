@@ -22,7 +22,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -125,7 +124,7 @@ private fun TvToggle(checked: Boolean, onToggle: () -> Unit, role: Role, modifie
 @Composable
 fun TvLegalDocument(document: LegalDocument, onClose: () -> Unit) {
     val context = LocalContext.current
-    val arabic = LocalConfiguration.current.locales[0].language == "ar"
+    val arabic = legalArabic()
     val text = remember(document, arabic) { loadLegalDocument(context, document, arabic) }
     // English fallback text (the open-source notices) keeps left-to-right punctuation inside the Arabic interface.
     val textDirection = if (arabic && !text.arabic) LayoutDirection.Ltr else LocalLayoutDirection.current
@@ -188,6 +187,8 @@ internal fun TvAboutSection(analyticsEnabled: Boolean, onAnalyticsChange: (Boole
             }
         }
         Text(stringResource(DR.string.legal_contact, AmarLegal.SUPPORT_EMAIL), style = MaterialTheme.typography.bodySmall, color = p.muted)
+        Text(stringResource(DR.string.legal_privacy_online, AmarLegal.privacyPolicyUrl(legalArabic()).removePrefix("https://")),
+            style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.testTag("about_privacy_online"))
         if (appVersion.isNotEmpty()) Text(stringResource(DR.string.legal_version, appVersion), style = MaterialTheme.typography.bodySmall, color = p.muted,
             modifier = Modifier.testTag("about_version"))
     }

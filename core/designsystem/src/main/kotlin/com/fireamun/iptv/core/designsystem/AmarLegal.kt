@@ -1,6 +1,8 @@
 package com.fireamun.iptv.core.designsystem
 
 import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalConfiguration
 
 /** Bundled, offline-readable legal documents. The same text is published on the project's website. */
 enum class LegalDocument(internal val file: String) { TERMS("terms"), PRIVACY("privacy"), NOTICES("notices") }
@@ -9,6 +11,9 @@ object AmarLegal {
     /** Raise when the Terms change meaningfully; users then accept the new version once. */
     const val TERMS_VERSION = 1
     const val SUPPORT_EMAIL = "gamerammar343@gmail.com"
+    /** The project website (GitHub Pages) publishes the same documents; Play Console links the privacy page. */
+    const val WEBSITE = "https://fireamun.github.io/Iptv/"
+    fun privacyPolicyUrl(arabic: Boolean): String = WEBSITE + if (arabic) "ar/privacy/" else "privacy/"
 }
 
 sealed interface LegalBlock {
@@ -52,6 +57,10 @@ private val noticeLicenses = listOf(
     "Manrope · SIL Open Font License 1.1" to "licenses/Manrope-OFL.txt",
     "Cairo · SIL Open Font License 1.1" to "licenses/Cairo-OFL.txt",
 )
+
+/** True when the app is shown in Arabic; picks the Arabic legal text and website pages. */
+@Composable
+fun legalArabic(): Boolean = LocalConfiguration.current.locales[0].language == "ar"
 
 /** [arabic] is true only when the Arabic text was found; English fallback text must be laid out left to right. */
 class LegalText(val blocks: List<LegalBlock>, val arabic: Boolean)

@@ -1,6 +1,7 @@
 package com.fireamun.iptv.ui.mobile
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -13,9 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -100,7 +101,7 @@ fun MobileLegalGate(onAccept: (analytics: Boolean) -> Unit, onDecline: () -> Uni
 @Composable
 fun MobileLegalDocument(document: LegalDocument, onClose: () -> Unit) {
     val context = LocalContext.current
-    val arabic = LocalConfiguration.current.locales[0].language == "ar"
+    val arabic = legalArabic()
     // The header already names the document, so its own title line is not repeated.
     val text = remember(document, arabic) { loadLegalDocument(context, document, arabic) }
     val blocks = remember(text) { text.blocks.filterNot { it is LegalBlock.Title } }
@@ -171,6 +172,11 @@ internal fun MobileAboutCard(analyticsEnabled: Boolean, onAnalyticsChange: (Bool
             }
             Text(stringResource(DR.string.legal_contact, AmarLegal.SUPPORT_EMAIL), style = MaterialTheme.typography.bodySmall, color = p.muted,
                 modifier = Modifier.padding(horizontal = 12.dp))
+            val privacyUrl = AmarLegal.privacyPolicyUrl(legalArabic())
+            val uriHandler = LocalUriHandler.current
+            Text(stringResource(DR.string.legal_privacy_online, privacyUrl.removePrefix("https://")), style = MaterialTheme.typography.bodySmall, color = p.focus,
+                modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { runCatching { uriHandler.openUri(privacyUrl) } }
+                    .padding(horizontal = 12.dp, vertical = 8.dp).testTag("about_privacy_online"))
             if (appVersion.isNotEmpty()) Text(stringResource(DR.string.legal_version, appVersion), style = MaterialTheme.typography.bodySmall, color = p.muted,
                 modifier = Modifier.padding(horizontal = 12.dp).testTag("about_version"))
         }

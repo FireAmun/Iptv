@@ -43,6 +43,8 @@ The [audio/subtitle slice](audio-subtitles.md) retains those91 cases and adds te
 
 Actions are pinned to commit SHAs; workflow tokens have read-only repository access and checkout does not retain credentials. Gradle caches are read-only off `main`. No provider credentials or release signing material are required by this workflow.
 
+Two more workflows publish from `main` only (see [Website and releases](releases.md)): [Website](../../.github/workflows/pages.yml) deploys the GitHub Pages site when site or legal sources change, with `pages`/`id-token` write limited to its deploy job; [Release](../../.github/workflows/release.yml) runs only for `v*.*.*` tags on commits already in `main`, uses the owner's signing secrets and has `contents: write` only to create the GitHub Release. Pull requests test the site builder through the repository checks above.
+
 The instrumented Compose journeys use a test-only `TestDiagnostics` rule. CI enables a 90-second per-test watchdog through `diagnosticTimeoutSeconds`; a timeout records enumerated cleanup phases and Java IDs/states/stack frames, then kills the instrumentation process so a partial suite cannot pass. It never prints arbitrary thread names, exception messages or source inputs. Logs are retained with device reports. The option is disabled by default for local/manual runs. A forced two-second local run was used to verify both failure and captured stacks.
 
 ## Local checks

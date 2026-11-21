@@ -18,6 +18,8 @@ To open the existing phone in its own window without Android Studio, run `./scri
 
 CI invokes `device-tests.sh` inside its disposable emulator runner. It preserves the connected-test exit code, runs `persistence-process-test.sh` after a successful suite and collects only synthetic test screenshots before shutdown. The process probe reinstalls app/test APKs, seeds a synthetic saved source, force-stops the target, requires restoration under a different PID and clears it. These are device-testing scripts, not launchers: do not run them against the owner's interactive emulator without an agreed testing window. Device reports/previews and CI logs record results; stubbed Python checks test failure propagation without ADB.
 
+`build_site.py` builds the GitHub Pages website (download page and legal pages generated from the bundled legal Markdown); see [Website and releases](../docs/development/releases.md).
+
 `check_native_alignment.py` checks a release App Bundle or APK: every packaged native library must include a 64-bit ABI, and 64-bit libraries need 16 KB-aligned loadable segments. CI runs it on the unsigned release bundle; `tests/test_native_alignment.py` covers it with synthetic ELF files.
 
 The environment exposes Android CLI from project-local command-line tools 23 and the Java SDK/AVD Manager from tools 22 installed in the existing SDK's standard `cmdline-tools/22.0` directory. The tools-23 `sdkmanager` wrapper is superseded on PATH by the Java manager because the new CLI stalled while resolving the TV image. Use `sdkmanager --list_installed` for SDK inventory or `android --no-metrics --sdk="$env:ANDROID_HOME" sdk list` for the new CLI.
