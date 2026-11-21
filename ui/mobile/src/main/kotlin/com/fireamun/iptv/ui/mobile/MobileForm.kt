@@ -21,7 +21,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -116,10 +115,7 @@ internal fun MobileFormField(
     val configuration = LocalConfiguration.current
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     LaunchedEffect(focused, imeBottom, configuration.screenHeightDp, configuration.fontScale) {
-        if (focused) {
-            withFrameNanos { }
-            relocation.bringIntoView()
-        }
+        if (focused) relocation.bringIntoViewAfterFrame()
     }
     Column(Modifier.bringIntoViewRequester(relocation), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
