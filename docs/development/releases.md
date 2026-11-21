@@ -52,3 +52,5 @@ One key signs every GitHub APK. Use the same key as the **app signing key** in G
    - publishes the GitHub Release with `amar-iptv.apk` and `amar-iptv.apk.sha256`, and keeps the AAB as the `play-bundle-<tag>` workflow artifact for 30 days for the Play Console upload.
 
 The download page picks up the new release automatically; no website change is needed.
+
+Release APKs are signed with the owner's key, not the debug key. A debug or CI test build already installed on a device cannot be updated by a release APK (Android reports a signature conflict): uninstall it first, which removes its local sources and progress. The first public release is v0.12.0 (versionCode 14).

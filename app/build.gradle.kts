@@ -38,8 +38,8 @@ android {
         applicationId = "com.fireamun.amariptv"
         minSdk = 28
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.11.0"
+        versionCode = 14
+        versionName = "0.12.0"
         testInstrumentationRunner = "com.fireamun.iptv.prototype.ManualFixtureRunner"
         buildConfigField("String", "POSTHOG_API_KEY", safePosthogProjectToken?.let { "\"$it\"" } ?: "null")
         buildConfigField("String", "POSTHOG_HOST", safePosthogHost?.let { "\"$it\"" } ?: "null")
