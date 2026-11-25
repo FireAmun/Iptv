@@ -108,6 +108,12 @@ internal class PhonePictureInPicture(
         if (!active && stopped) closeStoppedPlayback()
     }
 
+    fun onStart() {
+        // Screen-on after a screen-off in PiP starts the Activity without resuming it. Android 9 can then report
+        // the expansion (mode false) before onResume; it must not look like a dismissal while stopped.
+        stopped = false
+    }
+
     fun onStop() {
         stopped = true
         // Screen-off keeps the Activity in PiP: release normally and restore on START. Dismissal leaves PiP

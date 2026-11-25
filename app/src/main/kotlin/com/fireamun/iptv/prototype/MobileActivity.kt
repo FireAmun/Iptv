@@ -26,6 +26,11 @@ class MobileActivity : LibraryActivity() {
     override fun updatePlayerCommands(commands: PlaybackCommands?) = pictureInPicture.update(commands)
     override fun updatePlayerBounds(bounds: Rect) = pictureInPicture.update(bounds)
 
+    override fun onStart() {
+        super.onStart()
+        pictureInPicture.onStart()
+    }
+
     override fun onResume() {
         super.onResume()
         pictureInPicture.onResume()
