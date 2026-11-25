@@ -14,6 +14,9 @@ class IptvApplication : Application() {
     val artworkLoader by lazy { protectedImageLoader(this, libraryStore) }
     /** Process-wide so the unlock survives Activity recreation but never process death. */
     val parentalControls by lazy { ParentalControls(PreferencesParentalStore(this)) }
+    private val guideScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+    /** Process-wide so a guide download survives Activity recreation. */
+    val guideRefresher by lazy { GuideRefresher(libraryStore, guideScope, { GuideRefresher.unmetered(this) }) }
     override fun onCreate() {
         super.onCreate()
         initializePostHog()

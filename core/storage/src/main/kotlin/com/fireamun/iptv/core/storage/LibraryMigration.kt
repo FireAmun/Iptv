@@ -45,3 +45,14 @@ internal val MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_progress_sourceId_kind_completed_watchedAtMs ON watch_progress(sourceId, kind, completed, watchedAtMs)")
     }
 }
+
+/** Add the programme guide. Existing rows get no guide key until their playlist is next refreshed. */
+internal val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE library_entries ADD COLUMN guideKey TEXT")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_library_entries_sourceId_guideKey ON library_entries(sourceId, guideKey)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS guide_state (sourceId TEXT NOT NULL, manualLink BLOB, playlistLink BLOB, fetchedAtMs INTEGER, attemptedAtMs INTEGER, programmeCount INTEGER NOT NULL, error TEXT, PRIMARY KEY(sourceId))")
+        db.execSQL("CREATE TABLE IF NOT EXISTS guide_channels (sourceId TEXT NOT NULL, alias TEXT NOT NULL, channelId TEXT NOT NULL, PRIMARY KEY(sourceId, alias))")
+        db.execSQL("CREATE TABLE IF NOT EXISTS guide_programmes (sourceId TEXT NOT NULL, channelId TEXT NOT NULL, startMs INTEGER NOT NULL, endMs INTEGER NOT NULL, title TEXT NOT NULL, description TEXT, PRIMARY KEY(sourceId, channelId, startMs))")
+    }
+}

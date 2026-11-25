@@ -15,7 +15,7 @@ import java.util.Locale
 internal class XtreamJson(private val limits: ParserLimits, private val nanoTime: () -> Long = System::nanoTime) {
     data class Auth(val liveExtension: String)
     private data class Row(var id: Long? = null, var name: String? = null, var category: String? = null, var extension: String? = null, var season: Int? = null, var episode: Int? = null,
-        var artwork: MediaAddress? = null, var year: Int? = null, var rating: Double? = null, var rating5: Double? = null)
+        var artwork: MediaAddress? = null, var year: Int? = null, var rating: Double? = null, var rating5: Double? = null, var guideId: String? = null)
 
     fun auth(input: InputStream, check: () -> Unit): Auth = read(input, check) { reader, checkpoint ->
         var auth: String? = null; var status: String? = null; var expiry: String? = null
@@ -80,7 +80,7 @@ internal class XtreamJson(private val limits: ParserLimits, private val nanoTime
                 else {
                     val ext = if (kind == ContentKind.LIVE) liveExtension else row.extension?.takeIf { it.isNotBlank() } ?: "mp4"
                     val address = source.playbackAddress(kind, id, ext) ?: throw ImportFailure(ImportError.SERVER_RESPONSE)
-                    entries.add(PlaylistEntry(channel, address, providerKey = "${kind.name}:$id", artwork = row.artwork))
+                    entries.add(PlaylistEntry(channel, address, providerKey = "${kind.name}:$id", artwork = row.artwork, guideId = if (kind == ContentKind.LIVE) row.guideId else null))
                 }
             }
         }
@@ -131,6 +131,7 @@ internal class XtreamJson(private val limits: ParserLimits, private val nanoTime
             "stream_icon", "cover", "movie_image" -> optionalScalar(reader, 4096)?.let { MediaAddress.parse(it) }?.let { if (row.artwork == null) row.artwork = it }
             "year" -> row.year = optionalScalar(reader)?.toIntOrNull()?.takeIf { it in 1800..2200 }
             "rating" -> row.rating = optionalScalar(reader)?.toDoubleOrNull()?.takeIf { it.isFinite() && it in 0.0..10.0 }
+            "epg_channel_id" -> row.guideId = guideId(optionalScalar(reader, 256))
             "rating_5based" -> row.rating5 = optionalScalar(reader)?.toDoubleOrNull()?.takeIf { it.isFinite() && it in 0.0..5.0 }
             else -> reader.skipValue()
         }

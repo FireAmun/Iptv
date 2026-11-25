@@ -11,14 +11,24 @@ import java.io.InputStreamReader
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.CharacterCodingException
 
-class PlaylistEntry(val channel: Channel, val address: MediaAddress?, val seriesId: Long? = null, val providerKey: String? = null, val artwork: MediaAddress? = null) {
+class PlaylistEntry(val channel: Channel, val address: MediaAddress?, val seriesId: Long? = null, val providerKey: String? = null, val artwork: MediaAddress? = null,
+    /** Provider guide channel id (M3U tvg-id, Xtream epg_channel_id); not secret. */
+    val guideId: String? = null) {
     override fun toString(): String = "[protected catalogue entry]"
 }
+
+/** Parser output; [guideLink] is the playlist header's XMLTV link (url-tvg / x-tvg-url), which can carry credentials. */
+class ParsedPlaylist(entries: List<PlaylistEntry>, val guideLink: MediaAddress?) : List<PlaylistEntry> by entries {
+    override fun toString(): String = "[protected parsed playlist]"
+}
+
+/** Guide ids are matched verbatim; reject anything unusual rather than store it. */
+internal fun guideId(value: String?): String? = value?.trim()?.takeIf { it.isNotEmpty() && it.length <= 256 && it.none(Char::isISOControl) }
 class ImportFailure(val code: ImportError) : IOException(code.name)
 data class ParserLimits(val maxBytes: Long = 64L * 1024 * 1024, val maxLineChars: Int = 16 * 1024, val maxFieldChars: Int = 512, val maxEntries: Int = MAX_CATALOGUE_ENTRIES, val maxMillis: Long = 120_000)
 
 class M3uParser(private val limits: ParserLimits = ParserLimits(), private val nanoTime: () -> Long = System::nanoTime) {
-    fun parse(input: InputStream, checkCancelled: () -> Unit = {}): List<PlaylistEntry> {
+    fun parse(input: InputStream, checkCancelled: () -> Unit = {}): ParsedPlaylist {
         val started = nanoTime()
         fun checkpoint() {
             checkCancelled()
@@ -40,7 +50,8 @@ class M3uParser(private val limits: ParserLimits = ParserLimits(), private val n
         }
         val entries = ArrayList<PlaylistEntry>()
         var header = false
-        var metadata: Pair<String?, String?>? = null
+        var metadata: Triple<String?, String?, String?>? = null
+        var guideLink: MediaAddress? = null
         try {
             while (true) {
                 val raw = line() ?: break
@@ -49,6 +60,7 @@ class M3uParser(private val limits: ParserLimits = ParserLimits(), private val n
                 if (!header) {
                     if (text != "#EXTM3U" && !text.startsWith("#EXTM3U ")) throw ImportFailure(ImportError.INVALID_PLAYLIST)
                     header = true
+                    guideLink = headerGuideLink(text)
                     continue
                 }
                 when {
@@ -61,7 +73,7 @@ class M3uParser(private val limits: ParserLimits = ParserLimits(), private val n
                     else -> {
                         val address = MediaAddress.parse(text) ?: throw ImportFailure(ImportError.INVALID_ADDRESS)
                         if (entries.size >= limits.maxEntries) throw ImportFailure(ImportError.TOO_MANY_ENTRIES)
-                        entries.add(PlaylistEntry(Channel(entries.size, metadata?.first, metadata?.second), address))
+                        entries.add(PlaylistEntry(Channel(entries.size, metadata?.first, metadata?.second), address, guideId = metadata?.third))
                         metadata = null
                     }
                 }
@@ -72,10 +84,18 @@ class M3uParser(private val limits: ParserLimits = ParserLimits(), private val n
         checkpoint()
         if (!header || metadata != null) throw ImportFailure(ImportError.INVALID_PLAYLIST)
         if (entries.isEmpty()) throw ImportFailure(ImportError.EMPTY)
-        return entries
+        return ParsedPlaylist(entries, guideLink)
     }
 
-    private fun metadata(line: String): Pair<String?, String?> {
+    /** First usable http(s) link of url-tvg / x-tvg-url; a malformed header attribute never fails the import. */
+    private fun headerGuideLink(header: String): MediaAddress? {
+        val match = Regex("""(?:url-tvg|x-tvg-url)\s*=\s*(["'])(.*?)\1""", RegexOption.IGNORE_CASE).find(header) ?: return null
+        return match.groupValues[2].split(',').map(String::trim).firstNotNullOfOrNull { candidate ->
+            candidate.takeIf { it.length <= 4096 }?.let(MediaAddress::parse)?.takeIf { it.reveal().startsWith("http", ignoreCase = true) }
+        }
+    }
+
+    private fun metadata(line: String): Triple<String?, String?, String?> {
         var quote: Char? = null
         var comma = -1
         for (index in 8 until line.length) {
@@ -96,6 +116,7 @@ class M3uParser(private val limits: ParserLimits = ParserLimits(), private val n
         if (attributes.substring(0, index).toDoubleOrNull()?.isFinite() != true) throw ImportFailure(ImportError.INVALID_PLAYLIST)
         val title = line.substring(comma + 1).trim().ifEmpty { null }
         var group: String? = null
+        var tvgId: String? = null
         while (index < attributes.length) {
             while (index < attributes.length && attributes[index].isWhitespace()) index++
             if (index == attributes.length) break
@@ -118,9 +139,10 @@ class M3uParser(private val limits: ParserLimits = ParserLimits(), private val n
                 if (index < attributes.length && !attributes[index].isWhitespace()) throw ImportFailure(ImportError.INVALID_PLAYLIST)
             }
             if (key == "group-title") group = value.trim().ifEmpty { null }
+            if (key == "tvg-id") tvgId = guideId(value)
         }
         if ((title?.length ?: 0) > limits.maxFieldChars || (group?.length ?: 0) > limits.maxFieldChars) throw ImportFailure(ImportError.FIELD_TOO_LONG)
-        return title to group
+        return Triple(title, group, tvgId)
     }
 
     private class LimitedInput(private val source: InputStream, private val maximum: Long) : InputStream() {

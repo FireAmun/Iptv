@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="guide_title">TV guide</string>
+    <string name="guide_description">Programme times for live channels, from your playlist or provider. The guide updates once a day on Wi-Fi; Refresh guide works on any network.</string>
+    <string name="guide_no_source">Add a playlist to use the TV guide.</string>
+    <string name="guide_status_none">No guide downloaded yet.</string>
+    <string name="guide_status_ready">Updated %1$s · %2$d programmes</string>
+    <string name="guide_status_no_link">This playlist has no guide link. You can add one below.</string>
+    <string name="guide_status_failed">The last update failed. The previous guide is kept.</string>
+    <string name="guide_status_empty">The guide has no programmes for this playlist\'s channels.</string>
+    <string name="guide_refreshing">Updating the guide…</string>
+    <string name="guide_refresh">Refresh guide</string>
+    <string name="guide_link_label">Guide link (XMLTV)</string>
+    <string name="guide_link_automatic">Using the automatic guide</string>
+    <string name="guide_link_manual">Using your guide link</string>
+    <string name="guide_link_save">Save link</string>
+    <string name="guide_link_clear">Use automatic guide</string>
+    <string name="guide_link_invalid">Enter an http or https link.</string>
+</resources>

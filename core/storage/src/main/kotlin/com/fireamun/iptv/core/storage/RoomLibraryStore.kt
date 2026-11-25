@@ -17,7 +17,7 @@ import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-class RoomLibraryStore private constructor(private val database: LibraryDatabase, private val protector: EnvelopeProtector) : LibraryPersistence, PlaybackProgressPersistence {
+class RoomLibraryStore private constructor(private val database: LibraryDatabase, private val protector: EnvelopeProtector) : LibraryPersistence, PlaybackProgressPersistence, GuidePersistence {
     private val dao = database.library()
     private val mutex = Mutex()
     private val progressStore = WatchProgressStore(dao)
@@ -199,6 +199,7 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
             val empty = database.withTransaction {
                 require(dao.source(sourceId) != null)
                 dao.clearSearch(sourceId); dao.clearFavourites(sourceId); dao.clearProgress(sourceId); dao.clearEntries(sourceId); dao.clearIdentities(sourceId); dao.clearSource(sourceId)
+                dao.clearGuideChannels(sourceId); dao.clearProgrammes(sourceId); dao.clearGuideState(sourceId)
                 val remaining = dao.sources()
                 if (remaining.isEmpty()) dao.clearActive()
                 else {
@@ -288,7 +289,8 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
                                 val encrypted = try { plaintext?.let { cipher.seal(it, addressContext(row, stable.id)) } } finally { plaintext?.fill(0) }
                                 val picture = entry.artwork?.reveal()?.toByteArray(Charsets.UTF_8)
                                 val artwork = try { picture?.let { cipher.seal(it, artworkContext(row, stable.id)) } } finally { picture?.fill(0) }
-                                EntryRow(stable.id, start + offset, channel.title, channel.group, channel.kind.name, entry.seriesId, entry.providerKey, encrypted, id, channel.categoryKey, channel.year, channel.rating, artwork)
+                                EntryRow(stable.id, start + offset, channel.title, channel.group, channel.kind.name, entry.seriesId, entry.providerKey, encrypted, id, channel.categoryKey, channel.year, channel.rating, artwork,
+                                    guideKey = if (channel.kind == ContentKind.LIVE || channel.kind == ContentKind.UNKNOWN) GuideKeys.forEntry(entry.guideId, channel.title) else null)
                             }
                             dao.insertIdentities(added)
                             dao.insertEntries(rows)
@@ -315,6 +317,7 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
         mutex.withLock {
             database.withTransaction {
                 dao.clearSearch(); dao.clearFavourites(); dao.clearProgress(); dao.clearEntries(); dao.clearIdentities(); dao.clearSource(); dao.clearActive()
+                dao.clearGuideChannels(); dao.clearProgrammes(); dao.clearGuideState()
             }
             clearUnusedKey()
         }
@@ -367,6 +370,87 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
         } }
     }
 
+    override suspend fun guideState(sourceId: String): GuideState? = guarded {
+        mutex.withLock { database.withTransaction {
+            if (dao.source(sourceId) == null) return@withTransaction null
+            val row = dao.guideState(sourceId) ?: GuideStateRow(sourceId)
+            GuideState(sourceId, row.manualLink != null, row.playlistLink != null, row.fetchedAtMs, row.attemptedAtMs, row.programmeCount,
+                row.error?.let { name -> ImportError.entries.firstOrNull { it.name == name } })
+        } }
+    }
+    override suspend fun guideLink(sourceId: String): MediaAddress? = guarded {
+        mutex.withLock { database.withTransaction {
+            val source = dao.source(sourceId) ?: return@withTransaction null
+            val row = dao.guideState(sourceId)
+            row?.manualLink?.let { return@withTransaction openGuideLink(it, "guide-manual:$sourceId") }
+            row?.playlistLink?.let { return@withTransaction openGuideLink(it, "guide-playlist:$sourceId") }
+            val authenticated = envelope(source)
+            try { authenticated.source.guideAddress() } finally { authenticated.key.fill(0) }
+        } }
+    }
+    override suspend fun setManualGuideLink(sourceId: String, link: MediaAddress?): Unit = guarded {
+        mutex.withLock { database.withTransaction {
+            require(dao.source(sourceId) != null)
+            val row = dao.guideState(sourceId) ?: GuideStateRow(sourceId)
+            // A changed link makes the current schedule stale: the next refresh is due at once.
+            dao.guideState(row.copy(manualLink = link?.let { sealGuideLink(it, "guide-manual:$sourceId") }, fetchedAtMs = null, attemptedAtMs = null, error = null))
+        } }
+    }
+    override suspend fun setPlaylistGuideLink(sourceId: String, link: MediaAddress?): Unit = guarded {
+        mutex.withLock { database.withTransaction {
+            require(dao.source(sourceId) != null)
+            val row = dao.guideState(sourceId) ?: GuideStateRow(sourceId)
+            val old = row.playlistLink?.let { sealed -> runCatching { openGuideLink(sealed, "guide-playlist:$sourceId") }.getOrNull() }
+            if (row.playlistLink == null && link == null) return@withTransaction
+            if (old != null && link != null && old.reveal() == link.reveal()) return@withTransaction
+            // A new playlist link only makes the schedule stale when no manual link overrides it.
+            val stale = row.manualLink == null
+            dao.guideState(row.copy(playlistLink = link?.let { sealGuideLink(it, "guide-playlist:$sourceId") },
+                fetchedAtMs = if (stale) null else row.fetchedAtMs, attemptedAtMs = if (stale) null else row.attemptedAtMs))
+        } }
+    }
+    override suspend fun guideKeys(sourceId: String): Set<String> = guarded {
+        mutex.withLock { database.withTransaction { dao.guideKeys(sourceId).toHashSet() } }
+    }
+    override suspend fun replaceGuide(sourceId: String, guide: ParsedGuide, fetchedAtMs: Long): Unit = guarded {
+        mutex.withLock { database.withTransaction {
+            require(dao.source(sourceId) != null)
+            dao.clearGuideChannels(sourceId); dao.clearProgrammes(sourceId)
+            for (batch in guide.aliases.entries.chunked(GUIDE_BATCH_SIZE)) {
+                currentCoroutineContext().ensureActive()
+                dao.insertGuideChannels(batch.map { GuideChannelRow(sourceId, it.key, it.value) })
+            }
+            val rows = guide.programmes.entries.asSequence().flatMap { (channel, list) -> list.asSequence().map { GuideProgrammeRow(sourceId, channel, it.startMs, it.endMs, it.title, it.description) } }
+            for (batch in rows.chunked(GUIDE_BATCH_SIZE)) { currentCoroutineContext().ensureActive(); dao.insertProgrammes(batch) }
+            val row = dao.guideState(sourceId) ?: GuideStateRow(sourceId)
+            dao.guideState(row.copy(fetchedAtMs = fetchedAtMs, attemptedAtMs = fetchedAtMs, programmeCount = guide.programmeCount, error = null))
+        } }
+    }
+    override suspend fun guideFailed(sourceId: String, error: ImportError, attemptedAtMs: Long): Unit = guarded {
+        mutex.withLock { database.withTransaction {
+            if (dao.source(sourceId) == null) return@withTransaction
+            // The last good schedule stays; only the attempt and its reason are recorded.
+            val row = dao.guideState(sourceId) ?: GuideStateRow(sourceId)
+            dao.guideState(row.copy(attemptedAtMs = attemptedAtMs, error = error.name))
+        } }
+    }
+    override suspend fun schedule(sourceId: String, itemId: Int, fromMs: Long, untilMs: Long, limit: Int): List<GuideProgramme> = guarded {
+        require(limit in 1..500 && untilMs >= fromMs)
+        mutex.withLock { database.withTransaction {
+            val key = dao.guideKey(sourceId, itemId) ?: return@withTransaction emptyList()
+            val channel = dao.guideChannel(sourceId, key) ?: return@withTransaction emptyList()
+            dao.programmes(sourceId, channel, fromMs, untilMs, limit).map { GuideProgramme(it.startMs, it.endMs, it.title, it.description) }
+        } }
+    }
+    private fun sealGuideLink(link: MediaAddress, context: String): ByteArray {
+        val bytes = link.reveal().toByteArray(Charsets.UTF_8)
+        return try { protector.seal(bytes, context) } finally { bytes.fill(0) }
+    }
+    private fun openGuideLink(sealed: ByteArray, context: String): MediaAddress {
+        val bytes = protector.open(sealed, context)
+        return try { MediaAddress.parse(bytes.toString(Charsets.UTF_8)) ?: error("Invalid protected guide link") } finally { bytes.fill(0) }
+    }
+
     private fun clearUnusedKey() {
         // The DB deletion is committed. Platform cleanup failure must not revive removed data in UI.
         try { protector.clear() }
@@ -409,7 +493,8 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     }
     companion object {
         private const val SAVE_BATCH_SIZE = 250
+        private const val GUIDE_BATCH_SIZE = 500
         fun open(context: Context, name: String = "library.db", protector: EnvelopeProtector = KeystoreEnvelope()) =
-            RoomLibraryStore(Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build(), protector)
+            RoomLibraryStore(Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build(), protector)
     }
 }
