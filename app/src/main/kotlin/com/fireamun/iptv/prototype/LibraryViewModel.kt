@@ -11,6 +11,8 @@ import com.fireamun.iptv.core.data.HttpPlaylistLoader
 import com.fireamun.iptv.core.data.M3uParser
 import com.fireamun.iptv.core.data.PlaylistEntry
 import com.fireamun.iptv.core.data.ParsedPlaylist
+import com.fireamun.iptv.core.data.GuidePersistence
+import com.fireamun.iptv.core.data.GuideProgramme
 import com.fireamun.iptv.core.data.ImportFailure
 import com.fireamun.iptv.core.data.XtreamConnection
 import com.fireamun.iptv.core.data.XtreamLoader
@@ -109,6 +111,21 @@ class LibraryViewModel(
         pendingUnlock.also { pendingUnlock = null }?.invoke()
     }
     fun dismissPinPrompt() { pendingUnlock = null; mutablePinPrompt.value = false }
+
+    private val guideStore = persistence as? GuidePersistence
+    /** Now/next slots of one live item in the active playlist, for the player; null without a guide. */
+    suspend fun guideNow(itemId: Int): GuideNow? {
+        val sourceId = mutableState.value.activeSourceId ?: return null
+        return try { guideStore?.nowNext(sourceId, listOf(itemId), System.currentTimeMillis())?.get(itemId) } catch (_: ImportFailure) { null }
+    }
+    /** A live item's schedule from two hours ago to two days ahead. */
+    suspend fun schedule(itemId: Int): List<GuideProgramme> {
+        val sourceId = mutableState.value.activeSourceId ?: return emptyList()
+        val now = System.currentTimeMillis()
+        return try { guideStore?.schedule(sourceId, itemId, now - 2 * 3_600_000L, now + 48 * 3_600_000L, 500).orEmpty() } catch (_: ImportFailure) { emptyList() }
+    }
+    /** A new guide was stored: lists re-read so live rows show it. */
+    fun guideUpdated(sourceId: String) { if (sourceId == mutableState.value.activeSourceId) updateBrowse(loadCategories = false) }
 
     /** Every category label of [kind] in the active playlist, for choosing parental locks. */
     suspend fun lockableCategories(kind: ContentKind): List<String> {

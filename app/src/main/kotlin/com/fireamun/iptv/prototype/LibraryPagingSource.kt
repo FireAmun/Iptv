@@ -2,6 +2,7 @@ package com.fireamun.iptv.prototype
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import com.fireamun.iptv.core.data.GuidePersistence
 import com.fireamun.iptv.core.data.ImportFailure
 import com.fireamun.iptv.core.data.LibraryPersistence
 import com.fireamun.iptv.core.model.*
@@ -11,6 +12,7 @@ internal class LibraryPagingSource(
     private val persistence: LibraryPersistence?,
     private val request: BrowseRequest?,
     private val local: List<Channel>?,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) : PagingSource<Int, Channel>() {
     override fun getRefreshKey(state: PagingState<Int, Channel>): Int? = state.anchorPosition?.let { anchor ->
         state.closestPageToPosition(anchor)?.let { it.prevKey?.plus(60) ?: it.nextKey?.minus(60) }?.coerceAtLeast(0)
@@ -28,10 +30,20 @@ internal class LibraryPagingSource(
                     }
             }
             BrowsePage(items.drop(offset).take(limit), items.size)
-        } else if (request != null && persistence != null) persistence.page(request, offset, limit) else BrowsePage(emptyList(), 0)
+        } else if (request != null && persistence != null) withGuide(persistence.page(request, offset, limit), request.sourceId) else BrowsePage(emptyList(), 0)
         LoadResult.Page(page.items, if (offset == 0) null else (offset - limit).coerceAtLeast(0),
             if (offset + page.items.size < page.total && page.items.isNotEmpty()) offset + page.items.size else null,
             itemsBefore = offset.coerceAtMost(page.total), itemsAfter = (page.total - offset - page.items.size).coerceAtLeast(0))
     } catch (cancelled: CancellationException) { throw cancelled }
     catch (_: ImportFailure) { LoadResult.Error(ImportFailure(ImportError.STORAGE)) }
+
+    /** Live rows carry their now/next slots; a guide failure never hides the page itself. */
+    private suspend fun withGuide(page: BrowsePage, sourceId: String): BrowsePage {
+        val guide = persistence as? GuidePersistence ?: return page
+        val live = page.items.filter { it.kind == ContentKind.LIVE || it.kind == ContentKind.UNKNOWN }.map { it.id }
+        if (live.isEmpty()) return page
+        val slots = try { guide.nowNext(sourceId, live, clock()) } catch (_: ImportFailure) { return page }
+        if (slots.isEmpty()) return page
+        return page.copy(items = page.items.map { channel -> slots[channel.id]?.let { channel.copy(guide = it) } ?: channel })
+    }
 }

@@ -442,6 +442,14 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
             dao.programmes(sourceId, channel, fromMs, untilMs, limit).map { GuideProgramme(it.startMs, it.endMs, it.title, it.description) }
         } }
     }
+    override suspend fun nowNext(sourceId: String, itemIds: Collection<Int>, nowMs: Long): Map<Int, GuideNow> = guarded {
+        if (itemIds.isEmpty()) return@guarded emptyMap()
+        require(itemIds.size <= 500)
+        mutex.withLock { database.withTransaction {
+            dao.nowNext(sourceId, itemIds.toList(), nowMs, nowMs + 6 * 3_600_000L).groupBy { it.itemId }
+                .mapValues { (_, rows) -> GuideNow(rows.take(3).map { GuideSlot(it.title, it.startMs, it.endMs) }) }
+        } }
+    }
     private fun sealGuideLink(link: MediaAddress, context: String): ByteArray {
         val bytes = link.reveal().toByteArray(Charsets.UTF_8)
         return try { protector.seal(bytes, context) } finally { bytes.fill(0) }

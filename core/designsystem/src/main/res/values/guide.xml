@@ -16,4 +16,13 @@
     <string name="guide_link_save">Save link</string>
     <string name="guide_link_clear">Use automatic guide</string>
     <string name="guide_link_invalid">Enter an http or https link.</string>
+    <string name="guide_now">Now: %1$s</string>
+    <string name="guide_next">Next %1$s · %2$s</string>
+    <string name="guide_slot">%1$s–%2$s · %3$s</string>
+    <string name="guide_schedule">TV guide</string>
+    <string name="guide_schedule_for">TV guide for %1$s</string>
+    <string name="guide_schedule_empty">No programmes in the guide for this channel.</string>
+    <string name="guide_loading">Loading…</string>
+    <string name="guide_on_now">On now</string>
+    <string name="guide_watch">Watch channel</string>
 </resources>

@@ -34,7 +34,23 @@ data class SourceDirectory(val sources: List<SavedSource> = emptyList(), val act
 }
 fun normalizeSourceName(value: String): String? = value.trim().takeIf { it.isNotEmpty() && it.length <= 128 && value.none(Char::isISOControl) }
 data class Channel(val id: Int, val title: String?, val group: String?, val kind: ContentKind = ContentKind.UNKNOWN, val season: Int? = null, val episode: Int? = null,
-    val categoryKey: String? = null, val year: Int? = null, val rating: Double? = null, val hasArtwork: Boolean = false, val favourite: Boolean = false)
+    val categoryKey: String? = null, val year: Int? = null, val rating: Double? = null, val hasArtwork: Boolean = false, val favourite: Boolean = false,
+    /** Upcoming guide slots for live channels, attached when a page is read; null when the channel has no guide. */
+    val guide: GuideNow? = null)
+
+/** One programme as shown in lists and the player. Times are epoch milliseconds. */
+data class GuideSlot(val title: String, val startMs: Long, val endMs: Long) {
+    fun progress(nowMs: Long): Float = if (endMs <= startMs) 0f else ((nowMs - startMs).toFloat() / (endMs - startMs)).coerceIn(0f, 1f)
+}
+/** A few consecutive slots (oldest first); [at] picks what is on now and next for the current time. */
+data class GuideNow(val slots: List<GuideSlot>) {
+    fun at(nowMs: Long): Pair<GuideSlot?, GuideSlot?> {
+        val index = slots.indexOfFirst { it.endMs > nowMs }
+        if (index < 0) return null to null
+        val first = slots[index]
+        return if (first.startMs <= nowMs) first to slots.getOrNull(index + 1) else null to first
+    }
+}
 enum class ImportError { INVALID_PLAYLIST, HLS_MANIFEST, INVALID_ADDRESS, INVALID_ENCODING, TOO_LARGE, LINE_TOO_LONG, FIELD_TOO_LONG, TOO_MANY_ENTRIES, TIME_LIMIT, EMPTY, READ_FAILED, NETWORK, HTTP_ERROR, NO_FILE_PICKER, INVALID_LOGIN, AUTH_FAILED, ACCOUNT_DISABLED, ACCOUNT_EXPIRED, SERVER_RESPONSE, NO_CONTENT, STORAGE, INVALID_NAME }
 data class LibraryState(
     val channels: List<Channel> = emptyList(),

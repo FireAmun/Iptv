@@ -259,7 +259,7 @@ private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-fun MobilePlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetry: () -> Unit, player: @Composable (Modifier) -> Unit, hideChrome: Boolean = false) {
+fun MobilePlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetry: () -> Unit, player: @Composable (Modifier) -> Unit, hideChrome: Boolean = false, programme: String? = null) {
     CinemaTheme {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             player(Modifier.fillMaxSize())
@@ -272,6 +272,7 @@ fun MobilePlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, on
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         AmarWordmark(Cinema.Sand, Modifier.testTag("app_brand"), 11.sp)
                         Text(title, color = Cinema.Cream, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        programme?.let { Text(it, color = Cinema.Sand, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("playback_programme")) }
                     }
                     if (status == PlaybackStatus.FAILED) Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Cinema.Saffron, contentColor = Cinema.Night), modifier = Modifier.testTag("playback_retry")) { Text(stringResource(R.string.mobile_retry)) }
                 }
