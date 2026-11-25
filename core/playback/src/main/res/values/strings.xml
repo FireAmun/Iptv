@@ -11,4 +11,5 @@
     <string name="player_quality">Quality</string>
     <string name="player_single_quality">Only one quality is available for this stream.</string>
     <string name="player_video_bitrate">%1$s · %2$s Mb/s</string>
+    <string name="player_minimize">Minimize</string>
 </resources>
