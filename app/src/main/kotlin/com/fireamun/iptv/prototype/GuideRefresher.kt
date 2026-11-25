@@ -14,7 +14,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -36,6 +38,9 @@ class GuideRefresher(
 ) {
     private val mutable = MutableStateFlow(GuideUiState())
     val state = mutable.asStateFlow()
+    private val stored = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    /** Source ids whose guide was just replaced by a download. */
+    val updates = stored.asSharedFlow()
     private var job: Job? = null
     /** Instrumentation turns automatic downloads off so fixture servers see only the requests a test expects. */
     @Volatile var automatic = true
@@ -107,6 +112,7 @@ class GuideRefresher(
             // A playlist without live channels has nothing to match; skip the download entirely.
             val guide = if (wanted.isEmpty()) ParsedGuide(emptyMap(), emptyMap()) else load(link, now, wanted)
             withContext(NonCancellable) { store.replaceGuide(sourceId, guide, now) }
+            stored.tryEmit(sourceId)
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: ImportFailure) { record(sourceId, failure.code) }
         catch (_: Exception) { record(sourceId, ImportError.READ_FAILED) }

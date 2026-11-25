@@ -36,6 +36,7 @@ internal data class GuideStateRow(@PrimaryKey val sourceId: String, val manualLi
 internal data class GuideChannelRow(val sourceId: String, val alias: String, val channelId: String)
 @Entity(tableName = "guide_programmes", primaryKeys = ["sourceId", "channelId", "startMs"])
 internal data class GuideProgrammeRow(val sourceId: String, val channelId: String, val startMs: Long, val endMs: Long, val title: String, val description: String?)
+internal data class NowNextRow(val itemId: Int, val startMs: Long, val endMs: Long, val title: String)
 internal data class JoinedWatchRow(@Embedded val watch: WatchProgressRow, val rootTitle: String?, val rootGroup: String?, val rootKind: String, val rootArtwork: ByteArray?, val generation: String)
 internal data class BrowseRow(val id: Int, val title: String?, val groupLabel: String?, val kind: String, val categoryKey: String?, val year: Int?, val rating: Double?, val hasArtwork: Boolean, val favourite: Boolean)
 @Dao
@@ -92,6 +93,11 @@ internal interface LibraryDao {
     @Query("SELECT channelId FROM guide_channels WHERE sourceId = :sourceId AND alias = :alias") suspend fun guideChannel(sourceId: String, alias: String): String?
     @Query("""SELECT * FROM guide_programmes WHERE sourceId = :sourceId AND channelId = :channelId AND endMs > :fromMs AND startMs < :untilMs
         ORDER BY startMs LIMIT :limit""") suspend fun programmes(sourceId: String, channelId: String, fromMs: Long, untilMs: Long, limit: Int): List<GuideProgrammeRow>
+    @Query("""SELECT e.id AS itemId, p.startMs, p.endMs, p.title FROM library_entries e
+        JOIN guide_channels c ON c.sourceId = e.sourceId AND c.alias = e.guideKey
+        JOIN guide_programmes p ON p.sourceId = c.sourceId AND p.channelId = c.channelId
+        WHERE e.sourceId = :sourceId AND e.id IN (:ids) AND p.endMs > :nowMs AND p.startMs < :untilMs
+        ORDER BY e.id, p.startMs""") suspend fun nowNext(sourceId: String, ids: List<Int>, nowMs: Long, untilMs: Long): List<NowNextRow>
     @Insert suspend fun insertGuideChannels(rows: List<GuideChannelRow>)
     @Insert suspend fun insertProgrammes(rows: List<GuideProgrammeRow>)
     @Query("DELETE FROM guide_channels WHERE sourceId = :sourceId") suspend fun clearGuideChannels(sourceId: String)

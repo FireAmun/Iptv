@@ -262,7 +262,7 @@ private fun SourceActions(importing: Boolean, onLogin: () -> Unit, onUrl: () -> 
 }
 
 @Composable
-fun TvPlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetry: () -> Unit, player: @Composable (Modifier) -> Unit) {
+fun TvPlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetry: () -> Unit, player: @Composable (Modifier) -> Unit, programme: String? = null) {
     val retryFocus = remember { FocusRequester() }
     CinemaTheme {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -273,6 +273,7 @@ fun TvPlayback(title: String, status: PlaybackStatus, onBack: () -> Unit, onRetr
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         AmarWordmark(Cinema.Sand, Modifier.testTag("app_brand"), 12.sp)
                         Text(title, color = Cinema.Cream, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        programme?.let { Text(it, color = Cinema.Sand, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("playback_programme")) }
                     }
                     if (status == PlaybackStatus.FAILED) CinemaButton(onClick = onRetry, primary = true, modifier = Modifier.focusRequester(retryFocus).testTag("playback_retry")) { Text(stringResource(R.string.tv_retry)) }
                 }

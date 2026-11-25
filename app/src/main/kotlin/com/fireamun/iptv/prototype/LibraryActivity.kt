@@ -131,6 +131,8 @@ abstract class LibraryActivity : AppCompatActivity() {
             // Opening the app or switching playlists checks whether the guide is due.
             LaunchedEffect(guideSource) { guide.select(guideSource) }
             val guideSettings: @Composable () -> Unit = { GuideSettings(guide, guideSource) }
+            val guideClock = rememberGuideClock()
+            LaunchedEffect(Unit) { guide.updates.collect { library.guideUpdated(it) } }
             val browserState = rememberSaveableStateHolder()
             // A recreated activity has already consumed this launch, even if rotated mid-intro.
             var introFinished by remember { mutableStateOf(savedInstanceState != null) }
@@ -154,6 +156,14 @@ abstract class LibraryActivity : AppCompatActivity() {
             } else if (active != null) {
                 key(active.sessionId) {
                     var status by remember { mutableStateOf(PlaybackStatus.PREPARING) }
+                    var programme by remember { mutableStateOf<com.fireamun.iptv.core.model.GuideSlot?>(null) }
+                    val playingId = state.selectedId
+                    // Live playback shows the programme on now, re-read as the guide clock ticks.
+                    if (active.kind == com.fireamun.iptv.core.model.ContentKind.LIVE || active.kind == com.fireamun.iptv.core.model.ContentKind.UNKNOWN)
+                        LaunchedEffect(playingId) {
+                            snapshotFlow { guideClock.value }.collect { programme = playingId?.let { library.guideNow(it) }?.at(System.currentTimeMillis())?.first }
+                        }
+                    val programmeText = playerProgrammeText(programme)
                     var presentation by remember { mutableStateOf(PlaybackPresentation()) }
                     val title = state.selectedTitle ?: getString(R.string.player_title)
                     val surface: @Composable (Modifier) -> Unit = { modifier -> PlaybackSurface(
@@ -171,14 +181,14 @@ abstract class LibraryActivity : AppCompatActivity() {
                         onVideoBounds = ::updatePlayerBounds,
                     ) }
                     BackHandler(enabled = !pictureInPictureActive) { library.closePlayback() }
-                    if (television) TvPlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface)
-                    else MobilePlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface, hideChrome = pictureInPictureActive)
+                    if (television) TvPlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface, programme = programmeText)
+                    else MobilePlayback(title, status, library::closePlayback, { library.retryPlayback(active) }, surface, hideChrome = pictureInPictureActive, programme = programmeText)
                 }
             } else {
                 val onAnalytics: (Boolean) -> Unit = { LegalConsent.setAnalytics(this, it); analyticsEnabled = it }
                 BackHandler(enabled = state.canGoBack) { library.backToCatalog() }
                 BackHandler(enabled = state.tab == com.fireamun.iptv.core.model.LibraryTab.SEARCH && !state.canGoBack) { library.closeSearch() }
-                browserState.SaveableStateProvider("browser") { CompositionLocalProvider(LocalLockedCategories provides lockedCategories) {
+                browserState.SaveableStateProvider("browser") { CompositionLocalProvider(LocalLockedCategories provides lockedCategories, LocalGuideClock provides guideClock, LocalGuideSchedule provides library::schedule) {
                     LibraryBrowser(state, catalogue, television, (application as IptvApplication).artworkLoader,
                         library::selectTab, library::search, library::selectCategory, library::selectChannel, library::toggleFavourite, library::backToCatalog, library::closeSearch,
                         watch, library::playRecent) {

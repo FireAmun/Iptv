@@ -1,5 +1,6 @@
 package com.fireamun.iptv.core.data
 
+import com.fireamun.iptv.core.model.GuideNow
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.MediaAddress
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -31,6 +32,8 @@ interface GuidePersistence {
     suspend fun guideFailed(sourceId: String, error: ImportError, attemptedAtMs: Long)
     /** Programmes for one catalogue item overlapping [fromMs, untilMs), oldest first. */
     suspend fun schedule(sourceId: String, itemId: Int, fromMs: Long, untilMs: Long, limit: Int = 200): List<GuideProgramme>
+    /** Up to three slots per item (current first) that end after [nowMs] and start within six hours. */
+    suspend fun nowNext(sourceId: String, itemIds: Collection<Int>, nowMs: Long): Map<Int, GuideNow> = emptyMap()
 }
 
 class GuideLoader(client: OkHttpClient = OkHttpClient(), private val parser: XmltvParser = XmltvParser()) {

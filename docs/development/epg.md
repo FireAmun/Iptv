@@ -2,7 +2,14 @@
 
 Version 1 requirement. Owner choices (25 November 2026): now/next plus a per-channel schedule (a full grid comes later); guide links found automatically plus an optional manual XMLTV link per playlist; automatic daily refresh on Wi-Fi plus a manual Refresh guide button.
 
-The work ships in two pull requests. This document covers the first (guide data). The second adds the screens: now/next on live rows, the current programme in the player, and a 24–48 hour channel schedule.
+The work shipped in two pull requests: guide data (PR #41) and the guide screens described below. A full multi-channel grid is a later enhancement.
+
+## Screens
+
+- **Live rows** (phone and TV) show "Now: <title>" with a progress bar and "Next <time> · <title>". Pages read up to three slots per live row in one query (programmes ending after now and starting within six hours); a shared 30-second clock moves rows from one programme to the next without reloading. Lists re-read when a guide download finishes.
+- **Guide button** (schedule icon) on live rows that have guide data opens the **channel schedule**: from two hours ago to two days ahead, grouped by day, with the programme on now highlighted and its progress, descriptions, and **Watch channel**. On TV each programme takes focus so the remote scrolls the list, and Watch channel takes the initial focus.
+- **Player**: live playback shows "<start>–<end> · <title>" for the programme on now under the channel name, re-read every 30 seconds.
+- Times follow the device's 12/24-hour setting and locale.
 
 ## Where the guide comes from
 
@@ -42,8 +49,8 @@ Room schema 5 (`MIGRATION_4_5`): `library_entries.guideKey` with an index, `guid
 
 ## Code
 
-`core/data`: `XmltvParser`, `GuideKeys`, `GuideLoader`, `GuidePersistence`, `ParsedPlaylist.guideLink`, `PlaylistEntry.guideId`, `SourceSpec.guideAddress()`. `core/storage`: `RoomLibraryStore` guide methods and `MIGRATION_4_5`. `app`: `GuideRefresher` (process-wide, refresh rules), `GuideSettings` (settings card shared by phone and TV), wiring in `LibraryActivity` and `LibraryViewModel.onImported`.
+`core/data`: `XmltvParser`, `GuideKeys`, `GuideLoader`, `GuidePersistence`, `ParsedPlaylist.guideLink`, `PlaylistEntry.guideId`, `SourceSpec.guideAddress()`. `core/storage`: `RoomLibraryStore` guide methods and `MIGRATION_4_5`. `core/model`: `GuideSlot`, `GuideNow`, `Channel.guide`. `app`: `GuideRefresher` (process-wide, refresh rules, update events), `GuideSettings` (settings card shared by phone and TV), `GuideViews.kt` (row lines, progress, guide button, schedule dialog, player text), `LibraryPagingSource` (attaches slots), wiring in `LibraryActivity` and `LibraryViewModel` (`onImported`, `guideNow`, `schedule`, `guideUpdated`).
 
 ## Tests
 
-JVM: `GuideParsingTest` (times and offsets, entities and CDATA, window and channel filtering, missing stops, gzip, no entity expansion, limits, title keys, M3U `tvg-id`/`url-tvg`, Xtream `epg_channel_id` and account link) and `GuideRefresherTest` (unmetered and 12-hour rules, retry back-off, manual refresh on any network, manual link priority and validation). Device (gate 120 → 124): `GuideStorageTest` (id and title matching, sealed links and their priority, refresh keeps the guide, removal and clear) and `GuideSettingsFlowTest` on phone and TV (Refresh guide downloads from a local fixture server and the schedule matches). The migration test now also upgrades a version-4 database. Instrumentation turns automatic guide downloads off so fixture servers only see expected requests.
+JVM: `GuideParsingTest` (times and offsets, entities and CDATA, window and channel filtering, missing stops, gzip, no entity expansion, limits, title keys, M3U `tvg-id`/`url-tvg`, Xtream `epg_channel_id` and account link) and `GuideRefresherTest` (unmetered and 12-hour rules, retry back-off, manual refresh on any network, manual link priority and validation). `GuideNowTest` (core:model) covers now/next selection and progress. Device (gate 120 → 124 → 126): `GuideStorageTest` (id and title matching, sealed links and their priority, refresh keeps the guide, removal and clear) and `GuideSettingsFlowTest` on phone and TV (Refresh guide downloads from a local fixture server and the schedule matches); `GuideBrowseFlowTest` on phone and TV (now/next on the live row, no guide button without guide data, schedule with tomorrow's programme and the on-now marker, Watch channel shows the programme in the player). `GuideStorageTest` also covers the now/next query. The migration test now also upgrades a version-4 database. Instrumentation turns automatic guide downloads off so fixture servers only see expected requests.

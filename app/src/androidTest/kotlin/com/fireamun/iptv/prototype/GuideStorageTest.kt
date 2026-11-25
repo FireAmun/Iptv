@@ -52,6 +52,12 @@ class GuideStorageTest {
         assertEquals(listOf("Match"), store.schedule(sourceId, ids[1], now, now + hour).map { it.title })
         assertTrue(store.schedule(sourceId, ids[2], now, now + hour).isEmpty())
         assertTrue("Movies never take a guide key", store.schedule(sourceId, ids[3], now, now + hour).isEmpty())
+        val slots = store.nowNext(sourceId, ids, now)
+        assertEquals(listOf("Now", "Next"), slots.getValue(ids[0]).slots.map { it.title })
+        assertEquals("Now", slots.getValue(ids[0]).at(now + 1).first!!.title)
+        assertEquals(listOf("Match"), slots.getValue(ids[1]).slots.map { it.title })
+        assertEquals("Only matched live items get slots", setOf(ids[0], ids[1]), slots.keys)
+        assertTrue(store.nowNext(sourceId, emptyList(), now).isEmpty())
         assertEquals(4, store.guideState(sourceId)!!.programmeCount)
         assertEquals(now, store.guideState(sourceId)!!.fetchedAtMs)
 

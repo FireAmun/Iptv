@@ -16,4 +16,13 @@
     <string name="guide_link_save">حفظ الرابط</string>
     <string name="guide_link_clear">استخدام الدليل التلقائي</string>
     <string name="guide_link_invalid">أدخل رابطًا يبدأ بـ http أو https.</string>
+    <string name="guide_now">الآن: %1$s</string>
+    <string name="guide_next">التالي %1$s · %2$s</string>
+    <string name="guide_slot">%1$s–%2$s · %3$s</string>
+    <string name="guide_schedule">دليل البرامج</string>
+    <string name="guide_schedule_for">دليل برامج %1$s</string>
+    <string name="guide_schedule_empty">لا توجد برامج في الدليل لهذه القناة.</string>
+    <string name="guide_loading">جارٍ التحميل…</string>
+    <string name="guide_on_now">يُعرض الآن</string>
+    <string name="guide_watch">مشاهدة القناة</string>
 </resources>

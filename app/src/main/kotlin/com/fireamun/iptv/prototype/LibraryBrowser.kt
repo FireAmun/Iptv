@@ -137,6 +137,8 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     val p = cinemaPalette()
     val lockedCategories = LocalLockedCategories.current
     var detail by remember { mutableStateOf<Channel?>(null) }
+    var scheduleFor by remember { mutableStateOf<Channel?>(null) }
+    val scheduleAvailable = LocalGuideSchedule.current != null
     var lastFocusedId by rememberSaveable { mutableStateOf<Int?>(null) }
     var searchHasFocus by remember { mutableStateOf(false) }
     var choosingCategory by remember { mutableStateOf(false) }
@@ -300,12 +302,15 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Text(channel.title ?: stringResource(R.string.browse_entry, channel.id + 1), fontSize = if (television) 17.sp else 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
                                 channel.group?.let { Text(it, color = p.muted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                channel.guide?.let { GuideLines(it, channel.id) }
                                 if (state.tab == LibraryTab.SEARCH && !state.canGoBack) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(stringResource(when (channel.kind) { ContentKind.MOVIE -> R.string.nav_movies; ContentKind.SERIES -> R.string.nav_series; else -> R.string.nav_live }), color = p.focus, style = MaterialTheme.typography.labelSmall)
                                     Metadata(channel)
                                 }
                                 if (channel.kind == ContentKind.EPISODE && channel.season != null && channel.episode != null) Text(stringResource(R.string.browse_episode, channel.season!!, channel.episode!!), color = p.muted, style = MaterialTheme.typography.bodySmall)
                             }
+                            if (channel.guide != null && scheduleAvailable) GuideButton(channel, onClick = { keyboard?.hide(); lastFocusedId = channel.id; scheduleFor = channel },
+                                onFocused = { userMoved = true; restoreCategoryFocus = false; lastFocusedId = channel.id })
                             if (!state.canGoBack) FavouriteButton(channel, onClick = { restoreCategoryFocus = false; onFavourite(channel) }, onFocused = { userMoved = true; restoreCategoryFocus = false; lastFocusedId = channel.id })
                         }
                     }
@@ -318,6 +323,9 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     if (choosingCategory) CategoryPicker(state.categories, state.category, television,
         onSelect = { category -> choosingCategory = false; restoreCategoryFocus = true; onCategory(category) },
         onDismiss = { choosingCategory = false; restoreCategoryFocus = true }, locked = lockedCategories)
+    scheduleFor?.let { channel ->
+        ScheduleDialog(channel, television, onPlay = { scheduleFor = null; onPlay(channel.id) }, onDismiss = { scheduleFor = null })
+    }
     detail?.let { channel ->
         val playFocus = remember { FocusRequester() }
         Dialog(onDismissRequest = { detail = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
