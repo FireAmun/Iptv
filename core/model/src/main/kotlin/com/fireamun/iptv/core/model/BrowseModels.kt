@@ -3,7 +3,39 @@ package com.fireamun.iptv.core.model
 import java.util.Locale
 
 enum class LibraryTab { LIVE, MOVIES, SERIES, SETTINGS, FAVOURITES, SEARCH }
-data class BrowseRequest(val sourceId: String, val generation: String, val kind: ContentKind? = null, val category: String? = null, val query: String = "", val favouritesOnly: Boolean = false)
+data class BrowseRequest(val sourceId: String, val generation: String, val kind: ContentKind? = null, val category: String? = null, val query: String = "", val favouritesOnly: Boolean = false,
+    val hidden: CategoryLocks = CategoryLocks())
+
+/**
+ * Parental category locks for one source, keyed by the browse tab's kind (LIVE, MOVIE or SERIES). Labels are the
+ * provider's original group labels. A request carries them only while the parental lock is closed.
+ */
+data class CategoryLocks(val byKind: Map<ContentKind, Set<String>> = emptyMap()) {
+    init { require(byKind.keys.all { it in TAB_KINDS }) }
+    val isEmpty get() = byKind.values.all { it.isEmpty() }
+    fun labels(kind: ContentKind): Set<String> = byKind[tabKind(kind)].orEmpty()
+    fun blocks(kind: ContentKind, group: String?): Boolean = group != null && group in labels(kind)
+    fun with(kind: ContentKind, label: String, locked: Boolean): CategoryLocks {
+        val key = tabKind(kind)
+        val next = if (locked) labels(key) + label else labels(key) - label
+        return CategoryLocks((byKind - key).let { if (next.isEmpty()) it else it + (key to next) })
+    }
+    companion object {
+        val TAB_KINDS = setOf(ContentKind.LIVE, ContentKind.MOVIE, ContentKind.SERIES)
+        /** Unknown entries browse as Live; episodes belong to the Series tab. */
+        fun tabKind(kind: ContentKind) = when (kind) {
+            ContentKind.LIVE, ContentKind.UNKNOWN -> ContentKind.LIVE
+            ContentKind.MOVIE -> ContentKind.MOVIE
+            ContentKind.SERIES, ContentKind.EPISODE -> ContentKind.SERIES
+        }
+        fun storedKinds(tabKind: ContentKind): List<ContentKind> = when (tabKind) {
+            ContentKind.LIVE -> listOf(ContentKind.LIVE, ContentKind.UNKNOWN)
+            ContentKind.MOVIE -> listOf(ContentKind.MOVIE)
+            ContentKind.SERIES -> listOf(ContentKind.SERIES, ContentKind.EPISODE)
+            else -> error("Not a tab kind")
+        }
+    }
+}
 data class BrowsePage(val items: List<Channel>, val total: Int)
 data class LibraryArtwork(val sourceId: String, val itemId: Int, val generation: String) {
     override fun toString() = "[protected artwork reference]"

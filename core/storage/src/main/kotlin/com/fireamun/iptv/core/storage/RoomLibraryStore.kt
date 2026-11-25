@@ -52,6 +52,12 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
             else { clauses += "e.kind = ?"; args += it.name }
         }
         request.category?.let { clauses += "e.groupLabel = ?"; args += it }
+        for ((tabKind, labels) in request.hidden.byKind) if (labels.isNotEmpty()) {
+            // Parental locks hide whole categories from every query: browsing, favourites and search.
+            val kinds = CategoryLocks.storedKinds(tabKind)
+            clauses += "NOT (e.kind IN (${kinds.joinToString(",") { "?" }}) AND COALESCE(e.groupLabel, '') IN (${labels.joinToString(",") { "?" }}))"
+            args.addAll(kinds.map { it.name }); args.addAll(labels)
+        }
         if (request.favouritesOnly) clauses += "EXISTS(SELECT 1 FROM favourites f WHERE f.sourceId = e.sourceId AND f.itemId = e.id)"
         if (request.query.isNotBlank()) {
             val expression = searchExpression(request.query)
@@ -72,7 +78,8 @@ class RoomLibraryStore private constructor(private val database: LibraryDatabase
     override suspend fun categories(request: BrowseRequest): List<String> = guarded {
         mutex.withLock { database.withTransaction {
             if (dao.source(request.sourceId)?.generation != request.generation) return@withTransaction emptyList()
-            val (where, args) = conditions(request.copy(category = null, query = ""))
+            // Locked categories stay listed (shown with a lock) so choosing one can ask for the PIN.
+            val (where, args) = conditions(request.copy(category = null, query = "", hidden = CategoryLocks()))
             dao.categories(SimpleSQLiteQuery("SELECT DISTINCT e.groupLabel FROM library_entries e WHERE $where AND e.groupLabel IS NOT NULL AND e.groupLabel != '' ORDER BY e.groupLabel COLLATE NOCASE LIMIT 1000", args))
         } }
     }

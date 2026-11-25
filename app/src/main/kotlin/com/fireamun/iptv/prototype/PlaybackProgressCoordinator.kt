@@ -23,6 +23,7 @@ class PlaybackProgressCoordinator(
     private val store: PlaybackProgressPersistence?,
     private val recorder: PlaybackProgressRecorder,
     private val resolve: suspend (String, String, Int) -> PlaylistEntry?,
+    private val hidden: (RecentWatch) -> Boolean = { false },
     private val onReady: (PlaybackRequest, Channel) -> Unit,
 ) {
     private class Candidate(val entry: PlaylistEntry, val target: ProgressTarget?, val snapshot: EpisodeSnapshot?, val offset: Long = 0, val duration: Long? = null)
@@ -81,7 +82,7 @@ class PlaybackProgressCoordinator(
                 if (!valid(token)) return@launch
                 val items = persistence.recent(source, kind, 20)
                 if (!valid(token)) return@launch
-                mutableState.value = mutableState.value.copy(items = items.filter { it.reference.sourceId == source && it.kind == kind }.take(20), loading = false)
+                mutableState.value = mutableState.value.copy(items = items.filter { it.reference.sourceId == source && it.kind == kind && !hidden(it) }.take(20), loading = false)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { if (valid(token)) mutableState.value = mutableState.value.copy(loading = false, error = ProgressProblem.READ) }
         }

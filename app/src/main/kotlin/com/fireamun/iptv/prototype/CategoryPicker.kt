@@ -45,7 +45,9 @@ import com.fireamun.iptv.core.designsystem.*
 /** Only filters already-supplied labels. Choosing a row delegates to the existing category action. */
 @Composable
 internal fun CategoryPicker(categories: List<String>, selected: String?, television: Boolean,
-    onSelect: (String?) -> Unit, onDismiss: () -> Unit) {
+    onSelect: (String?) -> Unit, onDismiss: () -> Unit, locked: Set<String> = emptySet(), checked: Set<String>? = null, title: String? = null) {
+    // [checked] turns the picker into the parental lock chooser: toggles instead of a single choice, no "All" row.
+    val lockedLabel = stringResource(com.fireamun.iptv.core.designsystem.R.string.parental_locked)
     val p = cinemaPalette()
     var query by remember { mutableStateOf("") }
     val shown = remember(categories, query) { categories.filter { it.contains(query.trim(), ignoreCase = true) } }
@@ -62,7 +64,7 @@ internal fun CategoryPicker(categories: List<String>, selected: String?, televis
                 color = p.panel, contentColor = p.text, shape = RoundedCornerShape(24.dp), border = BorderStroke(1.dp, p.outline.copy(alpha = .3f))) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.browse_all_categories), Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 24.sp, lineHeight = 32.sp)
+                        Text(title ?: stringResource(R.string.browse_all_categories), Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 24.sp, lineHeight = 32.sp)
                         val label = stringResource(R.string.browse_close)
                         IconButton(onClick = ::dismiss, modifier = Modifier.size(48.dp).focusProperties { canFocus = true }.focusRequester(close).testTag("category_picker_close").semantics { contentDescription = label }) {
                             CinemaIcon(CinemaSymbol.CLOSE, tint = p.muted)
@@ -86,8 +88,11 @@ internal fun CategoryPicker(categories: List<String>, selected: String?, televis
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }))
                     if (shown.isEmpty()) Text(stringResource(R.string.browse_no_categories), Modifier.padding(vertical = 24.dp).testTag("category_picker_empty"), color = p.muted)
                     LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false).heightIn(max = 420.dp).testTag("category_picker_list"), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        item(key = "all") { CategoryRow(stringResource(R.string.browse_all_categories), selected == null, "category_pick_all", television) { choose(null) } }
-                        itemsIndexed(shown, key = { _, name -> "category:$name" }) { index, name -> CategoryRow(name, name == selected, "category_pick_$index", television) { choose(name) } }
+                        if (checked == null) item(key = "all") { CategoryRow(stringResource(R.string.browse_all_categories), selected == null, "category_pick_all", television) { choose(null) } }
+                        itemsIndexed(shown, key = { _, name -> "category:$name" }) { index, name ->
+                            if (checked != null) CategoryRow(name, name in checked, "category_lock_$index", television, role = Role.Checkbox) { onSelect(name) }
+                            else CategoryRow(name, name == selected, "category_pick_$index", television, if (name in locked) lockedLabel else null) { choose(name) }
+                        }
                     }
                 }
             }
@@ -97,16 +102,17 @@ internal fun CategoryPicker(categories: List<String>, selected: String?, televis
 }
 
 @Composable
-private fun CategoryRow(label: String, isSelected: Boolean, tag: String, television: Boolean, onClick: () -> Unit) {
+private fun CategoryRow(label: String, isSelected: Boolean, tag: String, television: Boolean, trailing: String? = null, role: Role = Role.RadioButton, onClick: () -> Unit) {
     val p = cinemaPalette()
     var focused by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().heightIn(min = if (television) 56.dp else 52.dp).testTag(tag)
         .focusProperties { canFocus = true }.onFocusChanged { focused = it.isFocused }.clip(RoundedCornerShape(12.dp))
         .background(if (isSelected) p.focus.copy(alpha = .12f) else if (focused) p.raised else p.panel)
         .border(if (focused) 2.dp else 0.dp, if (focused) p.focus else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(12.dp))
-        .semantics { selected = isSelected }.clickable(role = Role.RadioButton, onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
+        .semantics { selected = isSelected }.clickable(role = role, onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(label, Modifier.weight(1f), color = if (isSelected) p.focus else p.text, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium)
+        trailing?.let { Text(it, color = p.muted, style = MaterialTheme.typography.labelMedium) }
         if (isSelected) CinemaIcon(CinemaSymbol.CHECK, tint = p.focus)
     }
 }

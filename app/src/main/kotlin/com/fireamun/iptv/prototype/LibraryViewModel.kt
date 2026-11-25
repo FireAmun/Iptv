@@ -27,6 +27,7 @@ import com.posthog.PostHog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -50,6 +51,7 @@ class LibraryViewModel(
     private val loadEpisodes: suspend (XtreamConnection, Long) -> List<PlaylistEntry> = XtreamLoader()::episodes,
     private val persistence: LibraryPersistence? = null,
     progressRecorder: PlaybackProgressRecorder? = null,
+    private val parental: ParentalControls? = null,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(LibraryState(importing = persistence != null, restoring = persistence != null))
     val state = mutableState.asStateFlow()
@@ -70,6 +72,7 @@ class LibraryViewModel(
     private val progress = PlaybackProgressCoordinator(viewModelScope, progressStore,
         progressRecorder ?: PlaybackProgressRecorder(viewModelScope, progressStore),
         { sourceId, catalogueGeneration, id -> persistence?.item(sourceId, catalogueGeneration, id) },
+        { recent -> parental?.blocks(recent.reference.sourceId, recent.kind, recent.rootGroup) == true },
     ) { request, channel ->
         mutableState.value = mutableState.value.copy(selectedId = channel.id, selectedTitle = channel.title, error = null)
         mutablePlayback.value = request
@@ -91,6 +94,65 @@ class LibraryViewModel(
             LibraryPagingSource(persistence, input.request, input.local)
         }.flow
     }.cachedIn(viewModelScope)
+
+    private val mutablePinPrompt = MutableStateFlow(false)
+    /** True while a locked category or item waits for the parental PIN. */
+    val pinPrompt = mutablePinPrompt.asStateFlow()
+    private var pendingUnlock: (() -> Unit)? = null
+    private fun requirePin(action: () -> Unit) { pendingUnlock = action; mutablePinPrompt.value = true }
+    /** Called by the PIN dialog after [ParentalControls.unlock] accepted the PIN. */
+    fun pinAccepted() {
+        mutablePinPrompt.value = false
+        pendingUnlock.also { pendingUnlock = null }?.invoke()
+    }
+    fun dismissPinPrompt() { pendingUnlock = null; mutablePinPrompt.value = false }
+
+    /** Every category label of [kind] in the active playlist, for choosing parental locks. */
+    suspend fun lockableCategories(kind: ContentKind): List<String> {
+        val sourceId = mutableState.value.activeSourceId
+        val saved = session
+        if (saved != null && saved.initialEntries.isEmpty() && persistence != null && sourceId != null)
+            return persistence.categories(BrowseRequest(sourceId, saved.generation, kind))
+        return (parent?.first ?: library).map { it.channel }.filter { matchesKind(it.kind, kind) }.mapNotNull { it.group?.takeIf(String::isNotEmpty) }.distinct().sorted()
+    }
+
+    /** "Forgot PIN": every playlist, login, favourite and watch record goes with the PIN. A failed removal keeps the PIN. */
+    fun forgetPin() {
+        val controls = parental ?: return
+        progressEvent()
+        val store = persistence ?: run { controls.forget(); syncProgressContext(); return }
+        cancelImport()
+        mutableState.value = mutableState.value.copy(importing = true, saving = true, error = null)
+        progress.invalidate()
+        importJob = viewModelScope.launch {
+            try {
+                withContext(NonCancellable) { store.clear() }
+                controls.forget()
+                activeSource = null; parent = null; parentRootItemId = null; library = emptyList(); session = null; closePlayback()
+                mutableState.value = LibraryState(importing = true, saving = true)
+                refreshDirectory()
+                updateBrowse()
+            } catch (failure: ImportFailure) { reportError(failure.code) }
+            finally { mutableState.value = mutableState.value.copy(importing = false, saving = false); syncProgressContext() }
+        }
+    }
+
+    init {
+        parental?.let { controls ->
+            viewModelScope.launch {
+                controls.state.drop(1).collect {
+                    // Relocking leaves no locked category selected; every list re-reads with the new hidden set.
+                    val state = mutableState.value
+                    if (controls.blocks(state.activeSourceId, tabKind(state.tab) ?: ContentKind.LIVE, state.category) && tabKind(state.tab) != null)
+                        mutableState.value = state.copy(category = null)
+                    updateBrowse()
+                }
+            }
+        }
+    }
+    private fun tabKind(tab: LibraryTab) = when (tab) {
+        LibraryTab.LIVE -> ContentKind.LIVE; LibraryTab.MOVIES -> ContentKind.MOVIE; LibraryTab.SERIES -> ContentKind.SERIES; else -> null
+    }
 
     private fun capture(event: String, properties: Map<String, Any>) {
         runCatching { PostHog.capture(event = event, properties = properties) }
@@ -292,6 +354,11 @@ class LibraryViewModel(
         }
     }
     private fun openEntry(entry: PlaylistEntry) {
+        // The same rule guards every way an item can open: lists, search, favourites, history and later remotes.
+        if (parental?.blocks(mutableState.value.activeSourceId, entry.channel.kind, entry.channel.group) == true) {
+            requirePin { openEntry(entry) }
+            return
+        }
         mutableState.value = mutableState.value.copy(selectedId = entry.channel.id, selectedTitle = entry.channel.title, error = null)
         val source = activeSource?.xtream
         val seriesId = entry.seriesId
@@ -386,6 +453,7 @@ class LibraryViewModel(
         manageSource(sourceId) {
             val wasActive = mutableState.value.activeSourceId == sourceId
             persistence!!.remove(sourceId)
+            parental?.sourceRemoved(sourceId)
             if (wasActive) {
                 activeSource = null; parent = null; parentRootItemId = null; library = emptyList(); session = null; closePlayback()
                 mutableState.value = LibraryState(importing = true, saving = true, sources = mutableState.value.sources)
@@ -431,6 +499,11 @@ class LibraryViewModel(
         updateBrowse(loadCategories = false)
     }
     fun selectCategory(category: String?) {
+        val kind = tabKind(mutableState.value.tab)
+        if (kind != null && parental?.blocks(mutableState.value.activeSourceId, kind, category) == true) {
+            requirePin { selectCategory(category) }
+            return
+        }
         progressEvent()
         mutableState.value = mutableState.value.copy(category = category)
         updateBrowse(loadCategories = false)
@@ -468,7 +541,8 @@ class LibraryViewModel(
             LibraryTab.LIVE -> ContentKind.LIVE; LibraryTab.MOVIES -> ContentKind.MOVIE; LibraryTab.SERIES -> ContentKind.SERIES; else -> null
         }
         val request = BrowseRequest(state.activeSourceId.orEmpty(), state.catalogueGeneration ?: session?.generation.orEmpty(), kind,
-            state.category, if (state.tab == LibraryTab.SEARCH) state.query else "", state.tab == LibraryTab.FAVOURITES && !state.canGoBack)
+            state.category, if (state.tab == LibraryTab.SEARCH) state.query else "", state.tab == LibraryTab.FAVOURITES && !state.canGoBack,
+            parental?.hidden(state.activeSourceId) ?: CategoryLocks())
         val local = if (state.canGoBack || session == null || session!!.initialEntries.isNotEmpty()) state.channels else null
         browseInput.value = BrowseInput(request, local, browseInput.value.revision + 1)
         if (!loadCategories) return

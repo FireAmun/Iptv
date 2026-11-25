@@ -22,6 +22,7 @@ internal class LibraryPagingSource(
             val terms = searchTerms(request?.query.orEmpty())
             val items = local.filter { channel ->
                 matchesKind(channel.kind, request?.kind) && (request?.category == null || channel.group == request.category) &&
+                    request?.hidden?.blocks(channel.kind, channel.group) != true &&
                     (request?.favouritesOnly != true || channel.favourite) && terms.all { term ->
                         searchTerms("${channel.title.orEmpty()} ${channel.group.orEmpty()}").any { if (term.all(Char::isDigit)) it == term else it.startsWith(term) }
                     }

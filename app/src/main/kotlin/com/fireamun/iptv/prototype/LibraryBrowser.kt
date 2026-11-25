@@ -135,6 +135,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     onTab: (LibraryTab) -> Unit, onQuery: (String) -> Unit, onCategory: (String?) -> Unit, onPlay: (Int) -> Unit, onFavourite: (Channel) -> Unit, onBack: () -> Unit,
     watch: ContinueWatchingState, onRecent: (ProgressReference) -> Unit, externalFocusEpoch: Long) {
     val p = cinemaPalette()
+    val lockedCategories = LocalLockedCategories.current
     var detail by remember { mutableStateOf<Channel?>(null) }
     var lastFocusedId by rememberSaveable { mutableStateOf<Int?>(null) }
     var searchHasFocus by remember { mutableStateOf(false) }
@@ -256,7 +257,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
         if (state.categories.isNotEmpty() && !state.canGoBack) Row(Modifier.fillMaxWidth().onFocusChanged { categoryRowHasFocus = it.hasFocus; if (it.hasFocus) userMoved = true }.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             LazyRow(Modifier.weight(1f).testTag("category_list"), contentPadding = PaddingValues(start = padding, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { FilterChip(selected = state.category == null, onClick = { restoreCategoryFocus = false; onCategory(null) }, label = { Text(stringResource(R.string.browse_all_categories)) }, modifier = Modifier.tvFocus().testTag("category_all")) }
-                items(state.categories, key = { it }) { category -> FilterChip(selected = state.category == category, onClick = { restoreCategoryFocus = false; onCategory(category) }, modifier = Modifier.tvFocus(), label = { Text(category, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp)) }) }
+                items(state.categories, key = { it }) { category -> FilterChip(selected = state.category == category, onClick = { restoreCategoryFocus = false; onCategory(category) }, modifier = Modifier.tvFocus(), label = { Text(if (category in lockedCategories) "$category · ${stringResource(com.fireamun.iptv.core.designsystem.R.string.parental_locked)}" else category, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp)) }) }
             }
             val categoryLabel = stringResource(R.string.browse_categories)
             BrowserTarget({ keyboard?.hide(); restoreCategoryFocus = false; choosingCategory = true }, Modifier.padding(end = padding).size(48.dp).focusRequester(categoryFocus).testTag("browse_categories").semantics { contentDescription = categoryLabel }) {
@@ -316,7 +317,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     }
     if (choosingCategory) CategoryPicker(state.categories, state.category, television,
         onSelect = { category -> choosingCategory = false; restoreCategoryFocus = true; onCategory(category) },
-        onDismiss = { choosingCategory = false; restoreCategoryFocus = true })
+        onDismiss = { choosingCategory = false; restoreCategoryFocus = true }, locked = lockedCategories)
     detail?.let { channel ->
         val playFocus = remember { FocusRequester() }
         Dialog(onDismissRequest = { detail = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {

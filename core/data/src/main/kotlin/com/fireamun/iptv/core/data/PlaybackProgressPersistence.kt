@@ -42,7 +42,7 @@ data class ProgressReference(val sourceId: String, val refDigest: String) {
 }
 
 data class RecentWatch(val reference: ProgressReference, val kind: ContentKind, val title: String?, val parentTitle: String?, val rootItemId: Int,
-    val season: Int?, val episode: Int?, val progress: WatchProgress, val artwork: LibraryArtwork?) {
+    val season: Int?, val episode: Int?, val progress: WatchProgress, val artwork: LibraryArtwork?, val rootGroup: String? = null) {
     override fun toString() = "[protected recent watch]"
 }
 
