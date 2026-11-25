@@ -10,6 +10,7 @@ import com.fireamun.iptv.core.model.*
 import com.fireamun.iptv.core.data.HttpPlaylistLoader
 import com.fireamun.iptv.core.data.M3uParser
 import com.fireamun.iptv.core.data.PlaylistEntry
+import com.fireamun.iptv.core.data.ParsedPlaylist
 import com.fireamun.iptv.core.data.ImportFailure
 import com.fireamun.iptv.core.data.XtreamConnection
 import com.fireamun.iptv.core.data.XtreamLoader
@@ -52,6 +53,8 @@ class LibraryViewModel(
     private val persistence: LibraryPersistence? = null,
     progressRecorder: PlaybackProgressRecorder? = null,
     private val parental: ParentalControls? = null,
+    /** Called after an import or refresh is saved, with the playlist header's guide link (if any). */
+    private val onImported: (String, MediaAddress?) -> Unit = { _, _ -> },
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(LibraryState(importing = persistence != null, restoring = persistence != null))
     val state = mutableState.asStateFlow()
@@ -296,8 +299,10 @@ class LibraryViewModel(
                             // This is the local commit point. A user cancellation cannot split saved and visible state.
                             mutableState.value = mutableState.value.copy(saving = true)
                             withContext(NonCancellable) {
-                                commitSession(persistence.saveSession(source, entries, refreshing, targetSourceId))
+                                val saved = persistence.saveSession(source, entries, refreshing, targetSourceId)
+                                commitSession(saved)
                                 refreshDirectory()
+                                saved.sourceId?.let { onImported(it, (entries as? ParsedPlaylist)?.guideLink) }
                             }
                         }
                         capture(if (refreshing) "library_refreshed" else "library_imported", mapOf(

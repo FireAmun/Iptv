@@ -68,6 +68,7 @@ abstract class LibraryActivity : AppCompatActivity() {
     }
     private var refreshingFile = false
     private val parental by lazy { (application as IptvApplication).parentalControls }
+    private val guide by lazy { (application as IptvApplication).guideRefresher }
     override fun onStart() {
         super.onStart()
         parental.onForeground()
@@ -82,6 +83,7 @@ abstract class LibraryActivity : AppCompatActivity() {
                 persistence = (application as IptvApplication).libraryStore,
                 progressRecorder = (application as IptvApplication).progressRecorder,
                 parental = parental,
+                onImported = guide::imported,
             ))!!
         })[LibraryViewModel::class.java]
     }
@@ -125,6 +127,10 @@ abstract class LibraryActivity : AppCompatActivity() {
             val parentalSettings: @Composable () -> Unit = {
                 ParentalSettings(parental, television, state.activeSourceId.takeIf { state.entryCount > 0 }, library::lockableCategories, library::forgetPin)
             }
+            val guideSource = state.activeSourceId.takeIf { state.entryCount > 0 }
+            // Opening the app or switching playlists checks whether the guide is due.
+            LaunchedEffect(guideSource) { guide.select(guideSource) }
+            val guideSettings: @Composable () -> Unit = { GuideSettings(guide, guideSource) }
             val browserState = rememberSaveableStateHolder()
             // A recreated activity has already consumed this launch, even if rotated mid-intro.
             var introFinished by remember { mutableStateOf(savedInstanceState != null) }
@@ -177,9 +183,9 @@ abstract class LibraryActivity : AppCompatActivity() {
                         library::selectTab, library::search, library::selectCategory, library::selectChannel, library::toggleFavourite, library::backToCatalog, library::closeSearch,
                         watch, library::playRecent) {
                         if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource,
-                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings)
+                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings, guideSettings)
                         else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource,
-                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings)
+                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings, guideSettings)
                     }
                 } }
                 if (pinPrompt) PinDialog(PinMode.ENTER, parental, television, onDone = library::pinAccepted, onDismiss = library::dismissPinPrompt,

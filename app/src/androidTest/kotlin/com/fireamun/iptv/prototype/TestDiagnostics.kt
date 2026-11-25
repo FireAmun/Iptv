@@ -40,6 +40,8 @@ class TestDiagnostics : TestRule {
             fun resetLibrary() {
                 phase(Phase.BEFORE_LIBRARY_RESET)
                 val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as IptvApplication
+                app.guideRefresher.automatic = false
+                app.guideRefresher.select(null)
                 runBlocking(Dispatchers.IO) { app.libraryStore.clear() }
                 // A PIN or category lock left by one test must never hide another test's fixture.
                 app.parentalControls.forget()

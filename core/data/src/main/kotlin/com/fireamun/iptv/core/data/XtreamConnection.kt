@@ -15,6 +15,10 @@ class XtreamConnection private constructor(private val server: HttpUrl, private 
         .addPathSegment("player_api.php").addQueryParameter("username", username).addQueryParameter("password", password)
         .apply { if (action != null) addQueryParameter("action", action); if (seriesId != null) addQueryParameter("series_id", seriesId.toString()) }.build()
 
+    /** The account's XMLTV guide; carries the login, so it is protected like every other generated URL. */
+    fun guideAddress(): MediaAddress? = MediaAddress.parse(server.newBuilder().addPathSegment("xmltv.php")
+        .addQueryParameter("username", username).addQueryParameter("password", password).build().toString())
+
     internal fun playbackAddress(kind: ContentKind, id: Long, extension: String): MediaAddress? {
         if (id <= 0 || !extension.matches(Regex("[A-Za-z0-9]{1,12}"))) return null
         val path = when (kind) { ContentKind.LIVE -> "live"; ContentKind.MOVIE -> "movie"; ContentKind.EPISODE -> "series"; else -> return null }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="guide_title">دليل البرامج</string>
+    <string name="guide_description">مواعيد برامج القنوات المباشرة من قائمتك أو من مزوّد الخدمة. يتحدّث الدليل مرة يوميًا عبر Wi-Fi، ويعمل زر تحديث الدليل على أي شبكة.</string>
+    <string name="guide_no_source">أضف قائمة تشغيل لاستخدام دليل البرامج.</string>
+    <string name="guide_status_none">لم يُنزَّل الدليل بعد.</string>
+    <string name="guide_status_ready">آخر تحديث %1$s · %2$d برنامج</string>
+    <string name="guide_status_no_link">لا تحتوي هذه القائمة على رابط دليل. يمكنك إضافة رابط أدناه.</string>
+    <string name="guide_status_failed">فشل آخر تحديث. ما زال الدليل السابق محفوظًا.</string>
+    <string name="guide_status_empty">لا يحتوي الدليل على برامج لقنوات هذه القائمة.</string>
+    <string name="guide_refreshing">جارٍ تحديث الدليل…</string>
+    <string name="guide_refresh">تحديث الدليل</string>
+    <string name="guide_link_label">رابط الدليل (XMLTV)</string>
+    <string name="guide_link_automatic">يُستخدم الدليل التلقائي</string>
+    <string name="guide_link_manual">يُستخدم رابط الدليل الذي أضفته</string>
+    <string name="guide_link_save">حفظ الرابط</string>
+    <string name="guide_link_clear">استخدام الدليل التلقائي</string>
+    <string name="guide_link_invalid">أدخل رابطًا يبدأ بـ http أو https.</string>
+</resources>

@@ -198,8 +198,8 @@ class WatchProgressStorageTest {
         } finally { store.close() }
     }
 
-    @Test fun schemaTwoAndThreeUpgradePreservesOldSourceCiphertextAndItemId() = runBlocking {
-        for (version in 2..3) {
+    @Test fun schemaTwoThreeAndFourUpgradePreservesOldSourceCiphertextAndItemId() = runBlocking {
+        for (version in 2..4) {
             val name = "watch-migration-$version-${UUID.randomUUID()}.db"
             val protector = KeystoreEnvelope("iptv.test.$name")
             val sourceId = "legacy-source-$version"
@@ -242,6 +242,9 @@ class WatchProgressStorageTest {
                     val target = ProgressTarget(sourceId, 123, ContentKind.MOVIE)
                     store.save(target, WatchProgress(6_000, null, false, 7))
                     assertEquals(6_000L, store.read(target)!!.progress.positionMs)
+                    // Version 5 adds an empty guide; upgraded rows have no guide key until their playlist is refreshed.
+                    assertTrue(store.guideKeys(sourceId).isEmpty())
+                    assertEquals(0, store.guideState(sourceId)!!.programmeCount)
                     SQLiteDatabase.openDatabase(path.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
                         db.rawQuery("SELECT secret FROM source_state WHERE sourceId = ?", arrayOf(sourceId)).use { cursor -> assertTrue(cursor.moveToFirst()); assertArrayEquals(secret, cursor.getBlob(0)) }
                         db.rawQuery("SELECT address FROM library_entries WHERE id = 123", null).use { cursor -> assertTrue(cursor.moveToFirst()); assertArrayEquals(address, cursor.getBlob(0)) }

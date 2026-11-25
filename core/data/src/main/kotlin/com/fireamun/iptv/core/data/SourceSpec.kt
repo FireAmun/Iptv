@@ -8,6 +8,8 @@ import java.io.*
 /** Protected connection material. Encoding is plaintext for immediate encryption only. */
 class SourceSpec private constructor(val kind: SourceKind, val name: String?, val url: MediaAddress?, val xtream: XtreamConnection?) {
     override fun toString() = "[protected source]"
+    /** Automatic guide for Xtream logins and recognized Xtream playlist exports. */
+    fun guideAddress(): MediaAddress? = xtream?.guideAddress()
     fun encode(): ByteArray = ByteArrayOutputStream().also { bytes ->
         DataOutputStream(bytes).use { output ->
             output.writeByte(1); output.writeUTF(kind.name)
