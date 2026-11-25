@@ -12,6 +12,8 @@ class IptvApplication : Application() {
     private val progressScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
     val progressRecorder by lazy { PlaybackProgressRecorder(progressScope, libraryStore) }
     val artworkLoader by lazy { protectedImageLoader(this, libraryStore) }
+    /** Process-wide so the unlock survives Activity recreation but never process death. */
+    val parentalControls by lazy { ParentalControls(PreferencesParentalStore(this)) }
     override fun onCreate() {
         super.onCreate()
         initializePostHog()

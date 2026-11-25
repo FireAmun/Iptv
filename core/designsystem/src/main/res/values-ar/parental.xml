@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="parental_title">الرقابة الأبوية</string>
+    <string name="parental_description">اقفل فئات تختارها برمز PIN. تختفي الفئات المقفلة من التصفح والبحث والمفضلة ومتابعة المشاهدة حتى يُدخل الرمز. هذا الرمز وسيلة منزلية للتنظيم فقط: يستطيع أي شخص يمسح بيانات التطبيق على الجهاز إزالته.</string>
+    <string name="parental_status_off">رمز PIN متوقف</string>
+    <string name="parental_status_locked">رمز PIN مفعّل · مقفل</string>
+    <string name="parental_status_unlocked">رمز PIN مفعّل · مفتوح حتى إغلاق التطبيق</string>
+    <string name="parental_set_pin">تعيين رمز PIN</string>
+    <string name="parental_change_pin">تغيير رمز PIN</string>
+    <string name="parental_turn_off">إيقاف رمز PIN</string>
+    <string name="parental_turn_off_message">إيقاف رمز PIN؟ ستُزال أقفال كل الفئات أيضاً.</string>
+    <string name="parental_unlock">فتح</string>
+    <string name="parental_lock_now">اقفل الآن</string>
+    <string name="parental_locked_categories">الفئات المقفلة</string>
+    <string name="parental_locked_count">المقفلة: %1$d</string>
+    <string name="parental_choose_categories">اختر الفئات</string>
+    <string name="parental_no_source">أضف قائمة تشغيل لاختيار الفئات.</string>
+    <string name="parental_no_categories">لا توجد فئات هنا في هذه القائمة.</string>
+    <string name="parental_locked">مقفلة</string>
+    <string name="parental_done">تم</string>
+    <string name="pin_enter_title">أدخل رمز PIN</string>
+    <string name="pin_new_title">اختر رمز PIN جديداً</string>
+    <string name="pin_confirm_title">أدخل الرمز الجديد مرة أخرى</string>
+    <string name="pin_hint">من 4 إلى 8 أرقام</string>
+    <string name="pin_wrong">رمز PIN غير صحيح</string>
+    <string name="pin_mismatch">الرمزان غير متطابقين. حاول مرة أخرى.</string>
+    <string name="pin_wait">محاولات كثيرة. حاول مرة أخرى بعد %1$d ثانية.</string>
+    <string name="pin_ok">موافق</string>
+    <string name="pin_cancel">إلغاء</string>
+    <string name="pin_delete">حذف</string>
+    <string name="pin_forgot">نسيت رمز PIN؟</string>
+    <string name="pin_forgot_message">إعادة تعيين الرمز تزيل كل قوائم التشغيل وبيانات الدخول على هذا الجهاز، مع المفضلة وسجل المشاهدة. يمكنك إضافة قوائمك مرة أخرى بعد ذلك.</string>
+    <string name="pin_forgot_confirm">إزالة الكل وإعادة التعيين</string>
+</resources>

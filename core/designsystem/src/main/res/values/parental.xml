@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="parental_title">Parental controls</string>
+    <string name="parental_description">Lock chosen categories behind a PIN. Locked categories disappear from browsing, search, favourites and Continue watching until the PIN is entered. This PIN is a household convenience: anyone who can clear this app\'s data on the device can remove it.</string>
+    <string name="parental_status_off">PIN is off</string>
+    <string name="parental_status_locked">PIN is on · locked</string>
+    <string name="parental_status_unlocked">PIN is on · unlocked until the app is closed</string>
+    <string name="parental_set_pin">Set PIN</string>
+    <string name="parental_change_pin">Change PIN</string>
+    <string name="parental_turn_off">Turn off PIN</string>
+    <string name="parental_turn_off_message">Turn off the PIN? Every category lock is removed too.</string>
+    <string name="parental_unlock">Unlock</string>
+    <string name="parental_lock_now">Lock now</string>
+    <string name="parental_locked_categories">Locked categories</string>
+    <string name="parental_locked_count">Locked: %1$d</string>
+    <string name="parental_choose_categories">Choose categories</string>
+    <string name="parental_no_source">Add a playlist to choose categories.</string>
+    <string name="parental_no_categories">This playlist has no categories here.</string>
+    <string name="parental_locked">Locked</string>
+    <string name="parental_done">Done</string>
+    <string name="pin_enter_title">Enter PIN</string>
+    <string name="pin_new_title">Choose a new PIN</string>
+    <string name="pin_confirm_title">Enter the new PIN again</string>
+    <string name="pin_hint">4 to 8 digits</string>
+    <string name="pin_wrong">Wrong PIN</string>
+    <string name="pin_mismatch">The PINs don\'t match. Try again.</string>
+    <string name="pin_wait">Too many tries. Try again in %1$d seconds.</string>
+    <string name="pin_ok">OK</string>
+    <string name="pin_cancel">Cancel</string>
+    <string name="pin_delete">Delete</string>
+    <string name="pin_forgot">Forgot PIN?</string>
+    <string name="pin_forgot_message">Resetting the PIN removes every playlist and login on this device, with their favourites and watch history. You can add your playlists again afterwards.</string>
+    <string name="pin_forgot_confirm">Remove all and reset</string>
+</resources>

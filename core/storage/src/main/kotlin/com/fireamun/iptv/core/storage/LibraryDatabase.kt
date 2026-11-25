@@ -26,7 +26,7 @@ internal data class WatchProgressRow(val sourceId: String, val refDigest: String
     val durationMs: Long?, val completed: Boolean, val watchedAtMs: Long, val snapshot: ByteArray?) {
     override fun toString() = "[protected watch progress row]"
 }
-internal data class JoinedWatchRow(@Embedded val watch: WatchProgressRow, val rootTitle: String?, val rootKind: String, val rootArtwork: ByteArray?, val generation: String)
+internal data class JoinedWatchRow(@Embedded val watch: WatchProgressRow, val rootTitle: String?, val rootGroup: String?, val rootKind: String, val rootArtwork: ByteArray?, val generation: String)
 internal data class BrowseRow(val id: Int, val title: String?, val groupLabel: String?, val kind: String, val categoryKey: String?, val year: Int?, val rating: Double?, val hasArtwork: Boolean, val favourite: Boolean)
 @Dao
 internal interface LibraryDao {
@@ -52,7 +52,7 @@ internal interface LibraryDao {
     @Query("DELETE FROM watch_progress WHERE sourceId = :sourceId AND refDigest = :refDigest") suspend fun clearProgress(sourceId: String, refDigest: String)
     @Query("DELETE FROM watch_progress WHERE sourceId = :sourceId") suspend fun clearProgress(sourceId: String)
     @Query("DELETE FROM watch_progress") suspend fun clearProgress()
-    @Query("""SELECT w.*, e.title AS rootTitle, e.kind AS rootKind, e.artwork AS rootArtwork, s.generation AS generation
+    @Query("""SELECT w.*, e.title AS rootTitle, e.groupLabel AS rootGroup, e.kind AS rootKind, e.artwork AS rootArtwork, s.generation AS generation
         FROM watch_progress w JOIN library_entries e ON e.sourceId = w.sourceId AND e.id = w.rootItemId
         JOIN source_state s ON s.sourceId = w.sourceId
         WHERE w.sourceId = :sourceId AND w.kind = :kind AND w.completed = 0

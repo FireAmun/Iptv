@@ -63,7 +63,7 @@ internal class WatchProgressStore(private val dao: LibraryDao) {
             val reference = ProgressReference(row.sourceId, row.refDigest)
             RecentWatch(reference, target.kind, snapshot?.title ?: joined.rootTitle,
                 if (snapshot != null) joined.rootTitle else null, row.rootItemId, snapshot?.season, snapshot?.episode,
-                row.progress(), if (joined.rootArtwork != null) LibraryArtwork(sourceId, row.rootItemId, joined.generation) else null)
+                row.progress(), if (joined.rootArtwork != null) LibraryArtwork(sourceId, row.rootItemId, joined.generation) else null, joined.rootGroup)
         }
 
     private fun openSnapshot(row: WatchProgressRow, key: ByteArray): EpisodeSnapshot? {

@@ -67,11 +67,21 @@ abstract class LibraryActivity : AppCompatActivity() {
         library.playbackDisposed(sessionId)
     }
     private var refreshingFile = false
+    private val parental by lazy { (application as IptvApplication).parentalControls }
+    override fun onStart() {
+        super.onStart()
+        parental.onForeground()
+    }
+    override fun onStop() {
+        if (!isChangingConfigurations) parental.onBackground()
+        super.onStop()
+    }
     private val library by lazy {
         ViewModelProvider(this, object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T = modelClass.cast(LibraryViewModel(
                 persistence = (application as IptvApplication).libraryStore,
                 progressRecorder = (application as IptvApplication).progressRecorder,
+                parental = parental,
             ))!!
         })[LibraryViewModel::class.java]
     }
@@ -104,6 +114,17 @@ abstract class LibraryActivity : AppCompatActivity() {
             val request by library.playback.collectAsStateWithLifecycle()
             val watch by library.continueWatching.collectAsStateWithLifecycle()
             val catalogue = library.catalogue.collectAsLazyPagingItems()
+            val parentalState by parental.state.collectAsStateWithLifecycle()
+            val pinPrompt by library.pinPrompt.collectAsStateWithLifecycle()
+            val lockedCategories = remember(parentalState, state.activeSourceId, state.tab) {
+                val kind = when (state.tab) { com.fireamun.iptv.core.model.LibraryTab.LIVE -> com.fireamun.iptv.core.model.ContentKind.LIVE
+                    com.fireamun.iptv.core.model.LibraryTab.MOVIES -> com.fireamun.iptv.core.model.ContentKind.MOVIE
+                    com.fireamun.iptv.core.model.LibraryTab.SERIES -> com.fireamun.iptv.core.model.ContentKind.SERIES; else -> null }
+                if (kind == null) emptySet() else parental.hidden(state.activeSourceId).labels(kind)
+            }
+            val parentalSettings: @Composable () -> Unit = {
+                ParentalSettings(parental, television, state.activeSourceId.takeIf { state.entryCount > 0 }, library::lockableCategories, library::forgetPin)
+            }
             val browserState = rememberSaveableStateHolder()
             // A recreated activity has already consumed this launch, even if rotated mid-intro.
             var introFinished by remember { mutableStateOf(savedInstanceState != null) }
@@ -151,16 +172,18 @@ abstract class LibraryActivity : AppCompatActivity() {
                 val onAnalytics: (Boolean) -> Unit = { LegalConsent.setAnalytics(this, it); analyticsEnabled = it }
                 BackHandler(enabled = state.canGoBack) { library.backToCatalog() }
                 BackHandler(enabled = state.tab == com.fireamun.iptv.core.model.LibraryTab.SEARCH && !state.canGoBack) { library.closeSearch() }
-                browserState.SaveableStateProvider("browser") {
+                browserState.SaveableStateProvider("browser") { CompositionLocalProvider(LocalLockedCategories provides lockedCategories) {
                     LibraryBrowser(state, catalogue, television, (application as IptvApplication).artworkLoader,
                         library::selectTab, library::search, library::selectCategory, library::selectChannel, library::toggleFavourite, library::backToCatalog, library::closeSearch,
                         watch, library::playRecent) {
                         if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource,
-                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME)
+                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings)
                         else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource,
-                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME)
+                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings)
                     }
-                }
+                } }
+                if (pinPrompt) PinDialog(PinMode.ENTER, parental, television, onDone = library::pinAccepted, onDismiss = library::dismissPinPrompt,
+                    onForgot = { library.dismissPinPrompt(); library.forgetPin() })
             }
             if (!showStartup && !pictureInPictureActive) ProgressOverlays(watch, television, library::continuePlayback, library::startPlaybackOver, library::cancelResumeChoice, library::dismissProgressError)
         }

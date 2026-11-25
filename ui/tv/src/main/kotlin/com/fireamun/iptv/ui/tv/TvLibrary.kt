@@ -76,7 +76,8 @@ internal fun CinemaButton(onClick: () -> Unit, modifier: Modifier = Modifier, en
 
 @Composable
 fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit, onRefreshSource: () -> Unit, onRemoveSource: () -> Unit, onSelectSource: (String) -> Unit, onRenameSource: (String, String) -> Unit, onRemoveSourceById: (String) -> Unit,
-    analyticsEnabled: Boolean = false, onAnalyticsChange: (Boolean) -> Unit = {}, appVersion: String = "") {
+    analyticsEnabled: Boolean = false, onAnalyticsChange: (Boolean) -> Unit = {}, appVersion: String = "",
+    parental: @Composable () -> Unit = {}) {
     var url by remember { mutableStateOf("") }
     var enteringUrl by remember { mutableStateOf(false) }
     var enteringLogin by remember { mutableStateOf(false) }
@@ -154,6 +155,7 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                         SourceActions(state.importing || state.storageBlocked, { enteringLogin = true }, { enteringUrl = true }, { url = ""; keyboard?.hide(); onImportFile() })
                     }
                 }
+                item(key = "parental") { parental() }
                 item(key = "about") { TvAboutSection(analyticsEnabled, onAnalyticsChange, appVersion) { reading = it } }
             }
         }
