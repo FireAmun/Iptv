@@ -14,6 +14,7 @@ import com.fireamun.iptv.core.remote.RemoteKey
 import com.fireamun.iptv.core.remote.RemoteRefusal
 import com.fireamun.iptv.core.remote.RemoteServer
 import com.fireamun.iptv.core.remote.RemoteServerState
+import com.fireamun.iptv.core.remote.SentSource
 import com.fireamun.iptv.core.remote.RemoteTrust
 import com.fireamun.iptv.core.remote.TrustedPhone
 import com.fireamun.iptv.core.storage.EnvelopeProtector
@@ -66,6 +67,7 @@ class RemoteHost(
     private val forwarding = object : RemoteActions {
         override suspend fun perform(key: RemoteKey): RemoteRefusal? = actions.let { target -> if (target == null) RemoteRefusal.NOT_FOCUSED else target.perform(key) }
         override suspend fun type(erase: Int, text: String): RemoteRefusal? = actions.let { target -> if (target == null) RemoteRefusal.NOT_FOCUSED else target.type(erase, text) }
+        override suspend fun receiveSource(phone: String, source: SentSource): RemoteRefusal? = actions.let { target -> if (target == null) RemoteRefusal.NOT_FOCUSED else target.receiveSource(phone, source) }
     }
 
     /** Called on the main thread when a TV activity starts. */

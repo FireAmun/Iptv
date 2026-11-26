@@ -46,6 +46,8 @@ import com.fireamun.iptv.core.designsystem.RemoteTyping
 import com.fireamun.iptv.core.remote.RemoteActions
 import com.fireamun.iptv.core.remote.RemoteKey
 import com.fireamun.iptv.core.remote.RemoteRefusal
+import com.fireamun.iptv.core.remote.SentSource
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -87,7 +89,33 @@ abstract class LibraryActivity : AppCompatActivity() {
         override suspend fun type(erase: Int, text: String): RemoteRefusal? = withContext(Dispatchers.Main) {
             if (RemoteTyping.type(erase, text)) null else RemoteRefusal.NO_FIELD
         }
+
+        /** A playlist sent from a paired phone is added only after the person at the TV chooses Add. */
+        override suspend fun receiveSource(phone: String, source: SentSource): RemoteRefusal? = withContext(Dispatchers.Main) {
+            if (!LegalConsent.termsAccepted(this@LibraryActivity)) return@withContext RemoteRefusal.SETUP_NEEDED
+            val host = usableSourceHost(source) ?: return@withContext RemoteRefusal.BAD_SOURCE
+            if (libraryBusy() || incomingSource != null || pictureInPictureActive) return@withContext RemoteRefusal.BUSY
+            val question = IncomingSource(phone, host, source, CompletableDeferred())
+            incomingSource = question
+            try {
+                if (!question.answer.await()) return@withContext RemoteRefusal.DENIED
+                incomingSource = null
+                if (libraryBusy()) return@withContext RemoteRefusal.BUSY
+                when (source) {
+                    is SentSource.Playlist -> library.importUrl(source.link)
+                    is SentSource.ServerLogin -> library.importXtream(source.name, source.server, source.username, source.password)
+                }
+                null
+            } finally {
+                if (incomingSource === question) incomingSource = null
+            }
+        }
     }
+
+    /** The question shown on the TV while a phone waits for an answer about its playlist. */
+    private var incomingSource by mutableStateOf<IncomingSource?>(null)
+
+    private fun libraryBusy(): Boolean = library.state.value.let { it.saving || it.restoring || it.storageBlocked }
 
     private suspend fun performKey(key: RemoteKey): RemoteRefusal? =
         when (key) {
@@ -181,6 +209,8 @@ abstract class LibraryActivity : AppCompatActivity() {
         if (!isChangingConfigurations) parental.onBackground()
         // The remote server never runs behind another app.
         if (television) remoteHost.detach(remoteActions)
+        // A question nobody can see any more counts as Don't add.
+        incomingSource?.answer?.complete(false)
         super.onStop()
     }
     private val library by lazy {
@@ -310,6 +340,8 @@ abstract class LibraryActivity : AppCompatActivity() {
                     onForgot = { library.dismissPinPrompt(); library.forgetPin() })
             }
             if (!showStartup && !pictureInPictureActive) ProgressOverlays(watch, television, library::continuePlayback, library::startPlaybackOver, library::cancelResumeChoice, library::dismissProgressError)
+            val asking = incomingSource
+            if (asking != null && !showStartup && termsAccepted && !pictureInPictureActive) SourceRequestDialog(asking)
         }
     }
     override fun onSaveInstanceState(outState: Bundle) {
