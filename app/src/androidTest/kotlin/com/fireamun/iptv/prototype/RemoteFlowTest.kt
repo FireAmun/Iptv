@@ -206,7 +206,9 @@ class RemoteFlowTest {
                 activate("remote_pair_with_code", tv = false)
                 await("remote_code_pairing")
                 compose.onNodeWithTag("remote_address").performTextInput("tv.local")
-                compose.onNodeWithTag("remote_address_connect").performClick()
+                // The list of found TVs can grow at any moment (this device announces the TV under test), moving the
+                // button mid-tap; press it through its click action so the test does not depend on where it is.
+                compose.onNodeWithTag("remote_address_connect").performSemanticsAction(SemanticsActions.OnClick)
                 await("remote_problem")
 
                 instrumentation.runOnMainSync { host.startPairing() }
@@ -214,7 +216,7 @@ class RemoteFlowTest {
                 val port = host.state.value.server.offer!!.link.port
                 compose.onNodeWithTag("remote_address").performTextClearance()
                 compose.onNodeWithTag("remote_address").performTextInput("127.0.0.1:$port")
-                compose.onNodeWithTag("remote_address_connect").performClick()
+                compose.onNodeWithTag("remote_address_connect").performSemanticsAction(SemanticsActions.OnClick)
                 await("remote_phone_code")
                 compose.waitUntil(10_000) { host.state.value.server.pending?.code != null }
                 assertEquals("Both screens show the same code", host.state.value.server.pending!!.code, text("remote_phone_code").replace(" ", ""))
