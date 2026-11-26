@@ -47,6 +47,7 @@ class TestDiagnostics : TestRule {
                 app.parentalControls.forget()
                 // Paired phones and a remembered TV belong to one test only.
                 app.remoteController.forget()
+                InstrumentationRegistry.getInstrumentation().runOnMainSync { app.remoteController.finishTyping() }
                 app.remoteHost.stopPairing()
                 app.remoteHost.revokeAll()
                 app.remoteHost.setEnabled(true)

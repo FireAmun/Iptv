@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.fireamun.iptv.core.designsystem.cinemaPalette
+import com.fireamun.iptv.core.designsystem.remoteTyping
 import com.fireamun.iptv.core.designsystem.R as DR
 
 /** Settings card shared by phone and TV: guide status, Refresh guide and the optional manual XMLTV link. */
@@ -57,7 +58,7 @@ internal fun GuideSettings(refresher: GuideRefresher, sourceId: String?) {
             isError = invalid, supportingText = if (invalid) ({ Text(stringResource(DR.string.guide_link_invalid)) }) else null,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done, autoCorrectEnabled = false),
             keyboardActions = KeyboardActions(onDone = { if (refresher.setManualLink(link)) link = "" else invalid = true }),
-            modifier = Modifier.fillMaxWidth().testTag("guide_link_input"))
+            modifier = Modifier.fillMaxWidth().remoteTyping(link) { link = it; invalid = false }.testTag("guide_link_input"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButton(onClick = { if (refresher.setManualLink(link)) link = "" else invalid = true }, enabled = link.isNotBlank(),
                 modifier = action.testTag("guide_link_save")) { Text(stringResource(DR.string.guide_link_save), color = p.text) }

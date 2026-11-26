@@ -32,7 +32,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -119,8 +125,14 @@ private fun PairingDialog(host: RemoteHost, ui: RemoteHostUi, onClose: () -> Uni
                     val button = Modifier.heightIn(min = 48.dp).focusProperties { canFocus = true }
                     when (mode) {
                         "ask" -> {
-                            Text(stringResource(DR.string.remote_pair_ask, server.pending.orEmpty()), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                            val pending = server.pending!!
+                            Text(stringResource(DR.string.remote_pair_ask, pending.name), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                                 modifier = Modifier.testTag("remote_pair_ask").semantics { liveRegion = LiveRegionMode.Assertive })
+                            // Code pairing: the person at the TV is the check that no other device sits in between.
+                            pending.code?.let { code ->
+                                Text(stringResource(DR.string.remote_pair_compare), textAlign = TextAlign.Center)
+                                PairingCode(code, Modifier.testTag("remote_pair_code"))
+                            }
                             Text(stringResource(DR.string.remote_pair_ask_detail), color = p.muted, textAlign = TextAlign.Center)
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 OutlinedButton(onClick = host::deny, modifier = button.focusRequester(primary).testTag("remote_deny")) { Text(stringResource(DR.string.remote_pair_deny), color = p.text) }
@@ -144,6 +156,11 @@ private fun PairingDialog(host: RemoteHost, ui: RemoteHostUi, onClose: () -> Uni
                             val left = ((offer.expiresAtMs - now).coerceAtLeast(0) + 999) / 1_000
                             Text(stringResource(DR.string.remote_pair_expires, "%d:%02d".format(left / 60, left % 60)), color = p.muted,
                                 modifier = Modifier.testTag("remote_pair_expiry"))
+                            Text(stringResource(DR.string.remote_pair_no_camera), textAlign = TextAlign.Center, color = p.muted)
+                            ui.address?.let { address ->
+                                Text(address, fontSize = 24.sp, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr),
+                                    modifier = Modifier.testTag("remote_pair_address"))
+                            }
                             OutlinedButton(onClick = onClose, modifier = button.focusRequester(primary).testTag("remote_pair_cancel")) { Text(stringResource(DR.string.remote_pair_cancel), color = p.text) }
                         }
                         else -> {
@@ -162,6 +179,14 @@ private fun PairingDialog(host: RemoteHost, ui: RemoteHostUi, onClose: () -> Uni
             if (dialogWindow.isWindowFocused) { withFrameNanos { }; runCatching { primary.requestFocus() } }
         }
     }
+}
+
+/** Six digits in two groups, kept left-to-right so both screens read the same in Arabic too. */
+@Composable
+private fun PairingCode(code: String, modifier: Modifier = Modifier) {
+    Text("${code.take(3)} ${code.drop(3)}", modifier.semantics { contentDescription = code.toList().joinToString(" ") },
+        fontSize = 40.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, letterSpacing = 4.sp,
+        style = MaterialTheme.typography.displaySmall.copy(textDirection = TextDirection.Ltr), color = cinemaPalette().focus)
 }
 
 /** Black modules on white with a four-module quiet zone, in both themes, so every scanner reads it. */
@@ -186,6 +211,7 @@ internal fun PhoneRemoteSettings(controller: RemoteController) {
     val p = cinemaPalette()
     val ui by controller.state.collectAsState()
     var open by rememberSaveable { mutableStateOf(false) }
+    var withCode by rememberSaveable { mutableStateOf(false) }
     val tv = ui.tvName
     val scanPrompt = stringResource(DR.string.remote_phone_scan_prompt)
     // The scanner screen asks for the camera itself, only when the user starts a scan; a cancelled scan does nothing.
@@ -194,13 +220,19 @@ internal fun PhoneRemoteSettings(controller: RemoteController) {
         Text(stringResource(DR.string.remote_phone_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(stringResource(DR.string.remote_phone_description), color = p.muted, style = MaterialTheme.typography.bodyMedium)
         if (tv == null) {
-            Button(onClick = {
-                    try {
-                        scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(scanPrompt)
-                            .setBeepEnabled(false).setOrientationLocked(false))
-                    } catch (_: android.content.ActivityNotFoundException) { controller.scannerUnavailable() }
-                }, enabled = ui.pairing == PairingPhase.IDLE, modifier = Modifier.heightIn(min = 48.dp).testTag("remote_scan")) {
-                Text(stringResource(DR.string.remote_phone_scan))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = {
+                        try {
+                            scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(scanPrompt)
+                                .setBeepEnabled(false).setOrientationLocked(false))
+                        } catch (_: android.content.ActivityNotFoundException) { controller.scannerUnavailable() }
+                    }, enabled = ui.pairing == PairingPhase.IDLE, modifier = Modifier.heightIn(min = 48.dp).testTag("remote_scan")) {
+                    Text(stringResource(DR.string.remote_phone_scan))
+                }
+                OutlinedButton(onClick = { controller.clearProblem(); withCode = true }, enabled = ui.pairing == PairingPhase.IDLE,
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("remote_pair_with_code")) {
+                    Text(stringResource(DR.string.remote_phone_pair_code), color = p.text)
+                }
             }
             if (ui.pairing != PairingPhase.IDLE) Text(stringResource(if (ui.pairing == PairingPhase.WAITING_APPROVAL) DR.string.remote_phone_waiting else DR.string.remote_phone_connecting),
                 fontWeight = FontWeight.Medium, modifier = Modifier.testTag("remote_status").semantics { liveRegion = LiveRegionMode.Polite })
@@ -213,15 +245,72 @@ internal fun PhoneRemoteSettings(controller: RemoteController) {
                 }
             }
         }
-        if (!open) ui.problem?.let { RemoteProblemText(it) }
+        if (!open && !withCode) ui.problem?.let { RemoteProblemText(it) }
     }
     if (open && tv != null) RemotePanel(controller) { open = false }
+    if (withCode && tv == null) CodePairingDialog(controller) { withCode = false }
+}
+
+/** Pairing without the camera: pick a TV found on the Wi-Fi or type its address, then compare codes. */
+@Composable
+private fun CodePairingDialog(controller: RemoteController, onClose: () -> Unit) {
+    val p = cinemaPalette()
+    val ui by controller.state.collectAsState()
+    // Searching runs only while this dialog is open.
+    val found by remember { controller.searchTvs() }.collectAsState(initial = emptyList())
+    var address by rememberSaveable { mutableStateOf("") }
+    fun close() { controller.cancelPairing(); onClose() }
+    Dialog(onDismissRequest = ::close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxWidth().safeDrawingPadding().padding(16.dp), contentAlignment = Alignment.Center) {
+            Surface(Modifier.widthIn(max = 560.dp).fillMaxWidth().testTag("remote_code_pairing"), shape = RoundedCornerShape(22.dp), color = p.panel, contentColor = p.text) {
+                Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(DR.string.remote_phone_pair_code), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    val code = ui.code
+                    when {
+                        code != null -> {
+                            Text(stringResource(DR.string.remote_phone_compare), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                            PairingCode(code, Modifier.align(Alignment.CenterHorizontally).testTag("remote_phone_code"))
+                        }
+                        ui.pairing != PairingPhase.IDLE -> Text(stringResource(DR.string.remote_phone_connecting), modifier = Modifier.testTag("remote_status"))
+                        else -> {
+                            Text(stringResource(DR.string.remote_phone_code_steps), color = p.muted)
+                            if (found.isEmpty()) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = p.focus)
+                                Text(stringResource(DR.string.remote_phone_searching), color = p.muted, modifier = Modifier.testTag("remote_searching"))
+                            }
+                            found.forEachIndexed { index, tv ->
+                                OutlinedButton(onClick = { controller.pairWith(tv) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("remote_found_$index")) {
+                                    Text(tv.name, color = p.text, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                            Text(stringResource(DR.string.remote_phone_address_hint), color = p.muted, modifier = Modifier.padding(top = 6.dp))
+                            OutlinedTextField(address, { address = it.take(21) }, singleLine = true, label = { Text(stringResource(DR.string.remote_phone_address_label)) },
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go, autoCorrectEnabled = false),
+                                keyboardActions = KeyboardActions(onGo = { controller.pairWithAddress(address) }),
+                                modifier = Modifier.fillMaxWidth().testTag("remote_address"))
+                            Button(onClick = { controller.pairWithAddress(address) }, enabled = address.isNotBlank(), modifier = Modifier.heightIn(min = 48.dp).testTag("remote_address_connect")) {
+                                Text(stringResource(DR.string.remote_phone_address_connect))
+                            }
+                            ui.problem?.let { RemoteProblemText(it) }
+                        }
+                    }
+                    OutlinedButton(onClick = ::close, modifier = Modifier.heightIn(min = 48.dp).testTag("remote_code_close")) {
+                        Text(stringResource(if (ui.pairing == PairingPhase.IDLE) DR.string.remote_phone_close else DR.string.remote_pair_cancel), color = p.text)
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(ui.tvName) { if (ui.tvName != null) onClose() }
 }
 
 @Composable
 private fun RemoteProblemText(problem: RemoteProblem) {
     Text(stringResource(when (problem) {
         RemoteProblem.NOT_A_CODE -> DR.string.remote_problem_not_a_code
+        RemoteProblem.NOT_AN_ADDRESS -> DR.string.remote_problem_not_an_address
+        RemoteProblem.NO_FIELD -> DR.string.remote_problem_no_field
         RemoteProblem.UNREACHABLE -> DR.string.remote_problem_unreachable
         RemoteProblem.SCANNER_UNAVAILABLE -> DR.string.remote_problem_scanner
         RemoteProblem.EXPIRED -> DR.string.remote_problem_expired
@@ -244,7 +333,8 @@ private fun RemotePanel(controller: RemoteController, onClose: () -> Unit) {
     val ui by controller.state.collectAsState()
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    DisposableEffect(Unit) { controller.connect(); onDispose { controller.disconnect() } }
+    DisposableEffect(Unit) { controller.connect(); onDispose { controller.finishTyping(); controller.disconnect() } }
+    var keyboard by rememberSaveable { mutableStateOf(false) }
     val connected = ui.connection == RemoteConnection.CONNECTED
     fun press(key: RemoteKey) {
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -270,6 +360,8 @@ private fun RemotePanel(controller: RemoteController, onClose: () -> Unit) {
                 ui.problem?.let { RemoteProblemText(it) }
                 if (ui.connection == RemoteConnection.OFFLINE && ui.tvName != null) OutlinedButton(onClick = controller::connect,
                     modifier = Modifier.heightIn(min = 48.dp).testTag("remote_retry")) { Text(stringResource(DR.string.remote_panel_retry), color = p.text) }
+                // Near the top, so the box, its problem message and Close stay above the phone keyboard.
+                if (keyboard && connected) TypingBox(controller)
                 // Physical directions: the TV's own D-pad keys do not flip in right-to-left languages.
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     Box(Modifier.size(272.dp).background(p.panel, CircleShape)) {
@@ -291,9 +383,37 @@ private fun RemotePanel(controller: RemoteController, onClose: () -> Unit) {
                         RemoteButton(RemoteKey.CHANNEL_DOWN, DR.string.remote_key_channel_down, connected, ::press) { CinemaIcon(CinemaSymbol.CHEVRON_UP, Modifier.rotate(180f), it) }
                     }
                 }
+                OutlinedButton(onClick = { keyboard = !keyboard; if (!keyboard) controller.finishTyping() }, enabled = connected,
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("remote_keyboard")) {
+                    Text(stringResource(DR.string.remote_keyboard), color = if (connected) p.text else p.muted)
+                }
             }
         }
     }
+}
+
+/**
+ * Text typed here is added to the TV's selected text box as it changes; deleting here deletes there. Done starts a
+ * fresh line and leaves the TV text as it is.
+ */
+@Composable
+private fun TypingBox(controller: RemoteController) {
+    val p = cinemaPalette()
+    val text by controller.typing.collectAsState()
+    val focus = remember { FocusRequester() }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(DR.string.remote_keyboard_hint), color = p.muted, style = MaterialTheme.typography.bodyMedium)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(text, controller::type, singleLine = true, label = { Text(stringResource(DR.string.remote_keyboard_label)) },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, autoCorrectEnabled = false),
+                keyboardActions = KeyboardActions(onDone = { controller.finishTyping() }),
+                modifier = Modifier.weight(1f).focusRequester(focus).testTag("remote_typing"))
+            TextButton(onClick = controller::finishTyping, modifier = Modifier.heightIn(min = 48.dp).testTag("remote_typing_done")) {
+                Text(stringResource(DR.string.remote_keyboard_done))
+            }
+        }
+    }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 }
 
 @Composable

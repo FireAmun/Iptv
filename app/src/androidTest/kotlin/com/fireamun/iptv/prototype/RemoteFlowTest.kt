@@ -109,7 +109,7 @@ class RemoteFlowTest {
                 // What the scanner would return.
                 controller.pair(host.state.value.server.offer!!.link.encode())
                 compose.waitUntil(10_000) { text("remote_status").contains("Approve", ignoreCase = true) }
-                assertEquals(RemoteHost.deviceName(instrumentation.targetContext), host.state.value.server.pending)
+                assertEquals(RemoteHost.deviceName(instrumentation.targetContext), host.state.value.server.pending?.name)
                 host.approve()
                 await("remote_paired")
                 compose.onNodeWithTag("remote_problem").assertDoesNotExist()
@@ -133,6 +133,123 @@ class RemoteFlowTest {
         } finally { instrumentation.runOnMainSync { host.detach(fakeTv) } }
     }
 
+    /** No camera: the phone types the address the TV shows, both screens show one code, and the phone then types. */
+    @Test fun tvPairsByComparingCodesAndTakesTypingFromThePhone() {
+        val host = app.remoteHost
+        val controller = app.remoteController
+        host.addressOverride = "127.0.0.1"
+        runBlocking {
+            app.libraryStore.save(SourceSpec.file(), listOf("Alpha", "Beta").mapIndexed { index, title ->
+                PlaylistEntry(Channel(index, "$title Channel", "News", ContentKind.LIVE), MediaAddress.parse("https://example.invalid/$index"))
+            })
+        }
+        ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, TvActivity::class.java)).use {
+            await("channel_0")
+            compose.openDestination("nav_settings", true)
+            compose.onNodeWithTag("library_list").performScrollToKey("remote")
+            activate("remote_pair", tv = true)
+            await("remote_pair_address")
+            val port = host.state.value.server.offer!!.link.port
+            assertTrue("The TV shows the address to type", text("remote_pair_address").startsWith("127.0.0.1"))
+            captureSyntheticPreview(instrumentation, "tv-remote-pair-offer")
+
+            assertTrue(controller.pairWithAddress("127.0.0.1:$port"))
+            await("remote_pair_code")
+            compose.waitUntil(10_000) { controller.state.value.code != null }
+            assertEquals("Both screens show the same code", controller.state.value.code, text("remote_pair_code").replace(" ", ""))
+            captureSyntheticPreview(instrumentation, "tv-remote-pair-compare")
+            activate("remote_allow", tv = true)
+            await("remote_pair_done")
+            compose.waitUntil(10_000) { controller.state.value.tvName != null }
+            activate("remote_pair_close", tv = true)
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("remote_pairing").fetchSemanticsNodes().isEmpty() }
+
+            controller.connect()
+            compose.waitUntil(10_000) { controller.state.value.connection == RemoteConnection.CONNECTED }
+            // A button has focus, not a text box: nothing is typed and the phone box empties again.
+            instrumentation.runOnMainSync { controller.type("x") }
+            compose.waitUntil(10_000) { controller.state.value.problem == RemoteProblem.NO_FIELD && controller.typing.value.isEmpty() }
+
+            compose.openDestination("nav_search", true)
+            await("catalogue_search")
+            compose.onNodeWithTag("catalogue_search").performSemanticsAction(SemanticsActions.RequestFocus)
+            compose.waitUntil(5_000) { compose.onNodeWithTag("catalogue_search").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false } }
+            instrumentation.runOnMainSync { controller.type("Bex") }
+            compose.waitUntil(10_000) { editable("catalogue_search") == "Bex" }
+            instrumentation.runOnMainSync { controller.type("Be") }
+            compose.waitUntil(10_000) { editable("catalogue_search") == "Be" }
+            instrumentation.runOnMainSync { controller.type("Beta") }
+            compose.waitUntil(10_000) { editable("catalogue_search") == "Beta" }
+            assertNull(controller.state.value.problem)
+            awaitText("Beta Channel")
+            // Done starts a new line on the phone; the TV box keeps its text and later typing is added to it.
+            instrumentation.runOnMainSync { controller.finishTyping(); controller.type(" قناة") }
+            compose.waitUntil(10_000) { editable("catalogue_search") == "Beta قناة" }
+        }
+    }
+
+    @Test fun phonePairsWithACodeAndTypesFromTheRemoteScreen() {
+        val host = app.remoteHost
+        val controller = app.remoteController
+        val typed = CopyOnWriteArrayList<Pair<Int, String>>()
+        val fakeTv = object : RemoteActions {
+            override suspend fun perform(key: RemoteKey): RemoteRefusal? = null
+            override suspend fun type(erase: Int, text: String): RemoteRefusal? =
+                if ("?" in text) RemoteRefusal.NO_FIELD else { typed += erase to text; null }
+        }
+        host.addressOverride = "127.0.0.1"
+        instrumentation.runOnMainSync { host.attach(fakeTv) }
+        try {
+            ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, MobileActivity::class.java)).use {
+                await("library_list")
+                compose.onNodeWithTag("library_list").performScrollToKey("remote")
+                activate("remote_pair_with_code", tv = false)
+                await("remote_code_pairing")
+                compose.onNodeWithTag("remote_address").performTextInput("tv.local")
+                // The list of found TVs can grow at any moment (this device announces the TV under test), moving the
+                // button mid-tap; press it through its click action so the test does not depend on where it is.
+                compose.onNodeWithTag("remote_address_connect").performSemanticsAction(SemanticsActions.OnClick)
+                await("remote_problem")
+
+                instrumentation.runOnMainSync { host.startPairing() }
+                compose.waitUntil(10_000) { host.state.value.server.offer != null }
+                val port = host.state.value.server.offer!!.link.port
+                compose.onNodeWithTag("remote_address").performTextClearance()
+                compose.onNodeWithTag("remote_address").performTextInput("127.0.0.1:$port")
+                compose.onNodeWithTag("remote_address_connect").performSemanticsAction(SemanticsActions.OnClick)
+                await("remote_phone_code")
+                compose.waitUntil(10_000) { host.state.value.server.pending?.code != null }
+                assertEquals("Both screens show the same code", host.state.value.server.pending!!.code, text("remote_phone_code").replace(" ", ""))
+                captureSyntheticPreview(instrumentation, "phone-remote-pair-compare")
+                host.approve()
+                await("remote_paired")
+                compose.onNodeWithTag("remote_code_pairing").assertDoesNotExist()
+
+                compose.onNodeWithTag("remote_open").performScrollTo().performClick()
+                await("remote_panel")
+                compose.waitUntil(10_000) { text("remote_connection").contains("Connected", ignoreCase = true) }
+                compose.onNodeWithTag("remote_keyboard").performScrollTo().performClick()
+                await("remote_typing")
+                compose.onNodeWithTag("remote_typing").performTextInput("Hi")
+                compose.waitUntil(10_000) { typed.isNotEmpty() && typed.last() == (0 to "Hi") }
+                compose.onNodeWithTag("remote_typing").performTextClearance()
+                compose.waitUntil(10_000) { typed.last() == (2 to "") }
+                // The TV refused: the phone box shows only what the TV took, and says why.
+                compose.onNodeWithTag("remote_typing").performTextInput("?")
+                compose.waitUntil(10_000) { text("remote_problem").contains("text box") && editable("remote_typing").isEmpty() }
+                captureSyntheticPreview(instrumentation, "phone-remote-typing")
+                assertEquals(listOf(0 to "Hi", 2 to ""), typed.toList())
+
+                // With the phone keyboard open, the box and Close are still on screen.
+                compose.onNodeWithTag("remote_typing").assertIsDisplayed()
+                compose.onNodeWithTag("remote_close").assertIsDisplayed().performClick()
+                compose.waitUntil(10_000) { compose.onAllNodesWithTag("remote_panel").fetchSemanticsNodes().isEmpty() }
+            }
+        } finally { instrumentation.runOnMainSync { host.detach(fakeTv) } }
+    }
+
+    private fun editable(tag: String): String = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().firstOrNull()
+        ?.config?.let { if (SemanticsProperties.EditableText in it) it[SemanticsProperties.EditableText].text else "" }.orEmpty()
     private fun press(key: RemoteKey): RemoteRefusal? = runBlocking { app.remoteController.press(key) }
     private fun text(tag: String): String = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().firstOrNull()
         ?.config?.getOrElse(SemanticsProperties.Text) { emptyList() }?.joinToString { it.text }.orEmpty()

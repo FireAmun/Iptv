@@ -65,7 +65,7 @@ internal fun TvSources(state: LibraryState, onDismiss: () -> Unit, onSelect: (St
                             Text(stringResource(R.string.tv_rename_source), style = MaterialTheme.typography.titleLarge)
                             Text(stringResource(R.string.tv_source_name), color = p.muted)
                             BasicTextField(draft, { if (it.length <= 128) draft = it }, singleLine = true,
-                            modifier = Modifier.fillMaxWidth().focusRequester(first).onFocusChanged { focused = it.isFocused }.testTag("source_name"),
+                            modifier = Modifier.fillMaxWidth().focusRequester(first).onFocusChanged { focused = it.isFocused }.remoteTyping(draft) { if (it.length <= 128) draft = it }.testTag("source_name"),
                             textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.text), cursorBrush = SolidColor(p.focus),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { save() }),
                                 decorationBox = { inner -> Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).background(p.background, RoundedCornerShape(10.dp)).border(if (focused) 2.dp else 1.dp, if (focused) p.focus else p.outline, RoundedCornerShape(10.dp)).padding(14.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) { inner() } })

@@ -42,6 +42,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.*
 import com.fireamun.iptv.core.designsystem.bringIntoViewAfterFrame
 import com.fireamun.iptv.core.designsystem.cinemaPalette
+import com.fireamun.iptv.core.designsystem.remoteTyping
 
 @Composable
 internal fun TvServerLogin(onSubmit: (String, String, String, String) -> Unit, onDismiss: () -> Unit) {
@@ -113,7 +114,7 @@ private fun LoginField(value: String, onChange: (String) -> Unit, label: Int, ta
     Column(Modifier.bringIntoViewRequester(relocation), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(label), color = p.muted, style = MaterialTheme.typography.labelMedium)
         BasicTextField(value = value, onValueChange = onChange, singleLine = true,
-            modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.testTag(tag),
+            modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.remoteTyping(value, onChange).testTag(tag),
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.text, textDirection = if (type == KeyboardType.Text) TextDirection.Content else TextDirection.Ltr), cursorBrush = SolidColor(p.focus),
             visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(keyboardType = type, autoCorrectEnabled = false, imeAction = if (secret) ImeAction.Go else ImeAction.Next),

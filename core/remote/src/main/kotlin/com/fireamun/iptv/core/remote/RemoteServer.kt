@@ -40,10 +40,16 @@ class MemoryRemoteTrust(initial: List<TrustedPhone> = emptyList()) : RemoteTrust
     override fun save(phones: List<TrustedPhone>) { this.phones = phones }
 }
 
-/** Carries out a pressed key on the TV; returns null when done or the reason it could not be. */
+/** Carries out a pressed key or typed text on the TV; returns null when done or the reason it could not be. */
 fun interface RemoteActions {
     suspend fun perform(key: RemoteKey): RemoteRefusal?
+
+    /** Erases [erase] characters at the end of the selected text box, then adds [text]. */
+    suspend fun type(erase: Int, text: String): RemoteRefusal? = RemoteRefusal.NO_FIELD
 }
+
+/** A phone waiting for approval on the TV. [code] is set when it paired by comparing codes instead of scanning. */
+data class PendingPhone(val name: String, val code: String? = null)
 
 /** The pairing code currently offered on the TV screen. */
 data class PairingOffer(val link: PairingLink, val expiresAtMs: Long)
@@ -52,8 +58,8 @@ data class RemoteServerState(
     val listening: Boolean = false,
     val port: Int? = null,
     val offer: PairingOffer? = null,
-    /** Name of a phone that used the code and waits for approval on the TV. */
-    val pending: String? = null,
+    /** A phone that used the code and waits for approval on the TV. */
+    val pending: PendingPhone? = null,
     /** Name of the phone approved most recently while the code was on screen. */
     val approved: String? = null,
     val phones: List<TrustedPhone> = emptyList(),
@@ -61,9 +67,10 @@ data class RemoteServerState(
 )
 
 /**
- * TV side of the phone remote: a TLS server on the local network. Pairing needs the single-use code from the TV
- * screen (120 seconds, five wrong tries) and an explicit approval on the TV; afterwards a phone authenticates with
- * its own random secret. Keys from all phones run one at a time through [actions].
+ * TV side of the phone remote: a TLS server on the local network. Pairing needs the TV's pairing screen to be open
+ * (120 seconds) and an explicit approval on the TV. A phone either scans the single-use QR code (five wrong tries) or
+ * connects without it and the person approving compares a six-digit code shown on both screens. Afterwards a phone
+ * authenticates with its own random secret. Keys and typing from all phones run one at a time through [actions].
  */
 class RemoteServer(
     private val identity: RemoteIdentity,
@@ -187,6 +194,7 @@ class RemoteServer(
         if (hello.integer("v") != REMOTE_PROTOCOL) { refuse(output, RemoteRefusal.VERSION); return }
         val phone = when (hello.type()) {
             "pair" -> pair(hello, output) ?: return
+            "code" -> pairWithCode(hello, input, output) ?: return
             "auth" -> authenticate(hello, output) ?: return
             else -> throw RemoteProtocolException("Unexpected hello")
         }
@@ -203,15 +211,17 @@ class RemoteServer(
             val id = request.integer("id") ?: throw RemoteProtocolException("Missing id")
             when (request.type()) {
                 "ping" -> Frames.write(output, message("pong", "id" to id))
-                "key" -> {
-                    val key = request.text("key", 16)?.let { name -> RemoteKey.entries.firstOrNull { it.name == name } }
+                "key", "text" -> {
+                    val action: (suspend () -> RemoteRefusal?)? = if (request.type() == "key") {
+                        request.text("key", 16)?.let { name -> RemoteKey.entries.firstOrNull { it.name == name } }?.let { key -> { actions.perform(key) } }
+                    } else typing(request)?.let { (erase, text) -> { actions.type(erase, text) } }
                     val refusal = when {
-                        key == null -> RemoteRefusal.FAILED
+                        action == null -> RemoteRefusal.FAILED
                         !bucket.take() -> RemoteRefusal.RATE_LIMITED
                         else -> keys.withLock {
                             // A revoke between reading and running the key must win.
                             if (synchronized(lock) { authenticated[socket] } == null) return
-                            try { actions.perform(key) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { RemoteRefusal.FAILED }
+                            try { action() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { RemoteRefusal.FAILED }
                         }
                     }
                     Frames.write(output, message("result", "id" to id, "ok" to (refusal == null), "code" to refusal?.name))
@@ -221,40 +231,73 @@ class RemoteServer(
         }
     }
 
+    /** QR pairing: the phone proves it read the code by sending its single-use nonce. */
     private suspend fun pair(hello: JsonObject, output: DataOutputStream): TrustedPhone? {
         val nonce = hello.text("nonce", 64)
         val name = cleanDeviceName(hello.text("name", 120)) ?: "Phone"
         val waiting = CompletableDeferred<Boolean>()
-        val refusal: RemoteRefusal? = synchronized(lock) {
-            val expected = offerNonce
-            val offer = mutable.value.offer
-            when {
-                expected == null || offer == null || clock() >= offer.expiresAtMs -> RemoteRefusal.EXPIRED
-                decision != null -> RemoteRefusal.BUSY
-                nonce == null || !constantEquals(nonce, expected) -> {
-                    attemptsLeft--
-                    if (attemptsLeft <= 0) { offerNonce = null; mutable.update { it.copy(offer = null) } }
-                    RemoteRefusal.INVALID
-                }
-                trust.phones().size >= MAX_PHONES -> RemoteRefusal.BUSY
-                else -> null
-            }.also { if (it == null) { offerNonce = null; decision = waiting } }
-        }
-        if (refusal != null) { refuse(output, refusal); return null }
-        mutable.update { it.copy(offer = null, pending = name) }
+        claimOffer(waiting) { expected -> nonce != null && constantEquals(nonce, expected) }?.let { refuse(output, it); return null }
+        return confirm(PendingPhone(name), waiting, output)
+    }
+
+    /**
+     * Code pairing for phones without the QR code. The phone commits to a random value, the TV answers with its own,
+     * the phone reveals its value, and both screens show the code derived from the two values and the certificate.
+     * Any connection may try while the pairing screen is open; each attempt ends the offer and needs an approval.
+     */
+    private suspend fun pairWithCode(hello: JsonObject, input: DataInputStream, output: DataOutputStream): TrustedPhone? {
+        val commitment = hello.text("commit", 64)?.takeIf { HEX_64.matches(it) }
+        val name = cleanDeviceName(hello.text("name", 120)) ?: "Phone"
+        if (commitment == null) { refuse(output, RemoteRefusal.FAILED); return null }
+        val waiting = CompletableDeferred<Boolean>()
+        claimOffer(waiting) { true }?.let { refuse(output, it); return null }
+        val code = try {
+            val tvNonce = ByteArray(32).also(random::nextBytes)
+            Frames.write(output, message("challenge", "nonce" to base64Url.encodeToString(tvNonce)))
+            val reveal = Frames.read(input)
+            val phoneNonce = reveal.takeIf { it.type() == "reveal" }?.text("nonce", 64)?.let(::decodeBase64Url)?.takeIf { it.size == 32 }
+            if (phoneNonce == null || !constantEquals(sha256Hex(phoneNonce), commitment)) null
+            else pairingCode(identity.fingerprint, phoneNonce, tvNonce)
+        } catch (failure: Exception) { release(waiting); mutable.update { it.copy(offer = null) }; throw failure }
+        if (code == null) { release(waiting); mutable.update { it.copy(offer = null) }; refuse(output, RemoteRefusal.INVALID); return null }
+        return confirm(PendingPhone(name, code), waiting, output)
+    }
+
+    /** Takes the code on screen for one phone; [accepts] checks what the phone sent against the code's nonce. */
+    private fun claimOffer(waiting: CompletableDeferred<Boolean>, accepts: (String) -> Boolean): RemoteRefusal? = synchronized(lock) {
+        val expected = offerNonce
+        val offer = mutable.value.offer
+        when {
+            expected == null || offer == null || clock() >= offer.expiresAtMs -> RemoteRefusal.EXPIRED
+            decision != null -> RemoteRefusal.BUSY
+            !accepts(expected) -> {
+                attemptsLeft--
+                if (attemptsLeft <= 0) { offerNonce = null; mutable.update { it.copy(offer = null) } }
+                RemoteRefusal.INVALID
+            }
+            trust.phones().size >= MAX_PHONES -> RemoteRefusal.BUSY
+            else -> null
+        }.also { if (it == null) { offerNonce = null; decision = waiting } }
+    }
+
+    private fun release(waiting: CompletableDeferred<Boolean>) = synchronized(lock) { if (decision === waiting) decision = null }
+
+    /** Asks the person at the TV, then trusts the phone with a new secret. */
+    private suspend fun confirm(pending: PendingPhone, waiting: CompletableDeferred<Boolean>, output: DataOutputStream): TrustedPhone? {
+        mutable.update { it.copy(offer = null, pending = pending) }
         val approved = try {
             Frames.write(output, message("pending"))
             withTimeoutOrNull(timeouts.approvalMs) { waiting.await() } ?: false
         } finally {
-            synchronized(lock) { if (decision === waiting) decision = null }
+            release(waiting)
             mutable.update { it.copy(pending = null) }
         }
         if (!approved) { refuse(output, RemoteRefusal.DENIED); return null }
         val secret = ByteArray(32).also(random::nextBytes)
-        val phone = TrustedPhone(UUID.randomUUID().toString(), name, sha256Hex(secret), clock())
+        val phone = TrustedPhone(UUID.randomUUID().toString(), pending.name, sha256Hex(secret), clock())
         synchronized(lock) {
             trust.save(trust.phones() + phone)
-            mutable.update { it.copy(phones = trust.phones(), approved = name) }
+            mutable.update { it.copy(phones = trust.phones(), approved = pending.name) }
         }
         try {
             Frames.write(output, message("paired", "phone" to phone.id, "secret" to base64Url.encodeToString(secret), "tv" to tvName()))
@@ -278,6 +321,14 @@ class RemoteServer(
         if (refusal != null) { refuse(output, refusal); return null }
         Frames.write(output, message("ready", "tv" to tvName()))
         return phone
+    }
+
+    /** Erase count and text of a typing message, or null when it is malformed or too large. */
+    private fun typing(request: JsonObject): Pair<Int, String>? {
+        val erase = if (request.has("erase")) request.integer("erase") ?: return null else 0
+        val text = if (request.has("type")) request.text("type", MAX_TYPED_CHARS) ?: return null else ""
+        if (erase !in 0..MAX_ERASED_CHARS) return null
+        return erase to cleanTyped(text)
     }
 
     private fun refuse(output: DataOutputStream, reason: RemoteRefusal) =

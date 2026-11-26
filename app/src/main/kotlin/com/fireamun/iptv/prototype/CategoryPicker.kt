@@ -71,7 +71,7 @@ internal fun CategoryPicker(categories: List<String>, selected: String?, televis
                         }
                     }
                     OutlinedTextField(query, { query = it }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("category_search")
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).remoteTyping(query) { query = it }.testTag("category_search")
                             .onPreviewKeyEvent { event ->
                                 // A single-line editor consumes vertical arrows for cursor movement.
                                 // On a remote they navigate between the picker controls instead.

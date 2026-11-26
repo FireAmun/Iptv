@@ -220,7 +220,7 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
                                     }
                                 }
                                 BasicTextField(value = url, onValueChange = { if (it.length <= 4096) url = it }, singleLine = true,
-                                    modifier = Modifier.fillMaxWidth().focusRequester(inputFocus).onFocusChanged { inputFocused = it.isFocused }.testTag("source_url")
+                                    modifier = Modifier.fillMaxWidth().focusRequester(inputFocus).onFocusChanged { inputFocused = it.isFocused }.remoteTyping(url) { if (it.length <= 4096) url = it }.testTag("source_url")
                                         .onPreviewKeyEvent { event ->
                                             // Single-line editors consume vertical arrows; a remote uses them to leave the field.
                                             if (event.type == KeyEventType.KeyDown && (event.key == Key.DirectionUp || event.key == Key.DirectionDown)) {

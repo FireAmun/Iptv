@@ -42,6 +42,7 @@ import android.view.KeyEvent
 import android.view.inspector.WindowInspector
 import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import com.fireamun.iptv.core.model.ContentKind
+import com.fireamun.iptv.core.designsystem.RemoteTyping
 import com.fireamun.iptv.core.remote.RemoteActions
 import com.fireamun.iptv.core.remote.RemoteKey
 import com.fireamun.iptv.core.remote.RemoteRefusal
@@ -79,7 +80,16 @@ abstract class LibraryActivity : AppCompatActivity() {
     private var liveOrder: () -> List<Int> = { emptyList() }
     private val remoteHost by lazy { (application as IptvApplication).remoteHost }
     private val remoteController by lazy { (application as IptvApplication).remoteController }
-    private val remoteActions = RemoteActions { key ->
+    private val remoteActions = object : RemoteActions {
+        override suspend fun perform(key: RemoteKey): RemoteRefusal? = performKey(key)
+
+        /** Typed text goes to whichever app text box has focus, the same box the TV keyboard would type into. */
+        override suspend fun type(erase: Int, text: String): RemoteRefusal? = withContext(Dispatchers.Main) {
+            if (RemoteTyping.type(erase, text)) null else RemoteRefusal.NO_FIELD
+        }
+    }
+
+    private suspend fun performKey(key: RemoteKey): RemoteRefusal? =
         when (key) {
             RemoteKey.PLAY_PAUSE -> withContext(Dispatchers.Main) {
                 val commands = remoteCommands ?: return@withContext RemoteRefusal.NO_PLAYBACK
@@ -96,7 +106,6 @@ abstract class LibraryActivity : AppCompatActivity() {
             RemoteKey.RIGHT -> injectKey(KeyEvent.KEYCODE_DPAD_RIGHT)
             RemoteKey.OK -> injectKey(KeyEvent.KEYCODE_DPAD_CENTER)
         }
-    }
 
     /** Back goes to the focused window's back dispatcher, as predictive back no longer turns a Back key into it. */
     private suspend fun goBack(): RemoteRefusal? {
