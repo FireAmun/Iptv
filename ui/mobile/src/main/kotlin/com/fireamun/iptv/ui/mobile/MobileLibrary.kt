@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: () -> Unit, onImportUrl: (String) -> Unit, onSelectChannel: (Int) -> Unit, onCancelImport: () -> Unit, onApproveHttp: () -> Unit, onDismissHttp: () -> Unit, onChangeAppearance: () -> Unit, onServerLogin: (String, String, String, String) -> Unit, onLibraryBack: () -> Unit, onRefreshSource: () -> Unit, onRemoveSource: () -> Unit, onSelectSource: (String) -> Unit, onRenameSource: (String, String) -> Unit, onRemoveSourceById: (String) -> Unit,
     analyticsEnabled: Boolean = false, onAnalyticsChange: (Boolean) -> Unit = {}, appVersion: String = "",
-    parental: @Composable () -> Unit = {}, guide: @Composable () -> Unit = {}) {
+    parental: @Composable () -> Unit = {}, guide: @Composable () -> Unit = {}, remote: @Composable () -> Unit = {}) {
     var url by remember { mutableStateOf("") }
     var enteringUrl by remember { mutableStateOf(false) }
     var enteringLogin by remember { mutableStateOf(false) }
@@ -52,7 +52,7 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     // The rendered order also resolves sidebar anchors, so inserting a section cannot stale an index.
-    val settingsSections = remember { listOf("header", "status", "library", "add_sources", "guide", "parental", "appearance", "language", "about") }
+    val settingsSections = remember { listOf("header", "status", "library", "add_sources", "guide", "remote", "parental", "appearance", "language", "about") }
     var reading by remember { mutableStateOf<com.fireamun.iptv.core.designsystem.LegalDocument?>(null) }
     var selectedSettingsSection by remember { mutableStateOf("library") }
     fun showSettingsSection(key: String) {
@@ -76,6 +76,7 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                             listOf(
                                 Triple("library", CinemaSymbol.FILE, R.string.mobile_library),
                                 Triple("guide", CinemaSymbol.LIVE, com.fireamun.iptv.core.designsystem.R.string.guide_title),
+                                Triple("remote", CinemaSymbol.REMOTE, com.fireamun.iptv.core.designsystem.R.string.remote_phone_title),
                                 Triple("parental", CinemaSymbol.SETTINGS, com.fireamun.iptv.core.designsystem.R.string.parental_title),
                                 Triple("appearance", CinemaSymbol.APPEARANCE, R.string.mobile_appearance_title),
                                 Triple("language", CinemaSymbol.LANGUAGE, R.string.mobile_language_title),
@@ -184,6 +185,7 @@ fun MobileWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFil
                                         }
                                     }
                                     "guide" -> SettingsCard { guide() }
+                                    "remote" -> SettingsCard { remote() }
                                     "parental" -> SettingsCard { parental() }
                                     "appearance" -> {
                                         SettingsCard {

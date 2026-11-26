@@ -1,5 +1,7 @@
 # Phone-to-TV remote
 
-Future Gradle module: `:core:remote`.
+Gradle module `:core:remote` (plain Kotlin, no Android dependencies).
 
-Own local discovery, explicit TV-approved pairing, encrypted transport, revocable phone trust, and versioned commands. Route playback through injected interfaces rather than creating another player. The transport library remains subject to device testing.
+Pinned-TLS transport, single-use QR pairing with explicit TV approval, revocable phone trust and versioned key commands. The TV side (`RemoteServer`) performs keys through an injected `RemoteActions`, so playback stays in the app's own player. Android storage, lifecycle and UI live in `:app` (`RemoteHost`, `RemoteController`, `RemoteUi.kt`).
+
+See [docs/development/phone-remote.md](../../docs/development/phone-remote.md) for behaviour, the security model and the remaining parts.

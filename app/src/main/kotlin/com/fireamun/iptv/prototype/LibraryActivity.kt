@@ -33,6 +33,20 @@ import com.fireamun.iptv.ui.tv.TvPlayback
 import com.fireamun.iptv.ui.tv.TvWelcome
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import android.app.Instrumentation
+import android.os.Build
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.KeyCharacterMap
+import android.view.KeyEvent
+import android.view.inspector.WindowInspector
+import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
+import com.fireamun.iptv.core.model.ContentKind
+import com.fireamun.iptv.core.remote.RemoteActions
+import com.fireamun.iptv.core.remote.RemoteKey
+import com.fireamun.iptv.core.remote.RemoteRefusal
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 abstract class LibraryActivity : AppCompatActivity() {
     protected abstract val television: Boolean
@@ -56,12 +70,92 @@ abstract class LibraryActivity : AppCompatActivity() {
             playerOwnerSessionId = sessionId
             playerOwnerClose = commands.close
         }
-        if (playerOwnerSessionId == sessionId) updatePlayerCommands(commands)
+        if (playerOwnerSessionId == sessionId) { remoteCommands = commands; updatePlayerCommands(commands) }
+    }
+    /** Latest player controls and state, for Play/Pause from a paired phone. */
+    private var remoteCommands: PlaybackCommands? = null
+    private var remotePresentation = PlaybackPresentation()
+    /** Ids of the loaded live rows in list order, for channel up/down. */
+    private var liveOrder: () -> List<Int> = { emptyList() }
+    private val remoteHost by lazy { (application as IptvApplication).remoteHost }
+    private val remoteController by lazy { (application as IptvApplication).remoteController }
+    private val remoteActions = RemoteActions { key ->
+        when (key) {
+            RemoteKey.PLAY_PAUSE -> withContext(Dispatchers.Main) {
+                val commands = remoteCommands ?: return@withContext RemoteRefusal.NO_PLAYBACK
+                if (remotePresentation.wantsToPlay) commands.pause() else commands.play()
+                null
+            }
+            RemoteKey.CHANNEL_UP, RemoteKey.CHANNEL_DOWN -> withContext(Dispatchers.Main) {
+                if (switchChannel(if (key == RemoteKey.CHANNEL_UP) 1 else -1)) null else RemoteRefusal.NO_PLAYBACK
+            }
+            RemoteKey.BACK -> goBack()
+            RemoteKey.UP -> injectKey(KeyEvent.KEYCODE_DPAD_UP)
+            RemoteKey.DOWN -> injectKey(KeyEvent.KEYCODE_DPAD_DOWN)
+            RemoteKey.LEFT -> injectKey(KeyEvent.KEYCODE_DPAD_LEFT)
+            RemoteKey.RIGHT -> injectKey(KeyEvent.KEYCODE_DPAD_RIGHT)
+            RemoteKey.OK -> injectKey(KeyEvent.KEYCODE_DPAD_CENTER)
+        }
+    }
+
+    /** Back goes to the focused window's back dispatcher, as predictive back no longer turns a Back key into it. */
+    private suspend fun goBack(): RemoteRefusal? {
+        if (Build.VERSION.SDK_INT < 29) return injectKey(KeyEvent.KEYCODE_BACK)
+        return withContext(Dispatchers.Main) {
+            val root = WindowInspector.getGlobalWindowViews().lastOrNull { it.hasWindowFocus() } ?: return@withContext RemoteRefusal.NOT_FOCUSED
+            val dispatcher = root.findViewTreeOnBackPressedDispatcherOwner()?.onBackPressedDispatcher ?: return@withContext RemoteRefusal.FAILED
+            dispatcher.onBackPressed()
+            null
+        }
+    }
+
+    /**
+     * Phone keys reach whichever window of this app has focus (the activity or a dialog such as the parental PIN),
+     * so every rule that applies to the TV remote applies to them too. Nothing is injected into other apps.
+     */
+    private suspend fun injectKey(code: Int): RemoteRefusal? {
+        if (Build.VERSION.SDK_INT < 29) return withContext(Dispatchers.IO) {
+            // Android 9 has no public window list; it lets an app inject only into its own focused window.
+            try { Instrumentation().sendKeyDownUpSync(code); null }
+            catch (_: SecurityException) { RemoteRefusal.NOT_FOCUSED }
+            catch (_: RuntimeException) { RemoteRefusal.FAILED }
+        }
+        return withContext(Dispatchers.Main) {
+            val root = WindowInspector.getGlobalWindowViews().lastOrNull { it.hasWindowFocus() } ?: return@withContext RemoteRefusal.NOT_FOCUSED
+            // A key press leaves touch mode, as a real remote does, so focus becomes visible and movable.
+            if (root.isInTouchMode) (root.findFocus() ?: root).requestFocusFromTouch()
+            val time = SystemClock.uptimeMillis()
+            val down = KeyEvent(time, time, KeyEvent.ACTION_DOWN, code, 0, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_DPAD)
+            root.dispatchKeyEvent(down)
+            root.dispatchKeyEvent(KeyEvent.changeTimeRepeat(KeyEvent.changeAction(down, KeyEvent.ACTION_UP), SystemClock.uptimeMillis(), 0))
+            null
+        }
+    }
+
+    /** Moves live playback to the next or previous loaded live row; false when that is not possible. */
+    private fun switchChannel(step: Int): Boolean {
+        val playing = library.playback.value ?: return false
+        if (playing.kind != ContentKind.LIVE && playing.kind != ContentKind.UNKNOWN) return false
+        val ids = liveOrder()
+        val index = ids.indexOf(library.state.value.selectedId ?: return false)
+        if (index < 0) return false
+        library.selectChannel(ids.getOrNull(index + step) ?: return false)
+        return true
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if ((event.keyCode == KeyEvent.KEYCODE_CHANNEL_UP || event.keyCode == KeyEvent.KEYCODE_CHANNEL_DOWN) && library.playback.value != null) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) switchChannel(if (event.keyCode == KeyEvent.KEYCODE_CHANNEL_UP) 1 else -1)
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
     private fun playerOwnerDisposed(sessionId: String) {
         if (playerOwnerSessionId == sessionId) {
             playerOwnerSessionId = null
             playerOwnerClose = null
+            remoteCommands = null
+            remotePresentation = PlaybackPresentation()
             updatePlayerCommands(null)
         }
         library.playbackDisposed(sessionId)
@@ -72,9 +166,12 @@ abstract class LibraryActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         parental.onForeground()
+        if (television) remoteHost.attach(remoteActions)
     }
     override fun onStop() {
         if (!isChangingConfigurations) parental.onBackground()
+        // The remote server never runs behind another app.
+        if (television) remoteHost.detach(remoteActions)
         super.onStop()
     }
     private val library by lazy {
@@ -131,6 +228,8 @@ abstract class LibraryActivity : AppCompatActivity() {
             // Opening the app or switching playlists checks whether the guide is due.
             LaunchedEffect(guideSource) { guide.select(guideSource) }
             val guideSettings: @Composable () -> Unit = { GuideSettings(guide, guideSource) }
+            val remoteSettings: @Composable () -> Unit = { if (television) TvRemoteSettings(remoteHost) else PhoneRemoteSettings(remoteController) }
+            SideEffect { liveOrder = { catalogue.itemSnapshotList.items.filter { it.kind == ContentKind.LIVE || it.kind == ContentKind.UNKNOWN }.map { it.id } } }
             val guideClock = rememberGuideClock()
             LaunchedEffect(Unit) { guide.updates.collect { library.guideUpdated(it) } }
             val browserState = rememberSaveableStateHolder()
@@ -176,7 +275,7 @@ abstract class LibraryActivity : AppCompatActivity() {
                         television = television,
                         inPictureInPicture = pictureInPictureActive,
                         onMinimize = if (!television && pictureInPictureSupported && presentation.canEnter) ({ requestPictureInPicture() }) else null,
-                        onPresentation = { presentation = it; updatePlayerPresentation(it) },
+                        onPresentation = { presentation = it; remotePresentation = it; updatePlayerPresentation(it) },
                         onCommands = { acceptPlayerCommands(active.sessionId, it) },
                         onVideoBounds = ::updatePlayerBounds,
                     ) }
@@ -193,9 +292,9 @@ abstract class LibraryActivity : AppCompatActivity() {
                         library::selectTab, library::search, library::selectCategory, library::selectChannel, library::toggleFavourite, library::backToCatalog, library::closeSearch,
                         watch, library::playRecent) {
                         if (television) TvWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource,
-                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings, guideSettings)
+                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings, guideSettings, remoteSettings)
                         else MobileWelcome(state, { toggleAppLanguage() }, { chooseFile() }, library::importUrl, library::selectChannel, library::cancelImport, library::approveHttp, library::dismissHttp, { Appearance.toggle(this) }, library::importXtream, library::backToCatalog, { library.refreshSource { chooseFile(refreshing = true) } }, library::removeSavedSource, library::selectSource, library::renameSource, library::removeSource,
-                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings, guideSettings)
+                            analyticsEnabled, onAnalytics, BuildConfig.VERSION_NAME, parentalSettings, guideSettings, remoteSettings)
                     }
                 } }
                 if (pinPrompt) PinDialog(PinMode.ENTER, parental, television, onDone = library::pinAccepted, onDismiss = library::dismissPinPrompt,
