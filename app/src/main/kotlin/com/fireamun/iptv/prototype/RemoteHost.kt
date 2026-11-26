@@ -19,6 +19,7 @@ import com.fireamun.iptv.core.remote.TrustedPhone
 import com.fireamun.iptv.core.storage.EnvelopeProtector
 import com.fireamun.iptv.core.storage.KeystoreEnvelope
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -113,7 +114,8 @@ class RemoteHost(
         fingerprint = identity.fingerprint
         return RemoteServer(identity, trust, forwarding, { deviceName(context) }, scope).also { created ->
             server = created
-            scope.launch { created.state.collect { value -> mutable.update { it.copy(server = value) } } }
+            // Server state changes on network threads; screens collect [state], so it changes on the main thread.
+            scope.launch(Dispatchers.Main.immediate) { created.state.collect { value -> mutable.update { it.copy(server = value) } } }
         }
     }
 

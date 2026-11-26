@@ -3,6 +3,8 @@ package com.fireamun.iptv.prototype
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.os.Handler
+import android.os.Looper
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -71,7 +73,9 @@ internal class RemoteDiscovery(context: Context) {
         val found = LinkedHashMap<String, FoundTv>()
         val queue = ArrayDeque<NsdServiceInfo>()
         var resolving = false
-        fun publish() = trySend(synchronized(lock) { found.values.toList() })
+        // Results arrive on a system thread; the list is handed over on the main thread, where screens collect it.
+        val main = Handler(Looper.getMainLooper())
+        fun publish() { val tvs = synchronized(lock) { found.values.toList() }; main.post { trySend(tvs) } }
 
         // Older Android versions resolve one service at a time, so services wait their turn.
         fun next() {
@@ -95,7 +99,7 @@ internal class RemoteDiscovery(context: Context) {
         val discovery = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(serviceType: String) = Unit
             override fun onDiscoveryStopped(serviceType: String) = Unit
-            override fun onStartDiscoveryFailed(serviceType: String, error: Int) { close() }
+            override fun onStartDiscoveryFailed(serviceType: String, error: Int) { main.post { close() } }
             override fun onStopDiscoveryFailed(serviceType: String, error: Int) = Unit
             override fun onServiceFound(info: NsdServiceInfo) {
                 synchronized(lock) { if (queue.none { it.serviceName == info.serviceName }) queue.addLast(info) }
@@ -107,7 +111,10 @@ internal class RemoteDiscovery(context: Context) {
         }
         trySend(emptyList())
         val started = runCatching { manager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discovery) }.isSuccess
-        awaitClose { if (started) runCatching { manager.stopServiceDiscovery(discovery) } }
+        awaitClose {
+            main.removeCallbacksAndMessages(null)
+            if (started) runCatching { manager.stopServiceDiscovery(discovery) }
+        }
     }
 
     /** Looks for the TV with this certificate, for example after the router gave it a new address. */

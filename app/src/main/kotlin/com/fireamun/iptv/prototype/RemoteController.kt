@@ -2,6 +2,8 @@ package com.fireamun.iptv.prototype
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import com.fireamun.iptv.core.remote.MAX_ERASED_CHARS
 import com.fireamun.iptv.core.remote.MAX_TYPED_CHARS
@@ -57,6 +59,7 @@ class RemoteController(
     private val discovery = RemoteDiscovery(context)
     private val mutable = MutableStateFlow(RemoteControllerUi(tvName = preferences.getString("name", null)))
     val state: StateFlow<RemoteControllerUi> = mutable.asStateFlow()
+    private val main = Handler(Looper.getMainLooper())
     private var pairingJob: Job? = null
     private var connectJob: Job? = null
     @Volatile private var session: RemoteSession? = null
@@ -70,8 +73,8 @@ class RemoteController(
 
     /** Handles text from the QR scanner. */
     fun pair(code: String) {
-        val link = PairingLink.parse(code.trim()) ?: run { mutable.update { it.copy(problem = RemoteProblem.NOT_A_CODE) }; return }
-        startPairing { client.pair(link, RemoteHost.deviceName(context)) { mutable.update { it.copy(pairing = PairingPhase.WAITING_APPROVAL) } } }
+        val link = PairingLink.parse(code.trim()) ?: run { publish { it.copy(problem = RemoteProblem.NOT_A_CODE) }; return }
+        startPairing { client.pair(link, RemoteHost.deviceName(context)) { publish { it.copy(pairing = PairingPhase.WAITING_APPROVAL) } } }
     }
 
     /** Pairs without the camera by comparing codes with a TV found on the network. */
@@ -79,27 +82,27 @@ class RemoteController(
 
     /** Pairs without the camera with a TV typed as "192.168.1.20" or "192.168.1.20:47820"; false when that is not an address. */
     fun pairWithAddress(text: String): Boolean {
-        val (host, port) = parseAddress(text) ?: run { mutable.update { it.copy(problem = RemoteProblem.NOT_AN_ADDRESS) }; return false }
+        val (host, port) = parseAddress(text) ?: run { publish { it.copy(problem = RemoteProblem.NOT_AN_ADDRESS) }; return false }
         pairWithCode(host, port)
         return true
     }
 
     private fun pairWithCode(host: String, port: Int) = startPairing {
-        client.pairWithCode(host, port, RemoteHost.deviceName(context)) { code -> mutable.update { it.copy(pairing = PairingPhase.WAITING_APPROVAL, code = code) } }
+        client.pairWithCode(host, port, RemoteHost.deviceName(context)) { code -> publish { it.copy(pairing = PairingPhase.WAITING_APPROVAL, code = code) } }
     }
 
     private fun startPairing(attempt: suspend () -> PairOutcome) {
         disconnect()
         pairingJob?.cancel()
-        mutable.update { it.copy(pairing = PairingPhase.CONNECTING, code = null, problem = null) }
+        publish { it.copy(pairing = PairingPhase.CONNECTING, code = null, problem = null) }
         pairingJob = scope.launch {
             val outcome = try { attempt() }
-            catch (cancelled: CancellationException) { mutable.update { it.copy(pairing = PairingPhase.IDLE, code = null) }; throw cancelled }
+            catch (cancelled: CancellationException) { publish { it.copy(pairing = PairingPhase.IDLE, code = null) }; throw cancelled }
             when (outcome) {
-                is PairOutcome.Paired -> if (save(outcome.tv)) mutable.update { RemoteControllerUi(tvName = outcome.tv.tvName) }
-                    else mutable.update { it.copy(pairing = PairingPhase.IDLE, code = null, problem = RemoteProblem.FAILED) }
-                is PairOutcome.Refused -> mutable.update { it.copy(pairing = PairingPhase.IDLE, code = null, problem = outcome.reason.problem()) }
-                PairOutcome.Unreachable -> mutable.update { it.copy(pairing = PairingPhase.IDLE, code = null, problem = RemoteProblem.UNREACHABLE) }
+                is PairOutcome.Paired -> if (save(outcome.tv)) publish { RemoteControllerUi(tvName = outcome.tv.tvName) }
+                    else publish { it.copy(pairing = PairingPhase.IDLE, code = null, problem = RemoteProblem.FAILED) }
+                is PairOutcome.Refused -> publish { it.copy(pairing = PairingPhase.IDLE, code = null, problem = outcome.reason.problem()) }
+                PairOutcome.Unreachable -> publish { it.copy(pairing = PairingPhase.IDLE, code = null, problem = RemoteProblem.UNREACHABLE) }
             }
         }
     }
@@ -107,15 +110,15 @@ class RemoteController(
     /** TVs announcing the phone remote on this network, for code pairing. */
     fun searchTvs(): Flow<List<FoundTv>> = discovery.search()
 
-    fun scannerUnavailable() = mutable.update { it.copy(problem = RemoteProblem.SCANNER_UNAVAILABLE) }
-    fun cancelPairing() { pairingJob?.cancel(); mutable.update { it.copy(pairing = PairingPhase.IDLE, code = null) } }
-    fun clearProblem() = mutable.update { it.copy(problem = null) }
+    fun scannerUnavailable() = publish { it.copy(problem = RemoteProblem.SCANNER_UNAVAILABLE) }
+    fun cancelPairing() { pairingJob?.cancel(); publish { it.copy(pairing = PairingPhase.IDLE, code = null) } }
+    fun clearProblem() = publish { it.copy(problem = null) }
 
     /** Opens the connection the remote screen uses; a refused or failed attempt leaves it offline with a reason. */
     fun connect() {
         val tv = saved() ?: return
         if (session?.open?.value == true || connectJob?.isActive == true) return
-        mutable.update { it.copy(connection = RemoteConnection.CONNECTING, problem = null) }
+        publish { it.copy(connection = RemoteConnection.CONNECTING, problem = null) }
         connectJob = scope.launch {
             try {
                 val opened = try { client.connect(tv, scope) } catch (unreachable: IOException) {
@@ -126,21 +129,21 @@ class RemoteController(
                     client.connect(updated, scope).also { save(updated) }
                 }
                 session = opened
-                mutable.update { it.copy(connection = RemoteConnection.CONNECTED, tvName = opened.tvName) }
+                publish { it.copy(connection = RemoteConnection.CONNECTED, tvName = opened.tvName) }
                 opened.open.first { !it }
                 if (session === opened) {
                     session = null
                     val ended = opened.endedBy
                     if (ended == RemoteRefusal.REVOKED) clearSaved()
-                    mutable.update { it.copy(connection = RemoteConnection.OFFLINE, problem = ended?.problem() ?: it.problem) }
+                    publish { it.copy(connection = RemoteConnection.OFFLINE, problem = ended?.problem() ?: it.problem) }
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (refused: RemoteRefusedException) {
                 // A TV that removed this phone, or replaced its identity, will never accept it again.
                 if (refused.reason == RemoteRefusal.REVOKED || refused.reason == RemoteRefusal.IDENTITY) clearSaved()
-                mutable.update { it.copy(connection = RemoteConnection.OFFLINE, problem = refused.reason.problem()) }
+                publish { it.copy(connection = RemoteConnection.OFFLINE, problem = refused.reason.problem()) }
             } catch (_: Exception) {
-                mutable.update { it.copy(connection = RemoteConnection.OFFLINE, problem = RemoteProblem.UNREACHABLE) }
+                publish { it.copy(connection = RemoteConnection.OFFLINE, problem = RemoteProblem.UNREACHABLE) }
             }
         }
     }
@@ -150,7 +153,7 @@ class RemoteController(
         connectJob = null
         session?.close()
         session = null
-        mutable.update { it.copy(connection = RemoteConnection.OFFLINE) }
+        publish { it.copy(connection = RemoteConnection.OFFLINE) }
     }
 
     /** Sends one key; the result is also reflected in [state] as a problem when the TV could not act on it. */
@@ -201,12 +204,20 @@ class RemoteController(
                 return
             }
             typed = typed.dropLast(erasing) + adding
-            mutable.update { if (it.problem == RemoteProblem.NO_FIELD) it.copy(problem = null) else it }
+            publish { if (it.problem == RemoteProblem.NO_FIELD) it.copy(problem = null) else it }
         }
     }
 
-    private fun showRefusal(refusal: RemoteRefusal?) = mutable.update {
+    private fun showRefusal(refusal: RemoteRefusal?) = publish {
         it.copy(problem = refusal?.takeIf { r -> r == RemoteRefusal.NO_PLAYBACK || r == RemoteRefusal.NOT_FOCUSED || r == RemoteRefusal.NO_FIELD }?.problem())
+    }
+
+    /**
+     * Changes [state] on the main thread. Pairing and connection results arrive on network threads, and screens
+     * collect [state]; changing it there could run their layout off the main thread.
+     */
+    private fun publish(change: (RemoteControllerUi) -> RemoteControllerUi) {
+        if (Looper.myLooper() === Looper.getMainLooper()) mutable.update(change) else main.post { mutable.update(change) }
     }
 
     /** Forgets the TV on this phone. The TV keeps listing the phone until it is removed there. */
@@ -214,12 +225,12 @@ class RemoteController(
         cancelPairing()
         disconnect()
         clearSaved()
-        mutable.value = RemoteControllerUi()
+        publish { RemoteControllerUi() }
     }
 
     private fun clearSaved() {
         preferences.edit().clear().commit()
-        mutable.update { it.copy(tvName = null) }
+        publish { it.copy(tvName = null) }
     }
 
     private fun save(tv: SavedTv): Boolean = runCatching {
