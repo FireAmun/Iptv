@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 enum class CinemaSymbol {
     SEARCH, LIVE, MOVIES, SERIES, FAVOURITE, FAVOURITE_FILLED, SETTINGS, CATEGORIES,
     CHECK, CLOSE, BACK, ADD, REFRESH, FILE, LINK, SERVER, LANGUAGE, APPEARANCE, GUIDE,
+    REMOTE, CHEVRON_UP, PLAY_PAUSE,
 }
 
 /** Decorative vector; the containing action supplies its localized accessible label. */
@@ -73,6 +74,9 @@ fun CinemaIcon(symbol: CinemaSymbol, modifier: Modifier = Modifier, tint: Color 
                         CinemaSymbol.CATEGORIES -> { for (x in listOf(3f, 14f)) for (y in listOf(3f, 14f)) box(x, y, 7f, 7f, 1f) }
                         CinemaSymbol.CHECK -> path(4f, 12f, 9f, 17f, 20f, 6f)
                         CinemaSymbol.GUIDE -> { box(3f, 4f, 18f, 16f); line(3f, 9f, 21f, 9f); line(7f, 13f, 17f, 13f); line(7f, 16.5f, 13f, 16.5f) }
+                        CinemaSymbol.REMOTE -> { box(7f, 2f, 10f, 20f, 3f); drawCircle(tint, 2.6f, Offset(12f, 8f), style = stroke); line(10f, 14f, 10f, 14f); line(14f, 14f, 14f, 14f); line(10f, 17.5f, 14f, 17.5f) }
+                        CinemaSymbol.CHEVRON_UP -> path(5f, 15f, 12f, 8f, 19f, 15f)
+                        CinemaSymbol.PLAY_PAUSE -> { path(3f, 5f, 12f, 12f, 3f, 19f, 3f, 5f); line(16f, 5f, 16f, 19f); line(20f, 5f, 20f, 19f) }
                         CinemaSymbol.CLOSE -> { line(6f, 6f, 18f, 18f); line(18f, 6f, 6f, 18f) }
                         CinemaSymbol.BACK -> { path(13f, 4f, 5f, 12f, 13f, 20f); line(5f, 12f, 21f, 12f) }
                         CinemaSymbol.ADD -> { line(12f, 4f, 12f, 20f); line(4f, 12f, 20f, 12f) }

@@ -19,8 +19,10 @@ splashscreen = "1.2.0"
 paging = "3.5.3"
 coil = "3.3.0"
 posthog = "3.73.1"
+zxing-embedded = "4.3.0"
 
 [libraries]
+zxing-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxing-embedded" }
 posthog-android = { module = "com.posthog:posthog-android", version.ref = "posthog" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose-ui = { module = "androidx.compose.ui:ui" }

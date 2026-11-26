@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TV: Settings > Phone remote -->
+    <string name="remote_tv_title">Phone remote</string>
+    <string name="remote_tv_description">Use a phone with Amar Iptv as a remote for this TV. The phone and the TV must be on the same Wi-Fi, and this app must be open on the TV.</string>
+    <string name="remote_tv_enabled">Allow phone remote</string>
+    <string name="remote_tv_pair">Pair a phone</string>
+    <string name="remote_tv_phones">Paired phones</string>
+    <string name="remote_tv_no_phones">No phones paired yet.</string>
+    <string name="remote_tv_connected">Connected</string>
+    <string name="remote_tv_remove">Remove</string>
+    <string name="remote_tv_remove_named">Remove %1$s</string>
+    <string name="remote_tv_remove_all">Remove all phones</string>
+    <string name="remote_tv_no_network">Connect the TV to Wi-Fi or Ethernet to pair a phone.</string>
+    <string name="remote_tv_unavailable">Phone remote is not available because protected storage failed on this TV.</string>
+    <string name="remote_pair_title">Pair a phone</string>
+    <string name="remote_pair_steps">On your phone, open Amar Iptv, go to Settings › TV remote and choose Scan TV code.</string>
+    <string name="remote_pair_qr">Pairing QR code</string>
+    <string name="remote_pair_expires">Code expires in %1$s</string>
+    <string name="remote_pair_expired">This code has expired.</string>
+    <string name="remote_pair_new_code">New code</string>
+    <string name="remote_pair_cancel">Cancel</string>
+    <string name="remote_pair_ask">Allow “%1$s” to control this TV?</string>
+    <string name="remote_pair_ask_detail">Only allow a phone you recognise. You can remove it later in Settings.</string>
+    <string name="remote_pair_allow">Allow</string>
+    <string name="remote_pair_deny">Don\'t allow</string>
+    <string name="remote_pair_done">“%1$s” can now control this TV.</string>
+    <string name="remote_pair_close">Done</string>
+    <!-- Phone: Settings > TV remote -->
+    <string name="remote_phone_title">TV remote</string>
+    <string name="remote_phone_description">Control Amar Iptv on your TV from this phone. On the TV, open Settings › Phone remote and choose Pair a phone, then scan the code.</string>
+    <string name="remote_phone_scan">Scan TV code</string>
+    <string name="remote_phone_scan_prompt">Point the camera at the QR code on the TV</string>
+    <string name="remote_phone_connecting">Connecting to the TV…</string>
+    <string name="remote_phone_waiting">Approve this phone on the TV.</string>
+    <string name="remote_phone_paired">Paired with %1$s</string>
+    <string name="remote_phone_open">Open remote</string>
+    <string name="remote_phone_forget">Forget TV</string>
+    <string name="remote_problem_not_a_code">That QR code isn\'t a pairing code from Amar Iptv on a TV.</string>
+    <string name="remote_problem_unreachable">Can\'t reach the TV. Check that both are on the same Wi-Fi and that Amar Iptv is open on the TV.</string>
+    <string name="remote_problem_scanner">The code scanner isn\'t available on this phone.</string>
+    <string name="remote_problem_expired">The code has expired. Show a new code on the TV and scan again.</string>
+    <string name="remote_problem_denied">The TV didn\'t allow this phone.</string>
+    <string name="remote_problem_invalid">That code didn\'t work. Show a new code on the TV and scan again.</string>
+    <string name="remote_problem_identity">This isn\'t the TV from the code. Pair again.</string>
+    <string name="remote_problem_busy">The TV is busy with another pairing or has too many phones. Remove one on the TV and try again.</string>
+    <string name="remote_problem_version">Update Amar Iptv on both the phone and the TV.</string>
+    <string name="remote_problem_revoked">The TV removed this phone. Pair again to use the remote.</string>
+    <string name="remote_problem_failed">Something went wrong. Try again.</string>
+    <string name="remote_problem_no_playback">Nothing is playing on the TV.</string>
+    <string name="remote_problem_not_focused">Amar Iptv isn\'t in front on the TV.</string>
+    <!-- Phone: remote screen -->
+    <string name="remote_panel_connected">Connected to %1$s</string>
+    <string name="remote_panel_connecting">Connecting to %1$s…</string>
+    <string name="remote_panel_offline">Not connected. Open Amar Iptv on the TV and use the same Wi-Fi.</string>
+    <string name="remote_panel_retry">Try again</string>
+    <string name="remote_panel_close">Close remote</string>
+    <string name="remote_key_up">Up</string>
+    <string name="remote_key_down">Down</string>
+    <string name="remote_key_left">Left</string>
+    <string name="remote_key_right">Right</string>
+    <string name="remote_key_ok">OK</string>
+    <string name="remote_key_back">Back</string>
+    <string name="remote_key_play_pause">Play or pause</string>
+    <string name="remote_key_channel_up">Next channel</string>
+    <string name="remote_key_channel_down">Previous channel</string>
+    <string name="remote_key_channel">CH</string>
+</resources>

@@ -77,6 +77,9 @@ dependencies {
     implementation(project(":core:storage"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:playback"))
+    implementation(project(":core:remote"))
+    // Open-source QR scanning and drawing; images stay on the device and nothing goes to Google.
+    implementation(libs.zxing.embedded)
     implementation(project(":ui:mobile"))
     implementation(project(":ui:tv"))
     implementation(platform(libs.compose.bom))

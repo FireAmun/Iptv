@@ -45,6 +45,12 @@ class TestDiagnostics : TestRule {
                 runBlocking(Dispatchers.IO) { app.libraryStore.clear() }
                 // A PIN or category lock left by one test must never hide another test's fixture.
                 app.parentalControls.forget()
+                // Paired phones and a remembered TV belong to one test only.
+                app.remoteController.forget()
+                app.remoteHost.stopPairing()
+                app.remoteHost.revokeAll()
+                app.remoteHost.setEnabled(true)
+                app.remoteHost.addressOverride = null
                 phase(Phase.AFTER_LIBRARY_RESET)
             }
             try { resetLibrary(); base.evaluate() }

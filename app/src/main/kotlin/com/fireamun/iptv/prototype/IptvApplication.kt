@@ -17,6 +17,11 @@ class IptvApplication : Application() {
     private val guideScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
     /** Process-wide so a guide download survives Activity recreation. */
     val guideRefresher by lazy { GuideRefresher(libraryStore, guideScope, { GuideRefresher.unmetered(this) }) }
+    private val remoteScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+    /** TV side of the phone remote; listens only while a TV screen is in front. */
+    val remoteHost by lazy { RemoteHost(this, remoteScope) }
+    /** Phone side of the phone remote. */
+    val remoteController by lazy { RemoteController(this, remoteScope) }
     override fun onCreate() {
         super.onCreate()
         initializePostHog()
