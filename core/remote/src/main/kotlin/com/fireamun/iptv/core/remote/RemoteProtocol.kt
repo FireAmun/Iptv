@@ -18,6 +18,10 @@ const val REMOTE_PROTOCOL = 1
 /** Port the TV tries first so a paired phone can find it again; another free port is used if it is taken. */
 const val REMOTE_DEFAULT_PORT = 47_820
 internal const val MAX_FRAME_BYTES = 8 * 1024
+/** Most characters one typing message adds; longer pastes are sent in parts. */
+const val MAX_TYPED_CHARS = 500
+/** Most characters one typing message erases. */
+const val MAX_ERASED_CHARS = 4_096
 
 /** Buttons a paired phone can press on the TV. */
 enum class RemoteKey { UP, DOWN, LEFT, RIGHT, OK, BACK, PLAY_PAUSE, CHANNEL_UP, CHANNEL_DOWN }
@@ -42,6 +46,8 @@ enum class RemoteRefusal {
     NO_PLAYBACK,
     /** The TV app is not in front, so a navigation key had nowhere to go. */
     NOT_FOCUSED,
+    /** Typed text arrived while no text box was selected on the TV. */
+    NO_FIELD,
     /** Keys arrived faster than the TV accepts them. */
     RATE_LIMITED,
     /** Anything else; the connection stays usable. */
@@ -105,6 +111,29 @@ internal fun constantEquals(a: String, b: String): Boolean =
 
 internal val base64Url: Base64.Encoder = Base64.getUrlEncoder().withoutPadding()
 internal fun decodeBase64Url(value: String): ByteArray? = try { Base64.getUrlDecoder().decode(value) } catch (_: IllegalArgumentException) { null }
+
+/** Typed text for single-line fields: no control characters and no text-direction overrides. */
+internal fun cleanTyped(value: String): String =
+    value.filterNot { it.isISOControl() || it in '\u202A'..'\u202E' || it in '\u2066'..'\u2069' }
+
+/**
+ * The six digits both screens show during code pairing. They cover the TV certificate each side actually used, so a
+ * device in the middle, which cannot present the TV's certificate, leaves the two screens showing different codes.
+ * Each side commits to or reveals its random value in an order that leaves such a device one guess in a million.
+ */
+internal fun pairingCode(fingerprint: String, phoneNonce: ByteArray, tvNonce: ByteArray): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    digest.update("amariptv-pairing-code-v1".toByteArray(Charsets.UTF_8))
+    digest.update(fingerprint.toByteArray(Charsets.UTF_8))
+    digest.update(phoneNonce)
+    digest.update(tvNonce)
+    val hash = digest.digest()
+    var value = 0L
+    for (index in 0 until 5) value = (value shl 8) or (hash[index].toLong() and 0xff)
+    return "%06d".format(value % 1_000_000)
+}
+
+internal val HEX_64 = Regex("[0-9a-f]{64}")
 
 /** Names shown on the other screen: printable, trimmed and short. */
 internal fun cleanDeviceName(value: String?): String? =

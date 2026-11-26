@@ -2,6 +2,6 @@
 
 Gradle module `:core:remote` (plain Kotlin, no Android dependencies).
 
-Pinned-TLS transport, single-use QR pairing with explicit TV approval, revocable phone trust and versioned key commands. The TV side (`RemoteServer`) performs keys through an injected `RemoteActions`, so playback stays in the app's own player. Android storage, lifecycle and UI live in `:app` (`RemoteHost`, `RemoteController`, `RemoteUi.kt`).
+Pinned-TLS transport, single-use QR pairing or compared-code pairing (commit-then-reveal) with explicit TV approval, revocable phone trust, versioned key commands and typing. The TV side (`RemoteServer`) performs keys through an injected `RemoteActions`, so playback stays in the app's own player. Android storage, lifecycle and UI live in `:app` (`RemoteHost`, `RemoteController`, `RemoteUi.kt`).
 
 See [docs/development/phone-remote.md](../../docs/development/phone-remote.md) for behaviour, the security model and the remaining parts.

@@ -18,6 +18,7 @@ import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.IOException
+import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.net.ssl.SSLSocket
@@ -34,8 +35,8 @@ sealed interface PairOutcome {
     data object Unreachable : PairOutcome
 }
 
-/** Phone side of the remote. Every connection pins the TV certificate from the pairing code. */
-class RemoteClient(private val timeoutMs: Int = 5_000, private val approvalMs: Int = 75_000) {
+/** Phone side of the remote. Every connection after pairing pins the TV certificate learnt while pairing. */
+class RemoteClient(private val timeoutMs: Int = 5_000, private val approvalMs: Int = 75_000, private val random: SecureRandom = SecureRandom()) {
 
     /** Uses the code from the TV, then waits for someone to approve this phone on the TV. */
     suspend fun pair(link: PairingLink, phoneName: String, onPending: () -> Unit = {}): PairOutcome = withContext(Dispatchers.IO) {
@@ -52,19 +53,55 @@ class RemoteClient(private val timeoutMs: Int = 5_000, private val approvalMs: I
                 socket.soTimeout = approvalMs
                 reply = Frames.read(input)
             }
-            when (reply.type()) {
-                "paired" -> {
-                    val id = reply.text("phone", 64)
-                    val secret = reply.text("secret", 64)?.takeIf { decodeBase64Url(it)?.size == 32 }
-                    val tv = cleanDeviceName(reply.text("tv", 120)) ?: "TV"
-                    if (id == null || secret == null) PairOutcome.Refused(RemoteRefusal.FAILED)
-                    else PairOutcome.Paired(SavedTv(link.host, link.port, link.fingerprint, id, secret, tv))
-                }
-                "rejected" -> PairOutcome.Refused(refusal(reply))
-                else -> PairOutcome.Refused(RemoteRefusal.FAILED)
-            }
+            finish(reply, link.host, link.port, link.fingerprint)
         } catch (_: IOException) { PairOutcome.Unreachable }
         finally { runCatching { socket.close() } }
+    }
+
+    /**
+     * Pairs without the QR code with a TV whose pairing screen is open. [onCode] receives the six digits to compare
+     * with the TV screen; the person at the TV allows the phone only if they match. The TV certificate seen here is
+     * the one saved, so a device in the middle would have produced a different code.
+     */
+    suspend fun pairWithCode(host: String, port: Int, phoneName: String, onCode: (String) -> Unit): PairOutcome = withContext(Dispatchers.IO) {
+        val (socket, fingerprint) = try { openUnverified(host, port, timeoutMs) }
+            catch (_: IOException) { return@withContext PairOutcome.Unreachable }
+            catch (_: java.security.GeneralSecurityException) { return@withContext PairOutcome.Unreachable }
+            catch (_: IllegalArgumentException) { return@withContext PairOutcome.Unreachable }
+        val phoneNonce = ByteArray(32).also(random::nextBytes)
+        try {
+            val input = DataInputStream(BufferedInputStream(socket.inputStream))
+            val output = DataOutputStream(BufferedOutputStream(socket.outputStream))
+            Frames.write(output, message("code", "v" to REMOTE_PROTOCOL, "commit" to sha256Hex(phoneNonce), "name" to (cleanDeviceName(phoneName) ?: "Phone")))
+            val challenge = Frames.read(input)
+            if (challenge.type() == "rejected") return@withContext PairOutcome.Refused(refusal(challenge))
+            val tvNonce = challenge.takeIf { it.type() == "challenge" }?.text("nonce", 64)?.let(::decodeBase64Url)?.takeIf { it.size == 32 }
+                ?: return@withContext PairOutcome.Refused(RemoteRefusal.FAILED)
+            Frames.write(output, message("reveal", "nonce" to base64Url.encodeToString(phoneNonce)))
+            val pending = Frames.read(input)
+            // The code must be on the phone screen before the TV can be approved; no other order is accepted.
+            when (pending.type()) {
+                "pending" -> Unit
+                "rejected" -> return@withContext PairOutcome.Refused(refusal(pending))
+                else -> return@withContext PairOutcome.Refused(RemoteRefusal.FAILED)
+            }
+            onCode(pairingCode(fingerprint, phoneNonce, tvNonce))
+            socket.soTimeout = approvalMs
+            finish(Frames.read(input), host, port, fingerprint)
+        } catch (_: IOException) { PairOutcome.Unreachable }
+        finally { phoneNonce.fill(0); runCatching { socket.close() } }
+    }
+
+    private fun finish(reply: JsonObject, host: String, port: Int, fingerprint: String): PairOutcome = when (reply.type()) {
+        "paired" -> {
+            val id = reply.text("phone", 64)
+            val secret = reply.text("secret", 64)?.takeIf { decodeBase64Url(it)?.size == 32 }
+            val tv = cleanDeviceName(reply.text("tv", 120)) ?: "TV"
+            if (id == null || secret == null) PairOutcome.Refused(RemoteRefusal.FAILED)
+            else PairOutcome.Paired(SavedTv(host, port, fingerprint, id, secret, tv))
+        }
+        "rejected" -> PairOutcome.Refused(refusal(reply))
+        else -> PairOutcome.Refused(RemoteRefusal.FAILED)
     }
 
     /**
@@ -139,13 +176,21 @@ class RemoteSession internal constructor(
     }
 
     /** Null when the TV carried out the key, otherwise why not. Throws [IOException] once the session is closed. */
-    suspend fun press(key: RemoteKey): RemoteRefusal? = withContext(Dispatchers.IO) {
+    suspend fun press(key: RemoteKey): RemoteRefusal? = request { id -> message("key", "id" to id, "key" to key.name) }
+
+    /** Erases [erase] characters at the end of the TV's selected text box, then adds [text]; answered like [press]. */
+    suspend fun type(erase: Int, text: String): RemoteRefusal? {
+        require(erase in 0..MAX_ERASED_CHARS && text.length <= MAX_TYPED_CHARS) { "Typing message too large" }
+        return request { id -> message("text", "id" to id, "erase" to erase, "type" to text) }
+    }
+
+    private suspend fun request(build: (Int) -> JsonObject): RemoteRefusal? = withContext(Dispatchers.IO) {
         if (!mutableOpen.value) throw IOException("Closed")
         val id = ids.incrementAndGet()
         val reply = CompletableDeferred<RemoteRefusal?>()
         waiting[id] = reply
         try {
-            Frames.write(output, message("key", "id" to id, "key" to key.name))
+            Frames.write(output, build(id))
             // Wrapped because a successful reply is itself null.
             val answer = withTimeoutOrNull(replyMs) { Result.success(reply.await()) }
             when {

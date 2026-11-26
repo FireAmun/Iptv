@@ -8,7 +8,9 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Base64
 import com.fireamun.iptv.core.remote.RemoteActions
+import com.fireamun.iptv.core.remote.REMOTE_DEFAULT_PORT
 import com.fireamun.iptv.core.remote.RemoteIdentity
+import com.fireamun.iptv.core.remote.RemoteKey
 import com.fireamun.iptv.core.remote.RemoteRefusal
 import com.fireamun.iptv.core.remote.RemoteServer
 import com.fireamun.iptv.core.remote.RemoteServerState
@@ -33,6 +35,8 @@ data class RemoteHostUi(
     val noNetwork: Boolean = false,
     /** Protected storage failed, so the TV cannot keep an identity. */
     val unavailable: Boolean = false,
+    /** The address shown for typing on a phone that cannot find the TV: "192.168.1.20", with ":port" when not the usual one. */
+    val address: String? = null,
 )
 
 /**
@@ -54,8 +58,14 @@ class RemoteHost(
     /** Instrumentation pairs over loopback because CI emulators may report no Wi-Fi network. */
     @Volatile internal var addressOverride: String? = null
 
+    private val advertiser = RemoteAdvertiser(context)
+    private var fingerprint: String? = null
+
     // A successful key returns null, so a missing activity must be checked first rather than with ?:.
-    private val forwarding = RemoteActions { key -> actions.let { target -> if (target == null) RemoteRefusal.NOT_FOCUSED else target.perform(key) } }
+    private val forwarding = object : RemoteActions {
+        override suspend fun perform(key: RemoteKey): RemoteRefusal? = actions.let { target -> if (target == null) RemoteRefusal.NOT_FOCUSED else target.perform(key) }
+        override suspend fun type(erase: Int, text: String): RemoteRefusal? = actions.let { target -> if (target == null) RemoteRefusal.NOT_FOCUSED else target.type(erase, text) }
+    }
 
     /** Called on the main thread when a TV activity starts. */
     fun attach(target: RemoteActions) { actions = target; update() }
@@ -75,7 +85,10 @@ class RemoteHost(
         if (host == null || !mutable.value.enabled || actions == null) return false
         val active = server() ?: return false
         offering = true
-        return runCatching { active.offer(host) }.onFailure { offering = false; update() }.isSuccess
+        val offered = runCatching { active.offer(host) }.onFailure { offering = false }.getOrNull()
+        mutable.update { it.copy(address = offered?.let { offer -> if (offer.link.port == REMOTE_DEFAULT_PORT) host else "$host:${offer.link.port}" }) }
+        update()
+        return offered != null
     }
 
     fun stopPairing() { offering = false; server?.cancelOffer(); update() }
@@ -86,14 +99,18 @@ class RemoteHost(
 
     private fun refreshPhones() = mutable.update { it.copy(server = it.server.copy(phones = trust.phones())) }
 
-    private fun update() {
+    @Synchronized private fun update() {
         val wanted = mutable.value.enabled && actions != null && (offering || trust.phones().isNotEmpty())
-        if (wanted) runCatching { server()?.start() } else server?.stop()
+        val port = if (wanted) runCatching { server()?.start() }.getOrNull() else null
+        val id = fingerprint
+        if (port != null && id != null) advertiser.advertise(deviceName(context), port, id)
+        else { advertiser.stop(); if (!wanted) server?.stop() }
     }
 
     private fun server(): RemoteServer? {
         server?.let { return it }
         val identity = try { identity() } catch (_: Exception) { mutable.update { it.copy(unavailable = true) }; return null }
+        fingerprint = identity.fingerprint
         return RemoteServer(identity, trust, forwarding, { deviceName(context) }, scope).also { created ->
             server = created
             scope.launch { created.state.collect { value -> mutable.update { it.copy(server = value) } } }

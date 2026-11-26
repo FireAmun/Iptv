@@ -1,5 +1,6 @@
 package com.fireamun.iptv.core.remote
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -11,8 +12,11 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -21,9 +25,13 @@ class RemotePairingTest {
     private val identity = RemoteIdentity.generate()
     private val trust = MemoryRemoteTrust()
     private val pressed = CopyOnWriteArrayList<RemoteKey>()
+    private val typed = CopyOnWriteArrayList<Pair<Int, String>>()
     private var now = 1_000_000L
-    private val server = RemoteServer(identity, trust, { key -> pressed += key; if (key == RemoteKey.PLAY_PAUSE) RemoteRefusal.NO_PLAYBACK else null },
-        { "Living room TV" }, scope, clock = { now }, preferredPort = 0)
+    private val actions = object : RemoteActions {
+        override suspend fun perform(key: RemoteKey): RemoteRefusal? { pressed += key; return if (key == RemoteKey.PLAY_PAUSE) RemoteRefusal.NO_PLAYBACK else null }
+        override suspend fun type(erase: Int, text: String): RemoteRefusal? { typed += erase to text; return null }
+    }
+    private val server = RemoteServer(identity, trust, actions, { "Living room TV" }, scope, clock = { now }, preferredPort = 0)
     private val client = RemoteClient(timeoutMs = 3_000, approvalMs = 10_000)
 
     @After fun tearDown() { server.stop(); scope.cancel() }
@@ -33,7 +41,7 @@ class RemotePairingTest {
         if (approve) server.approve() else server.deny()
     }
 
-    private fun pairPhone(name: String = "Pixel‮ 8\n"): SavedTv = runBlocking {
+    private fun pairPhone(name: String = "Pixel${Char(0x202E)} 8\n"): SavedTv = runBlocking {
         val link = server.offer("127.0.0.1").link
         val approval = approveWhenAsked()
         val outcome = client.pair(link, name)
@@ -111,6 +119,77 @@ class RemotePairingTest {
         assertNull("A stopped TV is not a revocation", session.endedBy)
         assertEquals(1, trust.phones().size)
         assertTrue(runCatching { client.connect(tv, scope) }.exceptionOrNull() is IOException)
+    }
+
+    @Test fun codePairingShowsTheSameCodeOnBothScreensAndPinsTheTv() = runBlocking {
+        val port = server.offer("127.0.0.1").link.port
+        val phoneCode = CompletableDeferred<String>()
+        val approval = scope.async {
+            val pending = withTimeout(10_000) { server.state.first { it.pending != null } }.pending!!
+            // The phone shows its code before anyone can allow it on the TV.
+            assertEquals(withTimeout(10_000) { phoneCode.await() }, pending.code)
+            assertEquals("Tablet", pending.name)
+            server.approve()
+        }
+        val outcome = client.pairWithCode("127.0.0.1", port, "Tablet") { phoneCode.complete(it) } as PairOutcome.Paired
+        approval.await()
+        assertTrue(phoneCode.await().matches(Regex("[0-9]{6}")))
+        assertEquals("The certificate seen while pairing is pinned", identity.fingerprint, outcome.tv.fingerprint)
+        assertEquals(listOf("Tablet"), trust.phones().map { it.name })
+        val session = client.connect(outcome.tv, scope)
+        assertNull(session.press(RemoteKey.OK))
+        session.close()
+    }
+
+    @Test fun codePairingNeedsTheOpenPairingScreenAndAnApproval() = runBlocking {
+        val port = server.start()
+        var shown = false
+        assertEquals(PairOutcome.Refused(RemoteRefusal.EXPIRED), client.pairWithCode("127.0.0.1", port, "Phone") { shown = true })
+        assertFalse("No code without the pairing screen", shown)
+        server.offer("127.0.0.1")
+        val declined = approveWhenAsked(approve = false)
+        assertEquals(PairOutcome.Refused(RemoteRefusal.DENIED), client.pairWithCode("127.0.0.1", port, "Stranger") { })
+        declined.await()
+        assertTrue(trust.phones().isEmpty())
+        assertEquals("Each attempt uses up the pairing screen", PairOutcome.Refused(RemoteRefusal.EXPIRED), client.pairWithCode("127.0.0.1", port, "Again") { })
+    }
+
+    @Test fun aRevealThatDoesNotMatchTheCommitmentIsRefused() = runBlocking {
+        val port = server.offer("127.0.0.1").link.port
+        openUnverified("127.0.0.1", port, 3_000).first.use { socket ->
+            val input = DataInputStream(BufferedInputStream(socket.inputStream))
+            val output = DataOutputStream(BufferedOutputStream(socket.outputStream))
+            Frames.write(output, message("code", "v" to REMOTE_PROTOCOL, "commit" to sha256Hex(ByteArray(32) { 1 }), "name" to "Cheat"))
+            assertEquals("challenge", Frames.read(input).type())
+            // Picking a value after seeing the TV's would let a device steer the code, so the TV refuses it.
+            Frames.write(output, message("reveal", "nonce" to base64Url.encodeToString(ByteArray(32) { 2 })))
+            assertEquals(RemoteRefusal.INVALID.name, Frames.read(input).text("code", 32))
+        }
+        assertNull(server.state.value.pending)
+        assertNull(server.state.value.offer)
+        assertTrue(trust.phones().isEmpty())
+    }
+
+    @Test fun theCodeCoversTheCertificateAndBothValues() {
+        val phone = ByteArray(32) { 3 }
+        val tv = ByteArray(32) { 4 }
+        val code = pairingCode("a".repeat(64), phone, tv)
+        assertTrue(code.matches(Regex("[0-9]{6}")))
+        assertEquals(code, pairingCode("a".repeat(64), phone.copyOf(), tv.copyOf()))
+        assertNotEquals("A device in the middle presents another certificate", code, pairingCode("b".repeat(64), phone, tv))
+        assertNotEquals(code, pairingCode("a".repeat(64), ByteArray(32) { 5 }, tv))
+        assertNotEquals(code, pairingCode("a".repeat(64), phone, ByteArray(32) { 5 }))
+    }
+
+    @Test fun typedTextReachesTheTvCleanedAndBounded() = runBlocking {
+        val session = client.connect(pairPhone(), scope)
+        assertNull(session.type(0, "مرحبا News"))
+        assertNull(session.type(3, "${Char(0x202E)}ab\nc"))
+        assertEquals(listOf(0 to "مرحبا News", 3 to "abc"), typed.toList())
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { session.type(0, "x".repeat(MAX_TYPED_CHARS + 1)) } }
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { session.type(MAX_ERASED_CHARS + 1, "") } }
+        session.close()
+        assertEquals("Without a text box the TV says so", RemoteRefusal.NO_FIELD, RemoteActions { null }.type(0, "a"))
     }
 
     @Test fun pairingLinksAreStrict() {

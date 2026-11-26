@@ -247,7 +247,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
                 LibraryTab.SERIES -> R.string.browse_series_caption; LibraryTab.FAVOURITES -> R.string.browse_favourites_caption; else -> R.string.browse_search_caption
             }), color = p.muted, fontSize = 14.sp, lineHeight = 21.sp)
             if (state.tab == LibraryTab.SEARCH && !state.canGoBack) OutlinedTextField(state.query, onQuery, singleLine = true,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).focusRequester(searchFocus).onFocusChanged { searchHasFocus = it.isFocused; if (it.isFocused) restoreCategoryFocus = false }.testTag("catalogue_search"),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).focusRequester(searchFocus).onFocusChanged { searchHasFocus = it.isFocused; if (it.isFocused) restoreCategoryFocus = false }.remoteTyping(state.query, onQuery).testTag("catalogue_search"),
                 placeholder = { Text(stringResource(R.string.browse_search_hint)) }, leadingIcon = { CinemaIcon(CinemaSymbol.SEARCH, tint = p.muted) }, shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = p.panel, unfocusedContainerColor = p.panel, focusedBorderColor = p.focus, unfocusedBorderColor = p.outline.copy(alpha = .45f), cursorColor = p.focus),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }))

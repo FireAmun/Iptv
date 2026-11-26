@@ -56,6 +56,25 @@ internal class PinnedTrustManager(private val expected: String) : X509TrustManag
     override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
 }
 
+/**
+ * Accepts whatever certificate the TV presents and remembers it. Only code pairing uses this: the code both screens
+ * show covers the remembered certificate, and the person comparing the codes is what makes it trusted.
+ */
+internal class RecordingTrustManager : X509TrustManager {
+    @Volatile var fingerprint: String? = null
+        private set
+
+    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+        val leaf = chain?.firstOrNull() ?: throw CertificateException("No certificate")
+        fingerprint = RemoteIdentity.fingerprint(leaf)
+    }
+
+    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) =
+        throw CertificateException("Client certificates are not used")
+
+    override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+}
+
 internal val modernProtocols = arrayOf("TLSv1.3", "TLSv1.2")
 internal fun SSLSocket.restrictProtocols() {
     enabledProtocols = supportedProtocols.filter { it in modernProtocols }.toTypedArray()
@@ -64,6 +83,23 @@ internal fun SSLSocket.restrictProtocols() {
 /** Opens a TLS connection that only succeeds against the pinned TV certificate. */
 internal fun openPinned(host: String, port: Int, fingerprint: String, timeoutMs: Int): Pair<SSLSocket, PinnedTrustManager> {
     val trust = PinnedTrustManager(fingerprint)
+    try {
+        return connectTls(host, port, timeoutMs, trust) to trust
+    } catch (failure: Exception) {
+        if (trust.mismatch) throw RemoteRefusedException(RemoteRefusal.IDENTITY)
+        throw failure
+    }
+}
+
+/** Opens a TLS connection to any certificate and returns it with that certificate's fingerprint; see [RecordingTrustManager]. */
+internal fun openUnverified(host: String, port: Int, timeoutMs: Int): Pair<SSLSocket, String> {
+    val trust = RecordingTrustManager()
+    val socket = connectTls(host, port, timeoutMs, trust)
+    val fingerprint = trust.fingerprint ?: run { socket.close(); throw CertificateException("No certificate") }
+    return socket to fingerprint
+}
+
+private fun connectTls(host: String, port: Int, timeoutMs: Int, trust: X509TrustManager): SSLSocket {
     val context = SSLContext.getInstance("TLS").apply { init(null, arrayOf(trust), SecureRandom()) }
     val raw = Socket()
     try {
@@ -72,10 +108,9 @@ internal fun openPinned(host: String, port: Int, fingerprint: String, timeoutMs:
         val socket = context.socketFactory.createSocket(raw, host, port, true) as SSLSocket
         socket.restrictProtocols()
         socket.startHandshake()
-        return socket to trust
+        return socket
     } catch (failure: Exception) {
         raw.close()
-        if (trust.mismatch) throw RemoteRefusedException(RemoteRefusal.IDENTITY)
         throw failure
     }
 }

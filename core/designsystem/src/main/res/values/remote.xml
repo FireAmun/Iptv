@@ -28,7 +28,7 @@
     <string name="remote_pair_close">Done</string>
     <!-- Phone: Settings > TV remote -->
     <string name="remote_phone_title">TV remote</string>
-    <string name="remote_phone_description">Control Amar Iptv on your TV from this phone. On the TV, open Settings › Phone remote and choose Pair a phone, then scan the code.</string>
+    <string name="remote_phone_description">Control Amar Iptv on your TV from this phone. On the TV, open Settings › Phone remote and choose Pair a phone, then scan the code or choose Pair with a code.</string>
     <string name="remote_phone_scan">Scan TV code</string>
     <string name="remote_phone_scan_prompt">Point the camera at the QR code on the TV</string>
     <string name="remote_phone_connecting">Connecting to the TV…</string>
@@ -65,4 +65,21 @@
     <string name="remote_key_channel_up">Next channel</string>
     <string name="remote_key_channel_down">Previous channel</string>
     <string name="remote_key_channel">CH</string>
+    <!-- Part 2: pairing with a code, and typing -->
+    <string name="remote_pair_no_camera">No camera? On the phone choose Pair with a code and pick this TV. If it isn\'t listed, type this address:</string>
+    <string name="remote_pair_compare">Allow only if the phone shows this code:</string>
+    <string name="remote_phone_pair_code">Pair with a code</string>
+    <string name="remote_phone_code_steps">On the TV, open Settings › Phone remote and choose Pair a phone. Then choose the TV here.</string>
+    <string name="remote_phone_searching">Looking for TVs on this Wi-Fi…</string>
+    <string name="remote_phone_address_hint">TV not listed? Type the address shown on the TV.</string>
+    <string name="remote_phone_address_label">TV address</string>
+    <string name="remote_phone_address_connect">Connect</string>
+    <string name="remote_phone_compare">Check that the TV shows the same code, then choose Allow on the TV.</string>
+    <string name="remote_phone_close">Close</string>
+    <string name="remote_problem_not_an_address">That isn\'t a TV address. Type it as the TV shows it, for example 192.168.1.20.</string>
+    <string name="remote_problem_no_field">Select a text box on the TV first.</string>
+    <string name="remote_keyboard">Keyboard</string>
+    <string name="remote_keyboard_hint">Select a text box on the TV, then type here. Text only goes to the TV; nothing is read back from it.</string>
+    <string name="remote_keyboard_label">Type on the TV</string>
+    <string name="remote_keyboard_done">Done</string>
 </resources>

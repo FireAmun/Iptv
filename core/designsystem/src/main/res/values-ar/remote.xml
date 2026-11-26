@@ -26,7 +26,7 @@
     <string name="remote_pair_done">يمكن لـ «%1$s» الآن التحكم في هذا التلفزيون.</string>
     <string name="remote_pair_close">تم</string>
     <string name="remote_phone_title">التحكم في التلفزيون</string>
-    <string name="remote_phone_description">تحكّم في Amar Iptv على التلفزيون من هذا الهاتف. على التلفزيون، افتح الإعدادات › الهاتف كجهاز تحكم واختر ربط هاتف، ثم امسح الرمز.</string>
+    <string name="remote_phone_description">تحكّم في Amar Iptv على التلفزيون من هذا الهاتف. على التلفزيون، افتح الإعدادات › الهاتف كجهاز تحكم واختر ربط هاتف، ثم امسح الرمز أو اختر الربط برمز.</string>
     <string name="remote_phone_scan">مسح رمز التلفزيون</string>
     <string name="remote_phone_scan_prompt">وجّه الكاميرا إلى رمز QR على التلفزيون</string>
     <string name="remote_phone_connecting">جارٍ الاتصال بالتلفزيون…</string>
@@ -62,4 +62,20 @@
     <string name="remote_key_channel_up">القناة التالية</string>
     <string name="remote_key_channel_down">القناة السابقة</string>
     <string name="remote_key_channel">قناة</string>
+    <string name="remote_pair_no_camera">لا توجد كاميرا؟ اختر على الهاتف «الربط برمز» ثم اختر هذا التلفزيون. إذا لم يظهر، فاكتب هذا العنوان:</string>
+    <string name="remote_pair_compare">اسمح فقط إذا كان الهاتف يعرض هذا الرمز:</string>
+    <string name="remote_phone_pair_code">الربط برمز</string>
+    <string name="remote_phone_code_steps">على التلفزيون، افتح الإعدادات › الهاتف كجهاز تحكم واختر ربط هاتف. ثم اختر التلفزيون هنا.</string>
+    <string name="remote_phone_searching">جارٍ البحث عن أجهزة التلفزيون على شبكة Wi-Fi هذه…</string>
+    <string name="remote_phone_address_hint">التلفزيون غير موجود في القائمة؟ اكتب العنوان الظاهر على التلفزيون.</string>
+    <string name="remote_phone_address_label">عنوان التلفزيون</string>
+    <string name="remote_phone_address_connect">اتصال</string>
+    <string name="remote_phone_compare">تأكد أن التلفزيون يعرض الرمز نفسه، ثم اختر السماح على التلفزيون.</string>
+    <string name="remote_phone_close">إغلاق</string>
+    <string name="remote_problem_not_an_address">هذا ليس عنوان تلفزيون. اكتبه كما يظهر على التلفزيون، مثل 192.168.1.20.</string>
+    <string name="remote_problem_no_field">اختر مربع نص على التلفزيون أولًا.</string>
+    <string name="remote_keyboard">لوحة المفاتيح</string>
+    <string name="remote_keyboard_hint">اختر مربع نص على التلفزيون، ثم اكتب هنا. يُرسل النص إلى التلفزيون فقط ولا يُقرأ منه شيء.</string>
+    <string name="remote_keyboard_label">الكتابة على التلفزيون</string>
+    <string name="remote_keyboard_done">تم</string>
 </resources>
