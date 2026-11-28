@@ -116,7 +116,7 @@ class RemoteClient(private val timeoutMs: Int = 5_000, private val approvalMs: I
             Frames.write(output, message("auth", "v" to REMOTE_PROTOCOL, "phone" to tv.phoneId, "secret" to tv.secret))
             val reply = Frames.read(input)
             when (reply.type()) {
-                "ready" -> RemoteSession(socket, input, output, cleanDeviceName(reply.text("tv", 120)) ?: tv.tvName, scope, timeoutMs.toLong())
+                "ready" -> RemoteSession(socket, input, output, cleanDeviceName(reply.text("tv", 120)) ?: tv.tvName, scope, timeoutMs.toLong(), approvalMs.toLong())
                 "rejected" -> throw RemoteRefusedException(refusal(reply))
                 else -> throw RemoteProtocolException("Unexpected reply")
             }
@@ -138,6 +138,8 @@ class RemoteSession internal constructor(
     val tvName: String,
     scope: CoroutineScope,
     private val replyMs: Long,
+    /** How long a sent playlist may wait for the person at the TV. */
+    private val answerMs: Long = replyMs,
 ) : Closeable {
     private val mutableOpen = MutableStateFlow(true)
     val open: StateFlow<Boolean> = mutableOpen.asStateFlow()
@@ -184,7 +186,16 @@ class RemoteSession internal constructor(
         return request { id -> message("text", "id" to id, "erase" to erase, "type" to text) }
     }
 
-    private suspend fun request(build: (Int) -> JsonObject): RemoteRefusal? = withContext(Dispatchers.IO) {
+    /**
+     * Asks the TV to add [source]; null once the person at the TV agreed and the TV started adding it. Waits for their
+     * answer. A source too large for one message is refused here with [RemoteRefusal.BAD_SOURCE] and never sent.
+     */
+    suspend fun sendSource(source: SentSource): RemoteRefusal? {
+        if (source.toMessage(Int.MAX_VALUE).toString().toByteArray(Charsets.UTF_8).size > MAX_FRAME_BYTES) return RemoteRefusal.BAD_SOURCE
+        return request(answerMs) { id -> source.toMessage(id) }
+    }
+
+    private suspend fun request(waitMs: Long = replyMs, build: (Int) -> JsonObject): RemoteRefusal? = withContext(Dispatchers.IO) {
         if (!mutableOpen.value) throw IOException("Closed")
         val id = ids.incrementAndGet()
         val reply = CompletableDeferred<RemoteRefusal?>()
@@ -192,7 +203,7 @@ class RemoteSession internal constructor(
         try {
             Frames.write(output, build(id))
             // Wrapped because a successful reply is itself null.
-            val answer = withTimeoutOrNull(replyMs) { Result.success(reply.await()) }
+            val answer = withTimeoutOrNull(waitMs) { Result.success(reply.await()) }
             when {
                 answer != null -> answer.getOrThrow()
                 !mutableOpen.value -> throw IOException("Closed")

@@ -4,6 +4,7 @@ import com.google.gson.JsonObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +47,12 @@ fun interface RemoteActions {
 
     /** Erases [erase] characters at the end of the selected text box, then adds [text]. */
     suspend fun type(erase: Int, text: String): RemoteRefusal? = RemoteRefusal.NO_FIELD
+
+    /**
+     * Asks the person at the TV whether to add [source], sent by the phone named [phone]; null once they agreed and
+     * the TV started adding it. Cancelled when the phone disconnects or nobody answers in time.
+     */
+    suspend fun receiveSource(phone: String, source: SentSource): RemoteRefusal? = RemoteRefusal.FAILED
 }
 
 /** A phone waiting for approval on the TV. [code] is set when it paired by comparing codes instead of scanning. */
@@ -97,6 +104,8 @@ class RemoteServer(
     private var attemptsLeft = 0
     private var decision: CompletableDeferred<Boolean>? = null
     private val keys = Mutex()
+    /** Whether a sent playlist is waiting for an answer on the TV; one at a time, from any phone. */
+    private var sourceWaiting = false
 
     /** Starts listening on all interfaces; returns the port. Calling it again keeps the running server. */
     fun start(): Int = synchronized(lock) {
@@ -206,11 +215,35 @@ class RemoteServer(
         publishConnected()
         socket.soTimeout = timeouts.idleMs
         val bucket = TokenBucket(clock)
-        while (true) {
+        // A sent playlist waits for the person at the TV without holding up keys and pings on this connection.
+        var asking: Job? = null
+        try { while (true) {
             val request = Frames.read(input)
             val id = request.integer("id") ?: throw RemoteProtocolException("Missing id")
             when (request.type()) {
                 "ping" -> Frames.write(output, message("pong", "id" to id))
+                "source" -> {
+                    val source = SentSource.from(request)
+                    val refusal = when {
+                        source == null -> RemoteRefusal.FAILED
+                        !bucket.take() -> RemoteRefusal.RATE_LIMITED
+                        !synchronized(lock) { (!sourceWaiting).also { if (it) sourceWaiting = true } } -> RemoteRefusal.BUSY
+                        else -> null
+                    }
+                    if (refusal != null || source == null) Frames.write(output, result(id, refusal ?: RemoteRefusal.FAILED))
+                    // Atomic start, so the waiting flag is always released even if the scope is already ending.
+                    else asking = scope.launch(Dispatchers.IO, start = CoroutineStart.ATOMIC) {
+                        // Wrapped because an accepted playlist is answered with null, and a timeout also gives null.
+                        val answered = try {
+                            withTimeoutOrNull(timeouts.approvalMs) {
+                                Answer(if (synchronized(lock) { authenticated[socket] } == null) RemoteRefusal.REVOKED
+                                    else try { actions.receiveSource(phone.name, source) }
+                                        catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { RemoteRefusal.FAILED })
+                            }
+                        } finally { synchronized(lock) { sourceWaiting = false } }
+                        runCatching { Frames.write(output, result(id, if (answered == null) RemoteRefusal.DENIED else answered.refusal)) }
+                    }
+                }
                 "key", "text" -> {
                     val action: (suspend () -> RemoteRefusal?)? = if (request.type() == "key") {
                         request.text("key", 16)?.let { name -> RemoteKey.entries.firstOrNull { it.name == name } }?.let { key -> { actions.perform(key) } }
@@ -224,12 +257,16 @@ class RemoteServer(
                             try { action() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { RemoteRefusal.FAILED }
                         }
                     }
-                    Frames.write(output, message("result", "id" to id, "ok" to (refusal == null), "code" to refusal?.name))
+                    Frames.write(output, result(id, refusal))
                 }
-                else -> Frames.write(output, message("result", "id" to id, "ok" to false, "code" to RemoteRefusal.FAILED.name))
+                else -> Frames.write(output, result(id, RemoteRefusal.FAILED))
             }
-        }
+        } } finally { asking?.cancel() }
     }
+
+    private class Answer(val refusal: RemoteRefusal?)
+
+    private fun result(id: Int, refusal: RemoteRefusal?) = message("result", "id" to id, "ok" to (refusal == null), "code" to refusal?.name)
 
     /** QR pairing: the phone proves it read the code by sending its single-use nonce. */
     private suspend fun pair(hello: JsonObject, output: DataOutputStream): TrustedPhone? {

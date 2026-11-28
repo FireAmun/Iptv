@@ -82,4 +82,30 @@
     <string name="remote_keyboard_hint">Select a text box on the TV, then type here. Text only goes to the TV; nothing is read back from it.</string>
     <string name="remote_keyboard_label">Type on the TV</string>
     <string name="remote_keyboard_done">Done</string>
+    <!-- Part 3: sending a playlist from the phone to the TV -->
+    <string name="remote_source_title">Add a playlist from “%1$s”?</string>
+    <string name="remote_source_playlist">M3U playlist from %1$s</string>
+    <string name="remote_source_server">“%1$s”: server login for %2$s</string>
+    <string name="remote_source_note">Only add playlists you trust. It is saved on this TV.</string>
+    <string name="remote_source_add">Add</string>
+    <string name="remote_source_dont_add">Don\'t add</string>
+    <string name="remote_send_source">Send a playlist</string>
+    <string name="remote_source_form_title">Send a playlist to the TV</string>
+    <string name="remote_source_form_note">The TV asks before adding it. What you enter here is saved on the TV only, not on this phone.</string>
+    <string name="remote_source_kind_playlist">M3U URL</string>
+    <string name="remote_source_kind_server">Server login</string>
+    <string name="remote_source_link">M3U URL</string>
+    <string name="remote_source_name">Playlist name</string>
+    <string name="remote_source_server_url">Server URL</string>
+    <string name="remote_source_username">Username</string>
+    <string name="remote_source_password">Password</string>
+    <string name="remote_source_send">Send to TV</string>
+    <string name="remote_source_show">Show</string>
+    <string name="remote_source_hide">Hide</string>
+    <string name="remote_source_waiting">Choose Add on the TV to add the playlist.</string>
+    <string name="remote_source_sent">The TV is adding the playlist.</string>
+    <string name="remote_source_denied">The TV didn\'t add the playlist.</string>
+    <string name="remote_source_busy">The TV is answering another playlist. Try again in a moment.</string>
+    <string name="remote_source_setup">Finish setting up Amar Iptv on the TV first.</string>
+    <string name="remote_source_bad">The TV can\'t use that address or login. Check it and try again.</string>
 </resources>

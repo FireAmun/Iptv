@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.fireamun.iptv.core.model.ContentKind
 import kotlinx.coroutines.launch
 import com.fireamun.iptv.core.designsystem.R as DR
+import kotlinx.coroutines.ensureActive
 
 /** Locked labels for the current tab while the parental lock is closed; browsing marks them. */
 internal val LocalLockedCategories = compositionLocalOf { emptySet<String>() }
@@ -133,7 +134,7 @@ internal fun PinDialog(mode: PinMode, controls: ParentalControls, television: Bo
             }
         }
         val window = LocalWindowInfo.current
-        LaunchedEffect(window.isWindowFocused) { if (television && window.isWindowFocused) { withFrameNanos { }; firstKey.requestFocus() } }
+        LaunchedEffect(window.isWindowFocused) { if (television && window.isWindowFocused) { withFrameNanos { }; ensureActive(); firstKey.requestFocus() } }
     }
     if (confirmingForgot && onForgot != null) AlertDialog(onDismissRequest = { confirmingForgot = false },
         title = { Text(stringResource(DR.string.pin_forgot)) }, text = { Text(stringResource(DR.string.pin_forgot_message)) },
@@ -165,6 +166,12 @@ internal fun ParentalSettings(controls: ParentalControls, television: Boolean, s
     var choosing by remember { mutableStateOf<Pair<ContentKind, List<String>>?>(null) }
     val locks = remember(state.revision, sourceId) { controls.locks(sourceId) }
     val restricted = state.pinSet && !state.unlocked
+    val firstAction = remember { FocusRequester() }
+    var refocus by remember { mutableStateOf(false) }
+    // On TV, finishing the PIN pad or the turn-off question can remove the button that opened it (Set PIN becomes
+    // Change PIN), so put focus back on this card's first button instead of losing the viewer's place.
+    LaunchedEffect(refocus) { if (refocus) { withFrameNanos { }; ensureActive(); runCatching { firstAction.requestFocus() }; refocus = false } }
+    fun closed() { if (television) refocus = true }
     Column(Modifier.fillMaxWidth().testTag("parental_settings"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(stringResource(DR.string.parental_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(stringResource(DR.string.parental_description), color = p.muted, style = MaterialTheme.typography.bodyMedium)
@@ -172,11 +179,12 @@ internal fun ParentalSettings(controls: ParentalControls, television: Boolean, s
             fontWeight = FontWeight.Medium, modifier = Modifier.testTag("parental_status"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val action = Modifier.heightIn(min = 48.dp).focusProperties { canFocus = true }
+            val first = action.focusRequester(firstAction)
             when {
-                !state.pinSet -> Button(onClick = { dialog = PinMode.CREATE }, modifier = action.testTag("parental_set_pin")) { Text(stringResource(DR.string.parental_set_pin)) }
-                restricted -> Button(onClick = { dialog = PinMode.ENTER }, modifier = action.testTag("parental_unlock")) { Text(stringResource(DR.string.parental_unlock)) }
+                !state.pinSet -> Button(onClick = { dialog = PinMode.CREATE }, modifier = first.testTag("parental_set_pin")) { Text(stringResource(DR.string.parental_set_pin)) }
+                restricted -> Button(onClick = { dialog = PinMode.ENTER }, modifier = first.testTag("parental_unlock")) { Text(stringResource(DR.string.parental_unlock)) }
                 else -> {
-                    OutlinedButton(onClick = { dialog = PinMode.CREATE }, modifier = action.testTag("parental_change_pin")) { Text(stringResource(DR.string.parental_change_pin), color = p.text) }
+                    OutlinedButton(onClick = { dialog = PinMode.CREATE }, modifier = first.testTag("parental_change_pin")) { Text(stringResource(DR.string.parental_change_pin), color = p.text) }
                     OutlinedButton(onClick = controls::relock, modifier = action.testTag("parental_lock_now")) { Text(stringResource(DR.string.parental_lock_now), color = p.text) }
                     OutlinedButton(onClick = { confirmingOff = true }, modifier = action.testTag("parental_turn_off")) { Text(stringResource(DR.string.parental_turn_off), color = p.error) }
                 }
@@ -196,12 +204,12 @@ internal fun ParentalSettings(controls: ParentalControls, television: Boolean, s
         }
     }
     dialog?.let { mode ->
-        PinDialog(mode, controls, television, onDone = { dialog = null }, onDismiss = { dialog = null },
+        PinDialog(mode, controls, television, onDone = { dialog = null; closed() }, onDismiss = { dialog = null; closed() },
             onForgot = if (mode == PinMode.ENTER) ({ dialog = null; onForgot() }) else null)
     }
     if (confirmingOff) AlertDialog(onDismissRequest = { confirmingOff = false },
         title = { Text(stringResource(DR.string.parental_turn_off)) }, text = { Text(stringResource(DR.string.parental_turn_off_message)) },
-        confirmButton = { TextButton(onClick = { confirmingOff = false; if (!controls.restricted) controls.disable() }, modifier = Modifier.testTag("parental_turn_off_confirm")) {
+        confirmButton = { TextButton(onClick = { confirmingOff = false; if (!controls.restricted) controls.disable(); closed() }, modifier = Modifier.testTag("parental_turn_off_confirm")) {
             Text(stringResource(DR.string.parental_turn_off), color = p.error) } },
         dismissButton = { TextButton(onClick = { confirmingOff = false }) { Text(stringResource(DR.string.pin_cancel)) } })
     choosing?.let { (kind, categories) ->

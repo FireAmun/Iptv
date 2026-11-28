@@ -60,6 +60,7 @@ import com.fireamun.iptv.core.designsystem.*
 import com.fireamun.iptv.core.model.ImportError
 import com.fireamun.iptv.core.model.LibraryState
 import com.fireamun.iptv.core.model.PlaybackStatus
+import kotlinx.coroutines.ensureActive
 import com.fireamun.iptv.core.model.ContentKind
 
 @Composable
@@ -91,12 +92,14 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
     val entryFocus = remember { FocusRequester() }
     val list = rememberLazyListState()
     val targetId: Int? = null
+    // What the focus effect below last placed focus for, and whether focus is still inside this screen.
+    val focusMemory = remember { TvWelcomeFocusMemory() }
     fun submit() { val submitted = url; url = ""; enteringUrl = false; keyboard?.hide(); focusManager.clearFocus(); onImportUrl(submitted) }
     fun dismissUrl() { enteringUrl = false; url = ""; keyboard?.hide() }
     CinemaTheme {
         val p = cinemaPalette()
         Surface(Modifier.fillMaxSize(), colors = SurfaceDefaults.colors(containerColor = p.background, contentColor = p.text)) {
-            LazyColumn(modifier = Modifier.imePadding().testTag("library_list"), state = list, contentPadding = PaddingValues(horizontal = 40.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            LazyColumn(modifier = Modifier.imePadding().onFocusChanged { focusMemory.screenHasFocus = it.hasFocus }.testTag("library_list"), state = list, contentPadding = PaddingValues(horizontal = 40.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 item(key = "header") {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         Text(stringResource(R.string.tv_settings_title), Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 28.sp)
@@ -246,11 +249,31 @@ fun TvWelcome(state: LibraryState, onChangeLanguage: () -> Unit, onImportFile: (
         }
     }
     LaunchedEffect(state.channels, state.selectedId, window.isWindowFocused, enteringUrl, enteringLogin, confirmingRemoval, managingSources, state.needsHttpApproval) {
-        if (!window.isWindowFocused || enteringUrl || enteringLogin || confirmingRemoval || managingSources || state.needsHttpApproval) return@LaunchedEffect
-        withFrameNanos { }
-        if (targetId == null) { list.scrollToItem(0); withFrameNanos { }; languageFocus.requestFocus() }
-        else { list.scrollToItem(state.channels.indexOfFirst { it.id == targetId } + 1); withFrameNanos { }; entryFocus.requestFocus() }
+        val ownDialog = enteringUrl || enteringLogin || confirmingRemoval || managingSources || state.needsHttpApproval
+        if (ownDialog) focusMemory.ownDialogClosing = true
+        if (!window.isWindowFocused || ownDialog) return@LaunchedEffect
+        withFrameNanos { }; ensureActive()
+        // After this screen's own dialogs focus goes back to the top, as before. The window also comes back when a
+        // dialog from another card closes (PIN pad, category picker, phone remote question): if the content is
+        // unchanged and focus is still on this screen, leave it where the viewer was instead of jumping to the top.
+        // That card may still be putting focus back, so look once more.
+        val ownDialogClosed = focusMemory.ownDialogClosing
+        focusMemory.ownDialogClosing = false
+        val unchanged = !ownDialogClosed && focusMemory.placed && focusMemory.channels === state.channels && focusMemory.selectedId == state.selectedId
+        if (unchanged && !focusMemory.screenHasFocus) { withFrameNanos { }; ensureActive() }
+        if (unchanged && focusMemory.screenHasFocus) return@LaunchedEffect
+        focusMemory.placed = true; focusMemory.channels = state.channels; focusMemory.selectedId = state.selectedId
+        if (targetId == null) { list.scrollToItem(0); withFrameNanos { }; ensureActive(); languageFocus.requestFocus() }
+        else { list.scrollToItem(state.channels.indexOfFirst { it.id == targetId } + 1); withFrameNanos { }; ensureActive(); entryFocus.requestFocus() }
     }
+}
+
+private class TvWelcomeFocusMemory {
+    var placed = false
+    var channels: Any? = null
+    var selectedId: Int? = null
+    var screenHasFocus = false
+    var ownDialogClosing = false
 }
 
 @Composable

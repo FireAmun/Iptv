@@ -50,6 +50,18 @@ import com.fireamun.iptv.core.designsystem.CinemaIcon
 import com.fireamun.iptv.core.designsystem.CinemaSymbol
 import com.fireamun.iptv.core.designsystem.cinemaPalette
 import com.fireamun.iptv.core.remote.RemoteKey
+import com.fireamun.iptv.core.remote.RemoteRefusal
+import com.fireamun.iptv.core.remote.SentSource
+import com.fireamun.iptv.core.remote.MAX_SOURCE_LINK
+import com.fireamun.iptv.core.remote.MAX_SOURCE_LOGIN
+import com.fireamun.iptv.core.remote.MAX_SOURCE_NAME
+import com.fireamun.iptv.core.remote.MAX_SOURCE_SERVER
+import com.fireamun.iptv.core.data.XtreamConnection
+import com.fireamun.iptv.core.model.MediaAddress
+import com.fireamun.iptv.core.model.normalizeSourceName
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import kotlinx.coroutines.CompletableDeferred
 import androidx.activity.compose.rememberLauncherForActivityResult
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -58,6 +70,7 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import com.fireamun.iptv.core.designsystem.R as DR
 
@@ -176,7 +189,64 @@ private fun PairingDialog(host: RemoteHost, ui: RemoteHostUi, onClose: () -> Uni
         }
         // Remote users need a focused control in each step; Deny comes first so a stray OK never approves.
         LaunchedEffect(mode, dialogWindow.isWindowFocused) {
-            if (dialogWindow.isWindowFocused) { withFrameNanos { }; runCatching { primary.requestFocus() } }
+            if (dialogWindow.isWindowFocused) { withFrameNanos { }; ensureActive(); runCatching { primary.requestFocus() } }
+        }
+    }
+}
+
+/** A playlist a paired phone sent; [answer] becomes true when the person at the TV chooses Add. */
+internal class IncomingSource(val phone: String, val host: String, val source: SentSource, val answer: CompletableDeferred<Boolean>)
+
+/**
+ * The site [source] points at, when this TV can use the link or login as sent (the same checks as typing it in);
+ * null otherwise. Only this is shown on the TV, never the full link or the login.
+ */
+internal fun usableSourceHost(source: SentSource): String? {
+    val address = when (source) {
+        is SentSource.Playlist -> MediaAddress.parse(source.link)
+        // The server address as the TV will use it (international names in their ASCII form).
+        is SentSource.ServerLogin -> XtreamConnection.create(source.server, source.username, source.password)?.address
+            ?.takeIf { normalizeSourceName(source.name) != null }
+    } ?: return null
+    val authority = address.reveal().substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#').substringAfterLast('@')
+    val host = if (authority.startsWith("[")) authority.substringBefore(']') + "]" else authority.substringBefore(':')
+    return host.filterNot { it.isISOControl() || Character.getType(it) == Character.FORMAT.toInt() }.take(253).takeIf { it.isNotEmpty() }
+}
+
+/** Keeps a name or address in its own direction inside a sentence, so an Arabic sentence cannot reorder it. */
+private fun isolated(text: String) = "${Char(0x2068)}$text${Char(0x2069)}"
+
+/** The TV asks before adding a playlist a phone sent; Don't add is focused first so a stray OK never adds it. */
+@Composable
+internal fun SourceRequestDialog(request: IncomingSource) {
+    val p = cinemaPalette()
+    val primary = remember { FocusRequester() }
+    Dialog(onDismissRequest = { request.answer.complete(false) }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val dialogWindow = LocalWindowInfo.current
+        Box(Modifier.fillMaxWidth().safeDrawingPadding().padding(16.dp), contentAlignment = Alignment.Center) {
+            Surface(Modifier.widthIn(max = 560.dp).fillMaxWidth().testTag("remote_source_request"), shape = RoundedCornerShape(22.dp), color = p.panel, contentColor = p.text) {
+                // Short and fixed in size, so it needs no scroll container.
+                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(stringResource(DR.string.remote_source_title, isolated(request.phone)), fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
+                    val detail = when (val source = request.source) {
+                        is SentSource.Playlist -> stringResource(DR.string.remote_source_playlist, isolated(request.host))
+                        is SentSource.ServerLogin -> stringResource(DR.string.remote_source_server, isolated(source.name), isolated(request.host))
+                    }
+                    Text(detail, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.testTag("remote_source_detail"))
+                    Text(stringResource(DR.string.remote_source_note), color = p.muted, textAlign = TextAlign.Center)
+                    val button = Modifier.heightIn(min = 48.dp).focusProperties { canFocus = true }
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(onClick = { request.answer.complete(false) }, modifier = button.focusRequester(primary).testTag("remote_source_deny")) {
+                            Text(stringResource(DR.string.remote_source_dont_add), color = p.text)
+                        }
+                        Button(onClick = { request.answer.complete(true) }, modifier = button.testTag("remote_source_allow")) { Text(stringResource(DR.string.remote_source_add)) }
+                    }
+                }
+            }
+        }
+        LaunchedEffect(dialogWindow.isWindowFocused) {
+            if (dialogWindow.isWindowFocused) { withFrameNanos { }; ensureActive(); runCatching { primary.requestFocus() } }
         }
     }
 }
@@ -335,6 +405,10 @@ private fun RemotePanel(controller: RemoteController, onClose: () -> Unit) {
     val haptics = LocalHapticFeedback.current
     DisposableEffect(Unit) { controller.connect(); onDispose { controller.finishTyping(); controller.disconnect() } }
     var keyboard by rememberSaveable { mutableStateOf(false) }
+    var sending by rememberSaveable { mutableStateOf(false) }
+    val scroll = rememberScrollState()
+    // The typing box and the send form open near the top, under Close; show them there, above the phone keyboard.
+    LaunchedEffect(keyboard, sending) { if (keyboard || sending) scroll.scrollTo(0) }
     val connected = ui.connection == RemoteConnection.CONNECTED
     fun press(key: RemoteKey) {
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -342,7 +416,7 @@ private fun RemotePanel(controller: RemoteController, onClose: () -> Unit) {
     }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(Modifier.fillMaxSize().testTag("remote_panel"), color = p.background, contentColor = p.text) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(20.dp),
+            Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(scroll).padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(ui.tvName.orEmpty(), Modifier.weight(1f), fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -351,6 +425,10 @@ private fun RemotePanel(controller: RemoteController, onClose: () -> Unit) {
                         CinemaIcon(CinemaSymbol.CLOSE, tint = p.muted)
                     }
                 }
+                // Right under Close, so the box and Close stay above the phone keyboard; messages that appear later
+                // (connection, problems) go below and cannot push the focused box down and Close off screen.
+                if (keyboard && connected) TypingBox(controller)
+                if (sending) SendSourceForm(controller, connected) { sending = false }
                 Text(when (ui.connection) {
                     RemoteConnection.CONNECTED -> stringResource(DR.string.remote_panel_connected, ui.tvName.orEmpty())
                     RemoteConnection.CONNECTING -> stringResource(DR.string.remote_panel_connecting, ui.tvName.orEmpty())
@@ -360,8 +438,6 @@ private fun RemotePanel(controller: RemoteController, onClose: () -> Unit) {
                 ui.problem?.let { RemoteProblemText(it) }
                 if (ui.connection == RemoteConnection.OFFLINE && ui.tvName != null) OutlinedButton(onClick = controller::connect,
                     modifier = Modifier.heightIn(min = 48.dp).testTag("remote_retry")) { Text(stringResource(DR.string.remote_panel_retry), color = p.text) }
-                // Near the top, so the box, its problem message and Close stay above the phone keyboard.
-                if (keyboard && connected) TypingBox(controller)
                 // Physical directions: the TV's own D-pad keys do not flip in right-to-left languages.
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     Box(Modifier.size(272.dp).background(p.panel, CircleShape)) {
@@ -383,13 +459,125 @@ private fun RemotePanel(controller: RemoteController, onClose: () -> Unit) {
                         RemoteButton(RemoteKey.CHANNEL_DOWN, DR.string.remote_key_channel_down, connected, ::press) { CinemaIcon(CinemaSymbol.CHEVRON_UP, Modifier.rotate(180f), it) }
                     }
                 }
-                OutlinedButton(onClick = { keyboard = !keyboard; if (!keyboard) controller.finishTyping() }, enabled = connected,
-                    modifier = Modifier.heightIn(min = 48.dp).testTag("remote_keyboard")) {
-                    Text(stringResource(DR.string.remote_keyboard), color = if (connected) p.text else p.muted)
+                // One row (wrapping on narrow screens), so the screen keeps its height and Close stays above the phone keyboard.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = { keyboard = !keyboard; if (keyboard) sending = false else controller.finishTyping() }, enabled = connected,
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("remote_keyboard")) {
+                        Text(stringResource(DR.string.remote_keyboard), color = if (connected) p.text else p.muted)
+                    }
+                    OutlinedButton(onClick = { sending = !sending; if (sending) { keyboard = false; controller.finishTyping() } }, enabled = connected || sending,
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("remote_send_source")) {
+                        Text(stringResource(DR.string.remote_send_source), color = if (connected) p.text else p.muted)
+                    }
                 }
             }
         }
     }
+}
+
+/**
+ * Sends an M3U link or a server login to the TV, which asks before adding it. Shown near the top of the remote screen
+ * (like the typing box) so it stays above the phone keyboard. The fields live only while this form is open (not saved
+ * with the screen) and are cleared once the TV starts adding the playlist.
+ */
+@Composable
+private fun SendSourceForm(controller: RemoteController, connected: Boolean, onClose: () -> Unit) {
+    val p = cinemaPalette()
+    val scope = rememberCoroutineScope()
+    var serverLogin by remember { mutableStateOf(false) }
+    var link by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
+    var server by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var waiting by remember { mutableStateOf(false) }
+    var sent by remember { mutableStateOf(false) }
+    var refusal by remember { mutableStateOf<RemoteRefusal?>(null) }
+    val complete = if (serverLogin) listOf(name, server, username, password).none { it.isBlank() } else link.isNotBlank()
+    fun send() {
+        if (waiting || !complete) return
+        sent = false
+        refusal = null
+        val source = runCatching {
+            if (serverLogin) SentSource.ServerLogin(name.trim(), server.trim(), username, password) else SentSource.Playlist(link.trim())
+        }.getOrNull()
+        if (source == null) { refusal = RemoteRefusal.BAD_SOURCE; return }
+        waiting = true
+        scope.launch {
+            val answer = controller.sendSource(source)
+            waiting = false
+            if (answer == null) {
+                sent = true
+                link = ""; name = ""; server = ""; username = ""; password = ""
+            } else refusal = answer
+        }
+    }
+    Surface(Modifier.fillMaxWidth().testTag("remote_source_form"), shape = RoundedCornerShape(18.dp), color = p.panel, contentColor = p.text) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(stringResource(DR.string.remote_source_form_title), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(DR.string.remote_source_form_note), color = p.muted, style = MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FilterChip(selected = !serverLogin, onClick = { serverLogin = false; refusal = null }, enabled = !waiting,
+                    label = { Text(stringResource(DR.string.remote_source_kind_playlist)) }, modifier = Modifier.heightIn(min = 48.dp).testTag("remote_source_kind_playlist"))
+                FilterChip(selected = serverLogin, onClick = { serverLogin = true; refusal = null }, enabled = !waiting,
+                    label = { Text(stringResource(DR.string.remote_source_kind_server)) }, modifier = Modifier.heightIn(min = 48.dp).testTag("remote_source_kind_server"))
+            }
+            fun edit(change: (String) -> Unit): (String) -> Unit = { change(it); sent = false; refusal = null }
+            if (serverLogin) {
+                SourceField(name, MAX_SOURCE_NAME, DR.string.remote_source_name, "remote_source_name", KeyboardType.Text, !waiting, ::send, ltr = false, onChange = edit { name = it })
+                SourceField(server, MAX_SOURCE_SERVER, DR.string.remote_source_server_url, "remote_source_server", KeyboardType.Uri, !waiting, ::send, onChange = edit { server = it })
+                SourceField(username, MAX_SOURCE_LOGIN, DR.string.remote_source_username, "remote_source_user", KeyboardType.Ascii, !waiting, ::send, onChange = edit { username = it })
+                SourceField(password, MAX_SOURCE_LOGIN, DR.string.remote_source_password, "remote_source_pass", KeyboardType.Password, !waiting, ::send, last = true, secret = true, onChange = edit { password = it })
+            } else {
+                // Links often carry a login, so they are hidden like on the TV's own playlist form.
+                SourceField(link, MAX_SOURCE_LINK, DR.string.remote_source_link, "remote_source_link", KeyboardType.Password, !waiting, ::send, last = true, secret = true, onChange = edit { link = it })
+            }
+            val status = when {
+                waiting -> DR.string.remote_source_waiting
+                sent -> DR.string.remote_source_sent
+                else -> when (refusal) {
+                    null -> null
+                    RemoteRefusal.DENIED -> DR.string.remote_source_denied
+                    RemoteRefusal.BUSY, RemoteRefusal.RATE_LIMITED -> DR.string.remote_source_busy
+                    RemoteRefusal.SETUP_NEEDED -> DR.string.remote_source_setup
+                    RemoteRefusal.BAD_SOURCE -> DR.string.remote_source_bad
+                    RemoteRefusal.NOT_FOCUSED -> DR.string.remote_problem_not_focused
+                    RemoteRefusal.REVOKED -> DR.string.remote_problem_revoked
+                    else -> DR.string.remote_problem_failed
+                }
+            }
+            if (status != null) Text(stringResource(status), fontWeight = FontWeight.Medium, color = if (refusal != null && !waiting) p.error else p.text,
+                modifier = Modifier.testTag("remote_source_status").semantics { liveRegion = LiveRegionMode.Polite })
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp).testTag("remote_source_close")) {
+                    Text(stringResource(DR.string.remote_phone_close), color = p.text)
+                }
+                Button(onClick = ::send, enabled = connected && complete && !waiting, modifier = Modifier.heightIn(min = 48.dp).testTag("remote_source_send")) {
+                    if (waiting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = p.text)
+                    else Text(stringResource(DR.string.remote_source_send))
+                }
+            }
+        }
+    }
+}
+
+/** One line of the send form; addresses and logins stay left-to-right in Arabic. */
+@Composable
+private fun SourceField(value: String, max: Int, label: Int, tag: String, type: KeyboardType, enabled: Boolean, onSend: () -> Unit,
+    last: Boolean = false, secret: Boolean = false, ltr: Boolean = true, onChange: (String) -> Unit) {
+    val style = MaterialTheme.typography.bodyLarge
+    var shown by remember { mutableStateOf(false) }
+    OutlinedTextField(value, { onChange(it.take(max)) }, singleLine = true, enabled = enabled,
+        label = { Text(stringResource(label)) }, textStyle = if (ltr) style.copy(textDirection = TextDirection.Ltr) else style,
+        visualTransformation = if (secret && !shown) PasswordVisualTransformation() else VisualTransformation.None,
+        trailingIcon = if (secret) ({
+            TextButton(onClick = { shown = !shown }, modifier = Modifier.heightIn(min = 48.dp).testTag("${tag}_visibility")) {
+                Text(stringResource(if (shown) DR.string.remote_source_hide else DR.string.remote_source_show))
+            }
+        }) else null,
+        keyboardOptions = KeyboardOptions(keyboardType = type, imeAction = if (last) ImeAction.Send else ImeAction.Next, autoCorrectEnabled = false),
+        keyboardActions = KeyboardActions(onSend = { onSend() }),
+        modifier = Modifier.fillMaxWidth().testTag(tag))
 }
 
 /**

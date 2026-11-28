@@ -23,6 +23,56 @@ const val MAX_TYPED_CHARS = 500
 /** Most characters one typing message erases. */
 const val MAX_ERASED_CHARS = 4_096
 
+/** Longest playlist link, server address, user name or password, and playlist name a phone can send to the TV. */
+const val MAX_SOURCE_LINK = 2_048
+const val MAX_SOURCE_SERVER = 512
+const val MAX_SOURCE_LOGIN = 256
+const val MAX_SOURCE_NAME = 128
+
+/**
+ * A playlist a paired phone asks the TV to add. The TV adds it only after the person at the TV agrees, and keeps it
+ * there; the phone does not keep a copy. [toString] never shows the link or the login.
+ */
+sealed class SentSource {
+    /** An M3U playlist link. */
+    data class Playlist(val link: String) : SentSource() {
+        init { require(fieldOk(link, MAX_SOURCE_LINK)) { "Playlist link" } }
+        override fun toString() = "SentSource.Playlist"
+    }
+
+    /** An Xtream-compatible server and its login, saved on the TV under [name]. */
+    data class ServerLogin(val name: String, val server: String, val username: String, val password: String) : SentSource() {
+        init {
+            require(fieldOk(name, MAX_SOURCE_NAME)) { "Name" }
+            require(fieldOk(server, MAX_SOURCE_SERVER)) { "Server" }
+            require(fieldOk(username, MAX_SOURCE_LOGIN)) { "User name" }
+            require(fieldOk(password, MAX_SOURCE_LOGIN)) { "Password" }
+        }
+        override fun toString() = "SentSource.ServerLogin"
+    }
+
+    internal fun toMessage(id: Int): JsonObject = when (this) {
+        is Playlist -> message("source", "id" to id, "kind" to "playlist", "link" to link)
+        is ServerLogin -> message("source", "id" to id, "kind" to "server", "name" to name, "server" to server, "user" to username, "pass" to password)
+    }
+
+    internal companion object {
+        /** Present, within [max] characters and free of control characters. */
+        fun fieldOk(value: String, max: Int) = value.isNotBlank() && value.length <= max && value.none { it.isISOControl() }
+
+        /** The source in a phone's message, or null when anything is missing, too long or not allowed. */
+        fun from(request: JsonObject): SentSource? = runCatching {
+            when (request.text("kind", 16)) {
+                "playlist" -> Playlist(request.text("link", MAX_SOURCE_LINK)!!)
+                // The name is shown in the TV's playlist list, so text-direction overrides are dropped.
+                "server" -> ServerLogin(cleanTyped(request.text("name", MAX_SOURCE_NAME)!!).trim(), request.text("server", MAX_SOURCE_SERVER)!!,
+                    request.text("user", MAX_SOURCE_LOGIN)!!, request.text("pass", MAX_SOURCE_LOGIN)!!)
+                else -> null
+            }
+        }.getOrNull()
+    }
+}
+
 /** Buttons a paired phone can press on the TV. */
 enum class RemoteKey { UP, DOWN, LEFT, RIGHT, OK, BACK, PLAY_PAUSE, CHANNEL_UP, CHANNEL_DOWN }
 
@@ -48,6 +98,10 @@ enum class RemoteRefusal {
     NOT_FOCUSED,
     /** Typed text arrived while no text box was selected on the TV. */
     NO_FIELD,
+    /** The TV app has not finished its first-time setup (Terms), so it cannot add a playlist yet. */
+    SETUP_NEEDED,
+    /** The TV cannot use the playlist link or server login that was sent. */
+    BAD_SOURCE,
     /** Keys arrived faster than the TV accepts them. */
     RATE_LIMITED,
     /** Anything else; the connection stays usable. */

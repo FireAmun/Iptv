@@ -16,6 +16,7 @@ import com.fireamun.iptv.core.remote.RemoteRefusal
 import com.fireamun.iptv.core.remote.RemoteRefusedException
 import com.fireamun.iptv.core.remote.RemoteSession
 import com.fireamun.iptv.core.remote.SavedTv
+import com.fireamun.iptv.core.remote.SentSource
 import com.fireamun.iptv.core.storage.EnvelopeProtector
 import com.fireamun.iptv.core.storage.KeystoreEnvelope
 import kotlinx.coroutines.CancellationException
@@ -165,6 +166,15 @@ class RemoteController(
     }
 
     /**
+     * Asks the connected TV to add [source] and waits for the person at the TV to answer; null once they chose Add.
+     * Nothing about the source is kept on this phone. The send form shows the answer itself.
+     */
+    suspend fun sendSource(source: SentSource): RemoteRefusal? {
+        val active = session ?: return RemoteRefusal.FAILED
+        return try { active.sendSource(source) } catch (_: IOException) { RemoteRefusal.FAILED }
+    }
+
+    /**
      * Sets the phone's typing box. The difference from what the TV already has is sent in order: erased characters
      * first, then added ones. If the TV cannot take it (no box selected), the phone box returns to what the TV has.
      * Main thread.
@@ -262,7 +272,7 @@ class RemoteController(
         RemoteRefusal.NO_PLAYBACK -> RemoteProblem.NO_PLAYBACK
         RemoteRefusal.NOT_FOCUSED -> RemoteProblem.NOT_FOCUSED
         RemoteRefusal.NO_FIELD -> RemoteProblem.NO_FIELD
-        RemoteRefusal.RATE_LIMITED, RemoteRefusal.FAILED -> RemoteProblem.FAILED
+        RemoteRefusal.RATE_LIMITED, RemoteRefusal.FAILED, RemoteRefusal.SETUP_NEEDED, RemoteRefusal.BAD_SOURCE -> RemoteProblem.FAILED
     }
 
     companion object {

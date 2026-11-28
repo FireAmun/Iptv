@@ -18,12 +18,17 @@ import com.fireamun.iptv.core.model.MediaAddress
 import com.fireamun.iptv.core.remote.RemoteActions
 import com.fireamun.iptv.core.remote.RemoteKey
 import com.fireamun.iptv.core.remote.RemoteRefusal
+import com.fireamun.iptv.core.remote.SentSource
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalTestApi::class)
@@ -247,6 +252,110 @@ class RemoteFlowTest {
             }
         } finally { instrumentation.runOnMainSync { host.detach(fakeTv) } }
     }
+
+    /** A paired phone sends a playlist link: the TV shows only the site, adds nothing on Don't add, and adds it on Add. */
+    @Test fun tvAsksBeforeAddingAPlaylistSentFromThePhone() {
+        val host = app.remoteHost
+        val controller = app.remoteController
+        host.addressOverride = "127.0.0.1"
+        runBlocking {
+            app.libraryStore.save(SourceSpec.file(), listOf(PlaylistEntry(Channel(0, "Alpha Channel", "News", ContentKind.LIVE), MediaAddress.parse("https://example.invalid/0"))))
+        }
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse(body = listOf("#EXTM3U", """#EXTINF:-1 group-title="News",Sent From Phone""", "https://example.invalid/sent").joinToString(Char(10).toString())))
+            server.start()
+            val link = server.url("/private-path/list.m3u?token=fixture-token").toString()
+            ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, TvActivity::class.java)).use {
+                await("channel_0")
+                instrumentation.runOnMainSync { host.startPairing() }
+                compose.waitUntil(10_000) { host.state.value.server.offer != null }
+                controller.pair(host.state.value.server.offer!!.link.encode())
+                compose.waitUntil(10_000) { host.state.value.server.pending != null }
+                host.approve()
+                compose.waitUntil(10_000) { controller.state.value.tvName != null }
+                controller.connect()
+                compose.waitUntil(10_000) { controller.state.value.connection == RemoteConnection.CONNECTED }
+
+                val declined = sendSource(SentSource.Playlist(link))
+                await("remote_source_request")
+                val detail = text("remote_source_detail")
+                assertTrue("The TV names the site", detail.contains(server.hostName))
+                assertFalse("The TV never shows the path or the token", detail.contains("private-path") || detail.contains("fixture-token"))
+                captureSyntheticPreview(instrumentation, "tv-remote-source-request")
+                activate("remote_source_deny", tv = true)
+                assertEquals(RemoteRefusal.DENIED, declined.get(15, TimeUnit.SECONDS))
+                compose.waitUntil(10_000) { compose.onAllNodesWithTag("remote_source_request").fetchSemanticsNodes().isEmpty() }
+                assertEquals("Nothing is downloaded before the TV agrees", 0, server.requestCount)
+
+                val added = sendSource(SentSource.Playlist(link))
+                await("remote_source_request")
+                activate("remote_source_allow", tv = true)
+                assertNull(added.get(15, TimeUnit.SECONDS))
+                awaitText("Sent From Phone")
+                assertEquals(1, server.requestCount)
+                compose.waitUntil(10_000) { runBlocking { app.libraryStore.directory().sources.size } == 2 }
+            }
+        }
+    }
+
+    /** The phone sends a server login; a refusal keeps the form filled, and success clears it. */
+    @Test fun phoneSendsAServerLoginFromTheRemoteScreen() {
+        val host = app.remoteHost
+        val controller = app.remoteController
+        val received = CopyOnWriteArrayList<SentSource>()
+        val fakeTv = object : RemoteActions {
+            override suspend fun perform(key: RemoteKey): RemoteRefusal? = null
+            override suspend fun receiveSource(phone: String, source: SentSource): RemoteRefusal? {
+                received += source
+                return if (source is SentSource.ServerLogin && source.username == "wrong-user") RemoteRefusal.BAD_SOURCE else null
+            }
+        }
+        host.addressOverride = "127.0.0.1"
+        instrumentation.runOnMainSync { host.attach(fakeTv) }
+        try {
+            ActivityScenario.launch<Activity>(Intent(instrumentation.targetContext, MobileActivity::class.java)).use {
+                await("library_list")
+                compose.onNodeWithTag("library_list").performScrollToKey("remote")
+                instrumentation.runOnMainSync { host.startPairing() }
+                compose.waitUntil(10_000) { host.state.value.server.offer != null }
+                controller.pair(host.state.value.server.offer!!.link.encode())
+                compose.waitUntil(10_000) { host.state.value.server.pending != null }
+                host.approve()
+                await("remote_paired")
+                compose.onNodeWithTag("remote_open").performScrollTo().performClick()
+                await("remote_panel")
+                compose.waitUntil(10_000) { text("remote_connection").contains("Connected", ignoreCase = true) }
+                compose.onNodeWithTag("remote_send_source").performScrollTo().performClick()
+                await("remote_source_form")
+                compose.onNodeWithTag("remote_source_send").assertIsNotEnabled()
+
+                compose.onNodeWithTag("remote_source_kind_server").performClick()
+                compose.onNodeWithTag("remote_source_name").performTextInput("Family")
+                compose.onNodeWithTag("remote_source_server").performTextInput("http://tv.example.test")
+                compose.onNodeWithTag("remote_source_user").performTextInput("wrong-user")
+                compose.onNodeWithTag("remote_source_pass").performTextInput("fixture-password")
+                compose.onNodeWithTag("remote_source_send").performSemanticsAction(SemanticsActions.OnClick)
+                compose.waitUntil(10_000) { text("remote_source_status").contains("can't use", ignoreCase = true) }
+                assertEquals("A refusal keeps what was typed", "Family", editable("remote_source_name"))
+                compose.onNodeWithTag("remote_source_user").performTextReplacement("fixture-user")
+                compose.onNodeWithTag("remote_source_status").assertDoesNotExist()
+                captureSyntheticPreview(instrumentation, "phone-remote-send-source")
+
+                compose.onNodeWithTag("remote_source_send").performSemanticsAction(SemanticsActions.OnClick)
+                compose.waitUntil(10_000) { text("remote_source_status").contains("adding", ignoreCase = true) }
+                assertEquals(listOf("", "", ""), listOf("remote_source_name", "remote_source_server", "remote_source_user").map(::editable))
+                assertEquals(SentSource.ServerLogin("Family", "http://tv.example.test", "fixture-user", "fixture-password"), received.last())
+                assertEquals(2, received.size)
+
+                compose.onNodeWithTag("remote_source_close").performClick()
+                compose.waitUntil(10_000) { compose.onAllNodesWithTag("remote_source_form").fetchSemanticsNodes().isEmpty() }
+                await("remote_panel")
+            }
+        } finally { instrumentation.runOnMainSync { host.detach(fakeTv) } }
+    }
+
+    private fun sendSource(source: SentSource): CompletableFuture<RemoteRefusal?> =
+        CompletableFuture.supplyAsync { runBlocking { app.remoteController.sendSource(source) } }
 
     private fun editable(tag: String): String = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().firstOrNull()
         ?.config?.let { if (SemanticsProperties.EditableText in it) it[SemanticsProperties.EditableText].text else "" }.orEmpty()

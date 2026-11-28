@@ -50,6 +50,7 @@ import com.fireamun.iptv.core.designsystem.*
 import com.fireamun.iptv.core.model.*
 import com.fireamun.iptv.core.data.ProgressReference
 import com.fireamun.iptv.ui.mobile.CinemaTheme
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 
 internal fun LibraryTab.tag() = "nav_" + when (this) {
@@ -206,21 +207,24 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
     }
     LaunchedEffect(state.tab, state.activeSourceId, state.canGoBack, window.isWindowFocused, items.loadState.refresh, items.itemSnapshotList.items.firstOrNull()?.id,
         choosingCategory, watch.loading, recentItems.map { it.reference.refDigest }, externalFocusEpoch, focusBaselineReady) {
+        // Each wait for a frame is followed by ensureActive(): a new playlist or tab can cancel this effect in the
+        // frame that ends the wait, and a focus request from a cancelled effect leaves a dead bring-into-view request
+        // behind (see bringIntoViewAfterFrame).
         if (television && window.isWindowFocused && focusBaselineReady && !choosingCategory && !categoryRowHasFocus) {
             if (restoreCategoryFocus && state.categories.isNotEmpty() && !state.canGoBack) {
-                withFrameNanos { }
+                withFrameNanos { }; ensureActive()
                 if (!categoryRowHasFocus) categoryFocus.requestFocus()
             }
             else if (!restorePending || userMoved || externalFocusEpoch != initialExternalEpoch) { restorePending = false }
             else if (state.tab == LibraryTab.SEARCH && !state.canGoBack && (lastFocusedId == null || searchHasFocus)) {
-                withFrameNanos { }
+                withFrameNanos { }; ensureActive()
                 if (!categoryRowHasFocus && !userMoved && externalFocusEpoch == initialExternalEpoch) { restorePending = false; searchFocus.requestFocus() }
             }
             else if (historyContext && (watch.sourceId != state.activeSourceId || watch.loading)) { /* Wait for current source history, without stealing later user focus. */ }
             else if (recentItems.isNotEmpty() && (lastRecentDigest != null || lastFocusedId == null)) {
                 grid.scrollToItem(0)
                 recentList.scrollToItem(recentTarget)
-                withFrameNanos { }
+                withFrameNanos { }; ensureActive()
                 if (!categoryRowHasFocus && !userMoved && externalFocusEpoch == initialExternalEpoch) { restorePending = false; recentFocus.requestFocus() }
             }
             else if (state.entryCount > 0) {
@@ -233,7 +237,7 @@ private fun ContentBrowser(state: LibraryState, items: LazyPagingItems<Channel>,
                         ?: visibleStart.coerceAtMost(items.itemCount - 1)
                     if (posters) grid.scrollToItem(index + headerCount) else list.scrollToItem(index)
                 }
-                withFrameNanos { }
+                withFrameNanos { }; ensureActive()
                 if (catalogueReadyForFocus() && !categoryRowHasFocus && !userMoved && externalFocusEpoch == initialExternalEpoch) { restorePending = false; entryFocus.requestFocus() }
             }
         }
