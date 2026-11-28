@@ -67,6 +67,8 @@ class CategoryPickerFlowTest {
             compose.onNode(hasText("News") and hasAnyAncestor(hasTestTag("category_picker"))).assertDoesNotExist()
             captureSyntheticPreview(instrumentation, "${if (tv) "tv" else "phone"}-category-filter")
             activateCategory("Documentaries", tv)
+            // channel_1 is already in the all-categories list, so wait for the filter itself (News item gone).
+            compose.waitUntil(10000) { compose.onAllNodesWithTag("channel_0").fetchSemanticsNodes().isEmpty() }
             await("channel_1")
             if (tv) awaitPickerFocus()
             compose.onNodeWithTag("category_picker").assertDoesNotExist()

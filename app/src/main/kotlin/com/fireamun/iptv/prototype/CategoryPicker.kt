@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.fireamun.iptv.core.designsystem.*
+import kotlinx.coroutines.ensureActive
 
 /** Only filters already-supplied labels. Choosing a row delegates to the existing category action. */
 @Composable
@@ -97,7 +98,7 @@ internal fun CategoryPicker(categories: List<String>, selected: String?, televis
                 }
             }
         }
-        LaunchedEffect(window.isWindowFocused) { if (television && window.isWindowFocused) { withFrameNanos { }; close.requestFocus() } }
+        LaunchedEffect(window.isWindowFocused) { if (television && window.isWindowFocused) { withFrameNanos { }; ensureActive(); close.requestFocus() } }
     }
 }
 
